@@ -9,7 +9,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#6366F1"
+      "backgroundColor": "#8CC5A0"
     },
     "ios": {
       "supportsTablet": true,
@@ -19,7 +19,7 @@
       "package": "com.myword.front",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#6366F1"
+        "backgroundColor": "#8CC5A0"
       }
     },
     "web": {
@@ -30,6 +30,12 @@
       "expo-asset",
       "expo-font"
     ],
-    "scheme": "myword"
+    "scheme": "myword",
+    "extra": {
+      "eas": {
+        "projectId": "4b78845e-3f18-437c-ad1b-edd7e72bdc5f"
+      }
+    },
+    "owner": "shs00925"
   }
 }

@@ -49,7 +49,7 @@ async function getCollection<T>(key: string): Promise<T[]> {
     const json = await storageImpl.getItem(key);
     return json ? JSON.parse(json) : [];
   } catch (error) {
-    console.error(`Failed to load ${key}:`, error);
+    console.warn(`Failed to load ${key}:`, error);
     return [];
   }
 }
@@ -159,9 +159,10 @@ export const wordStorage = {
       wordId: await getNextId(),
       categoryId: data.categoryId,
       word: data.word,
-      pronunciation: data.pronunciation,
       meanings: data.meanings,
       examples: data.examples || [],
+      tags: data.tags ?? [],
+      memo: data.memo ?? '',
       createdAt: now,
       updatedAt: now,
     };
@@ -178,9 +179,10 @@ export const wordStorage = {
       ...words[index],
       categoryId: data.categoryId,
       word: data.word,
-      pronunciation: data.pronunciation,
       meanings: data.meanings,
       examples: data.examples || [],
+      tags: data.tags ?? [],
+      memo: data.memo ?? '',
       updatedAt: new Date().toISOString(),
     };
     await setCollection(WORDS_KEY, words);

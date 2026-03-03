@@ -12,6 +12,14 @@ export const wordService = {
     return word;
   },
 
+  async checkDuplicate(word: string, categoryId: number, excludeWordId?: number): Promise<Word | null> {
+    const words = await wordStorage.getByCategoryId(categoryId);
+    const trimmed = word.trim().toLowerCase();
+    return words.find(
+      (w) => w.word.trim().toLowerCase() === trimmed && w.wordId !== excludeWordId,
+    ) || null;
+  },
+
   async createWord(data: WordRequest): Promise<Word> {
     return wordStorage.create(data);
   },

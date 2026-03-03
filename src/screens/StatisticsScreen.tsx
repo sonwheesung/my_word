@@ -11,7 +11,7 @@ import {
   Modal,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { quizService, QuizStatistics, WordQuizStats } from '../services/quizService';
+import { quizService, QuizStatistics, WordQuizStats, CategoryQuizStats } from '../services/quizService';
 import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
 import ScreenHeader from '../components/ScreenHeader';
@@ -30,10 +30,14 @@ export default function StatisticsScreen({ onBack }: StatisticsScreenProps) {
   const [refreshing, setRefreshing] = useState(false);
   const [statistics, setStatistics] = useState<QuizStatistics | null>(null);
 
+  const [categoryStats, setCategoryStats] = useState<CategoryQuizStats[]>([]);
+
   // 단어 정답률 모달
   const [showWordStats, setShowWordStats] = useState(false);
   const [wordStatsLoading, setWordStatsLoading] = useState(false);
   const [wordStats, setWordStats] = useState<WordQuizStats[]>([]);
+  const [wordStatsFilterCategoryId, setWordStatsFilterCategoryId] = useState<number | undefined>(undefined);
+  const [wordStatsTitle, setWordStatsTitle] = useState('단어 정답률');
   const [sortKey, setSortKey] = useState<SortKey>('word');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
 
@@ -44,10 +48,14 @@ export default function StatisticsScreen({ onBack }: StatisticsScreenProps) {
   const loadStatistics = async () => {
     try {
       setLoading(true);
-      const stats = await quizService.getStatistics();
+      const [stats, catStats] = await Promise.all([
+        quizService.getStatistics(),
+        quizService.getCategoryQuizStats(),
+      ]);
       setStatistics(stats);
+      setCategoryStats(catStats);
     } catch (error: any) {
-      console.error('통계 조회 실패:', error);
+      console.warn('통계 조회 실패:', error);
       showToast('통계를 불러오는데 실패했습니다', 'error');
     } finally {
       setLoading(false);
@@ -63,14 +71,16 @@ export default function StatisticsScreen({ onBack }: StatisticsScreenProps) {
     }
   };
 
-  const openWordStats = async () => {
+  const openWordStats = async (categoryId?: number, categoryName?: string) => {
+    setWordStatsFilterCategoryId(categoryId);
+    setWordStatsTitle(categoryName ? `${categoryName} 단어 정답률` : '단어 정답률');
     setShowWordStats(true);
     setWordStatsLoading(true);
     try {
-      const stats = await quizService.getWordQuizStats();
+      const stats = await quizService.getWordQuizStats(categoryId);
       setWordStats(stats);
     } catch (error: any) {
-      console.error('단어별 통계 조회 실패:', error);
+      console.warn('단어별 통계 조회 실패:', error);
       showToast('단어별 통계를 불러오는데 실패했습니다', 'error');
     } finally {
       setWordStatsLoading(false);
@@ -297,7 +307,7 @@ export default function StatisticsScreen({ onBack }: StatisticsScreenProps) {
 
         {/* 단어 정답률 버튼 */}
         {statistics.totalQuizCount > 0 && (
-          <TouchableOpacity style={styles.wordStatsButton} onPress={openWordStats}>
+          <TouchableOpacity style={styles.wordStatsButton} onPress={() => openWordStats()}>
             <Text style={styles.wordStatsButtonIcon}>📋</Text>
             <View style={styles.wordStatsButtonContent}>
               <Text style={styles.wordStatsButtonTitle}>단어 정답률</Text>
@@ -305,6 +315,74 @@ export default function StatisticsScreen({ onBack }: StatisticsScreenProps) {
             </View>
             <Text style={styles.wordStatsButtonArrow}>→</Text>
           </TouchableOpacity>
+        )}
+
+        {/* 카테고리별 통계 */}
+        {categoryStats.length > 0 && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>📁 카테고리별 성적</Text>
+            {categoryStats.map((cat) => (
+              <TouchableOpacity
+                key={cat.categoryId}
+                style={styles.categoryStatItem}
+                onPress={() => cat.quizCount > 0 ? openWordStats(cat.categoryId, cat.categoryName) : undefined}
+                activeOpacity={cat.quizCount > 0 ? 0.7 : 1}
+              >
+                <View style={styles.categoryStatHeader}>
+                  <View style={styles.categoryStatNameRow}>
+                    <Text style={styles.categoryStatName}>{cat.categoryName}</Text>
+                    <Text style={styles.categoryStatWordCount}>{cat.wordCount}개 단어</Text>
+                  </View>
+                  {cat.quizCount > 0 ? (
+                    <Text style={[styles.categoryStatAccuracy, { color: getAccuracyColor(cat.accuracy) }]}>
+                      {cat.accuracy.toFixed(0)}%
+                    </Text>
+                  ) : (
+                    <Text style={styles.categoryStatNoData}>-</Text>
+                  )}
+                </View>
+                {cat.quizCount > 0 && (
+                  <>
+                    <View style={styles.categoryStatBar}>
+                      <View
+                        style={[
+                          styles.categoryStatBarFill,
+                          {
+                            width: `${cat.accuracy}%`,
+                            backgroundColor: getAccuracyColor(cat.accuracy),
+                          },
+                        ]}
+                      />
+                    </View>
+                    <View style={styles.categoryStatDetails}>
+                      <Text style={styles.categoryStatDetailText}>
+                        퀴즈 {cat.quizCount}회
+                      </Text>
+                      <Text style={styles.categoryStatDetailDot}>·</Text>
+                      <Text style={[styles.categoryStatDetailText, { color: '#10B981' }]}>
+                        정답 {cat.correctCount}
+                      </Text>
+                      <Text style={styles.categoryStatDetailDot}>·</Text>
+                      <Text style={[styles.categoryStatDetailText, { color: '#EF4444' }]}>
+                        오답 {cat.incorrectCount}
+                      </Text>
+                      {cat.weakWordCount > 0 && (
+                        <>
+                          <Text style={styles.categoryStatDetailDot}>·</Text>
+                          <Text style={[styles.categoryStatDetailText, { color: '#F59E0B' }]}>
+                            취약 {cat.weakWordCount}
+                          </Text>
+                        </>
+                      )}
+                    </View>
+                  </>
+                )}
+                {cat.quizCount === 0 && (
+                  <Text style={styles.categoryStatNoQuiz}>아직 퀴즈 기록이 없습니다</Text>
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
         )}
 
         {/* 취약 단어 카드 */}
@@ -344,7 +422,7 @@ export default function StatisticsScreen({ onBack }: StatisticsScreenProps) {
         <View style={styles.modalContainer}>
           {/* 모달 헤더 */}
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>단어 정답률</Text>
+            <Text style={styles.modalTitle}>{wordStatsTitle}</Text>
             <TouchableOpacity onPress={() => setShowWordStats(false)}>
               <Text style={styles.modalCloseText}>닫기</Text>
             </TouchableOpacity>
@@ -622,6 +700,71 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#C4B5FD',
     fontWeight: 'bold',
+  },
+  // 카테고리별 통계
+  categoryStatItem: {
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  categoryStatHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  categoryStatNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  categoryStatName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1A1A1A',
+  },
+  categoryStatWordCount: {
+    fontSize: 12,
+    color: '#9CA3AF',
+  },
+  categoryStatAccuracy: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  categoryStatNoData: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#D1D5DB',
+  },
+  categoryStatBar: {
+    height: 6,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 3,
+    marginBottom: 6,
+    overflow: 'hidden',
+  },
+  categoryStatBarFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  categoryStatDetails: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  categoryStatDetailText: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  categoryStatDetailDot: {
+    fontSize: 12,
+    color: '#D1D5DB',
+    marginHorizontal: 6,
+  },
+  categoryStatNoQuiz: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    marginTop: 2,
   },
   // 취약 단어
   weakWordInfo: {

@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import * as Speech from 'expo-speech';
 import { wordService } from '../services/wordService';
 import { quizService } from '../services/quizService';
 import type { Word } from '../types/word';
@@ -38,16 +39,20 @@ interface QuizScreenProps {
   categoryId: number;
   mode: QuizMode;
   wordCount: number;
+  retryWordIds?: number[];
   onComplete: (results: QuizResult[]) => void;
+  onExit: () => void;
 }
 
-export default function QuizScreen({ categoryId, mode, wordCount, onComplete }: QuizScreenProps) {
+export default function QuizScreen({ categoryId, mode, wordCount, retryWordIds, onComplete, onExit }: QuizScreenProps) {
   const [loading, setLoading] = useState(true);
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [userAnswer, setUserAnswer] = useState('');
   const [results, setResults] = useState<QuizResult[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showHint, setShowHint] = useState(false);
+  const [feedback, setFeedback] = useState<{ isCorrect: boolean; correctAnswer: string } | null>(null);
 
   useEffect(() => {
     loadQuestions();
@@ -60,14 +65,21 @@ export default function QuizScreen({ categoryId, mode, wordCount, onComplete }: 
 
       if (words.length === 0) {
         Alert.alert('알림', '등록된 단어가 없습니다');
-        onComplete([]);
+        onExit();
         return;
       }
 
       let selectedWords: Word[] = [];
 
-      // 모드에 따라 단어 선택
-      if (mode === 'random') {
+      // retryWordIds가 있으면 해당 단어만 선택
+      if (retryWordIds && retryWordIds.length > 0) {
+        selectedWords = words.filter(w => retryWordIds.includes(w.wordId));
+        if (selectedWords.length === 0) {
+          Alert.alert('알림', '해당 단어를 찾을 수 없습니다');
+          onExit();
+          return;
+        }
+      } else if (mode === 'random') {
         selectedWords = shuffleArray([...words]).slice(0, Math.min(wordCount, words.length));
       } else if (mode === 'recent') {
         selectedWords = [...words]
@@ -76,11 +88,9 @@ export default function QuizScreen({ categoryId, mode, wordCount, onComplete }: 
       } else if (mode === 'weak') {
         const weakWordIds = await quizService.getWeakWordIds(wordCount);
         if (weakWordIds.length === 0) {
-          // 취약 단어가 없으면 랜덤으로
           selectedWords = shuffleArray([...words]).slice(0, Math.min(wordCount, words.length));
         } else {
           selectedWords = words.filter(w => weakWordIds.includes(w.wordId)).slice(0, wordCount);
-          // 부족하면 랜덤으로 채움
           if (selectedWords.length < wordCount) {
             const remaining = words.filter(w => !weakWordIds.includes(w.wordId));
             const needed = wordCount - selectedWords.length;
@@ -91,12 +101,22 @@ export default function QuizScreen({ categoryId, mode, wordCount, onComplete }: 
         selectedWords = shuffleArray([...words]).slice(0, Math.min(wordCount, words.length));
       }
 
+      // 빈 뜻을 가진 단어 필터링
+      selectedWords = selectedWords.filter(w =>
+        w.meanings.length > 0 && w.meanings.some(m => m.trim() !== '')
+      );
+
+      if (selectedWords.length === 0) {
+        Alert.alert('알림', '유효한 단어가 없습니다.\n뜻이 입력된 단어를 추가해주세요.');
+        onExit();
+        return;
+      }
+
       // 퀴즈 질문 생성
       const quizQuestions = selectedWords.map(word => {
         let quizType: QuizType;
 
         if (mode === 'mixed') {
-          // 여러 형태 모드: 30% word→meaning, 30% meaning→word, 20% example, 20% translation
           const rand = Math.random();
           if (rand < 0.3) {
             quizType = 'word_to_meaning';
@@ -110,7 +130,6 @@ export default function QuizScreen({ categoryId, mode, wordCount, onComplete }: 
             quizType = 'word_to_meaning';
           }
         } else {
-          // 다른 모드는 기본적으로 단어 -> 뜻
           quizType = 'word_to_meaning';
         }
 
@@ -119,9 +138,9 @@ export default function QuizScreen({ categoryId, mode, wordCount, onComplete }: 
 
       setQuestions(quizQuestions);
     } catch (error: any) {
-      console.error('퀴즈 로딩 실패:', error);
+      console.warn('퀴즈 로딩 실패:', error);
       Alert.alert('오류', error.message || '퀴즈를 불러오는데 실패했습니다');
-      onComplete([]);
+      onExit();
     } finally {
       setLoading(false);
     }
@@ -131,44 +150,43 @@ export default function QuizScreen({ categoryId, mode, wordCount, onComplete }: 
     let question = '';
     let correctAnswer = '';
 
+    const firstMeaning = word.meanings.find(m => m.trim() !== '') ?? '';
+
     switch (quizType) {
       case 'word_to_meaning':
         question = word.word;
-        correctAnswer = word.meanings[0]; // 첫 번째 뜻을 정답으로
+        correctAnswer = firstMeaning;
         break;
       case 'meaning_to_word':
-        question = word.meanings[0];
+        question = firstMeaning;
         correctAnswer = word.word;
         break;
       case 'example_to_meaning':
         if (word.examples && word.examples.length > 0) {
           const randomExample = word.examples[Math.floor(Math.random() * word.examples.length)];
           question = randomExample.example;
-          correctAnswer = word.meanings[0];
+          correctAnswer = firstMeaning;
         } else {
-          // 예문이 없으면 word_to_meaning으로 변경
           question = word.word;
-          correctAnswer = word.meanings[0];
+          correctAnswer = firstMeaning;
           quizType = 'word_to_meaning';
         }
         break;
       case 'translation_to_example':
         if (word.examples && word.examples.length > 0) {
-          const examplesWithTranslation = word.examples.filter(e => e.translation);
+          const examplesWithTranslation = word.examples.filter(e => e.translation && e.translation.trim() !== '');
           if (examplesWithTranslation.length > 0) {
             const randomExample = examplesWithTranslation[Math.floor(Math.random() * examplesWithTranslation.length)];
             question = randomExample.translation || '';
             correctAnswer = randomExample.example;
           } else {
-            // 번역이 없으면 word_to_meaning으로 변경
             question = word.word;
-            correctAnswer = word.meanings[0];
+            correctAnswer = firstMeaning;
             quizType = 'word_to_meaning';
           }
         } else {
-          // 예문이 없으면 word_to_meaning으로 변경
           question = word.word;
-          correctAnswer = word.meanings[0];
+          correctAnswer = firstMeaning;
           quizType = 'word_to_meaning';
         }
         break;
@@ -197,23 +215,29 @@ export default function QuizScreen({ categoryId, mode, wordCount, onComplete }: 
     switch (currentQuestion.quizType) {
       case 'word_to_meaning':
       case 'example_to_meaning':
-        // 의미 체크: 모든 meanings 중 하나라도 일치하면 정답
         return currentQuestion.word.meanings.some(meaning =>
           normalizeString(meaning) === normalizedAnswer
         );
       case 'meaning_to_word':
-        // 단어 체크: 정확히 일치해야 함
         return normalizeString(currentQuestion.correctAnswer) === normalizedAnswer;
-      case 'translation_to_example':
-        // 예문 체크: 포함 여부 확인
-        return normalizeString(currentQuestion.correctAnswer).includes(normalizedAnswer) ||
-               normalizedAnswer.includes(normalizeString(currentQuestion.correctAnswer));
+      case 'translation_to_example': {
+        const normalizedCorrect = normalizeString(currentQuestion.correctAnswer);
+        // 정확히 일치하면 무조건 정답
+        if (normalizedAnswer === normalizedCorrect) return true;
+        // 부분 매칭은 최소 길이 요구: 정답 길이의 40% 이상
+        const minLength = Math.max(3, Math.floor(normalizedCorrect.length * 0.4));
+        if (normalizedAnswer.length < minLength) return false;
+        return normalizedCorrect.includes(normalizedAnswer) ||
+               normalizedAnswer.includes(normalizedCorrect);
+      }
       default:
         return false;
     }
   };
 
   const handleSubmit = async () => {
+    if (isSubmitting) return;
+
     if (!userAnswer.trim()) {
       Alert.alert('알림', '답을 입력해주세요');
       return;
@@ -224,7 +248,6 @@ export default function QuizScreen({ categoryId, mode, wordCount, onComplete }: 
     const currentQuestion = questions[currentIndex];
     const isCorrect = checkAnswer();
 
-    // 결과 저장
     const newResult: QuizResult = {
       wordId: currentQuestion.word.wordId,
       isCorrect,
@@ -237,22 +260,62 @@ export default function QuizScreen({ categoryId, mode, wordCount, onComplete }: 
     const updatedResults = [...results, newResult];
     setResults(updatedResults);
 
-    // 다음 질문으로 이동
-    if (currentIndex + 1 < questions.length) {
-      setCurrentIndex(currentIndex + 1);
-      setUserAnswer('');
-      setIsSubmitting(false);
-    } else {
-      // 모든 질문 완료 - 백엔드에 결과 저장
-      try {
-        await quizService.saveQuizResults(updatedResults);
-        console.log('퀴즈 결과 저장 성공');
-      } catch (error) {
-        console.error('퀴즈 결과 저장 실패:', error);
-        // 저장 실패해도 결과 화면은 표시
+    // 정답/오답 피드백 표시
+    setFeedback({ isCorrect, correctAnswer: currentQuestion.correctAnswer });
+
+    setTimeout(async () => {
+      setFeedback(null);
+
+      if (currentIndex + 1 < questions.length) {
+        setCurrentIndex(currentIndex + 1);
+        setUserAnswer('');
+        setShowHint(false);
+        setIsSubmitting(false);
+      } else {
+        setIsSubmitting(false);
+        try {
+          await quizService.saveQuizResults(updatedResults);
+        } catch (error) {
+          console.warn('퀴즈 결과 저장 실패:', error);
+        }
+        onComplete(updatedResults);
       }
-      onComplete(updatedResults);
+    }, 1500);
+  };
+
+  const speakWord = (text: string) => {
+    Speech.speak(text, { language: 'en-US', rate: 0.85 });
+  };
+
+  const handleExit = () => {
+    Alert.alert(
+      '퀴즈 종료',
+      '퀴즈를 종료하시겠습니까?\n진행 중인 결과는 저장되지 않습니다.',
+      [
+        { text: '취소', style: 'cancel' },
+        { text: '종료', style: 'destructive', onPress: onExit },
+      ]
+    );
+  };
+
+  const getHint = (question: QuizQuestion): string => {
+    const answer = question.correctAnswer;
+    if (!answer) return '';
+    const trimmed = answer.trim();
+    // 3글자 이하 정답은 첫 글자 노출하면 정답이 드러나므로 글자 수만 표시
+    if (trimmed.length <= 3) {
+      return `힌트: ${trimmed.length}자`;
     }
+    const words = trimmed.split(/\s+/);
+    if (words.length > 2) {
+      return `${trimmed.charAt(0)}... (${words.length}단어, ${trimmed.length}자)`;
+    }
+    return `${trimmed.charAt(0)}... (${trimmed.length}자)`;
+  };
+
+  // 질문이 영어(단어/예문)인 퀴즈 타입에서만 발음 버튼 표시
+  const canSpeak = (quizType: QuizType): boolean => {
+    return quizType === 'word_to_meaning' || quizType === 'example_to_meaning';
   };
 
   const getQuizTypeLabel = (quizType: QuizType): string => {
@@ -286,6 +349,9 @@ export default function QuizScreen({ categoryId, mode, wordCount, onComplete }: 
         <Text style={styles.emptyIcon}>📝</Text>
         <Text style={styles.emptyTitle}>퀴즈를 시작할 수 없습니다</Text>
         <Text style={styles.emptySubtitle}>등록된 단어가 없습니다</Text>
+        <TouchableOpacity style={styles.emptyBackButton} onPress={onExit}>
+          <Text style={styles.emptyBackButtonText}>돌아가기</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -299,7 +365,13 @@ export default function QuizScreen({ categoryId, mode, wordCount, onComplete }: 
 
       {/* 진행 상태 */}
       <View style={styles.header}>
-        <Text style={styles.progressText}>{progress}</Text>
+        <View style={styles.headerRow}>
+          <TouchableOpacity onPress={handleExit} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Text style={styles.exitText}>✕ 나가기</Text>
+          </TouchableOpacity>
+          <Text style={styles.progressText}>{progress}</Text>
+          <View style={{ width: 64 }} />
+        </View>
         <View style={styles.progressBar}>
           <View
             style={[
@@ -310,15 +382,34 @@ export default function QuizScreen({ categoryId, mode, wordCount, onComplete }: 
         </View>
       </View>
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         {/* 질문 */}
         <View style={styles.questionCard}>
           <Text style={styles.questionLabel}>{getQuizTypeLabel(currentQuestion.quizType)}</Text>
-          <Text style={styles.questionText}>{currentQuestion.question}</Text>
-          {currentQuestion.word.pronunciation && currentQuestion.quizType === 'word_to_meaning' && (
-            <Text style={styles.pronunciationText}>[{currentQuestion.word.pronunciation}]</Text>
-          )}
+          <View style={styles.questionRow}>
+            <Text style={styles.questionText}>{currentQuestion.question}</Text>
+            {canSpeak(currentQuestion.quizType) && (
+              <TouchableOpacity
+                style={styles.speakButton}
+                onPress={() => speakWord(currentQuestion.question)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text style={styles.speakButtonText}>🔊</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
+
+        {/* 힌트 */}
+        {!showHint ? (
+          <TouchableOpacity style={styles.hintButton} onPress={() => setShowHint(true)}>
+            <Text style={styles.hintButtonText}>💡 힌트 보기</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.hintBox}>
+            <Text style={styles.hintText}>💡 {getHint(currentQuestion)}</Text>
+          </View>
+        )}
 
         {/* 답변 입력 */}
         <View style={styles.answerSection}>
@@ -329,10 +420,35 @@ export default function QuizScreen({ categoryId, mode, wordCount, onComplete }: 
             value={userAnswer}
             onChangeText={setUserAnswer}
             autoFocus
+            autoCorrect={false}
+            autoCapitalize="none"
+            returnKeyType={currentQuestion.quizType === 'translation_to_example' ? 'default' : 'done'}
+            onSubmitEditing={currentQuestion.quizType !== 'translation_to_example' ? handleSubmit : undefined}
             editable={!isSubmitting}
             multiline={currentQuestion.quizType === 'translation_to_example'}
+            maxLength={300}
           />
         </View>
+
+        {/* 정답/오답 피드백 */}
+        {feedback && (
+          <View style={[
+            styles.feedbackBox,
+            feedback.isCorrect ? styles.feedbackCorrect : styles.feedbackWrong,
+          ]}>
+            <Text style={[
+              styles.feedbackText,
+              feedback.isCorrect ? styles.feedbackTextCorrect : styles.feedbackTextWrong,
+            ]}>
+              {feedback.isCorrect ? '정답!' : '오답'}
+            </Text>
+            {!feedback.isCorrect && (
+              <Text style={styles.feedbackCorrectAnswer}>
+                정답: {feedback.correctAnswer}
+              </Text>
+            )}
+          </View>
+        )}
 
         {/* 제출 버튼 */}
         <TouchableOpacity
@@ -389,6 +505,18 @@ const styles = StyleSheet.create({
   emptySubtitle: {
     fontSize: 14,
     color: '#6B7280',
+    marginBottom: 24,
+  },
+  emptyBackButton: {
+    backgroundColor: '#E5E7EB',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+  },
+  emptyBackButtonText: {
+    color: '#374151',
+    fontSize: 16,
+    fontWeight: '600',
   },
   header: {
     backgroundColor: '#FFFFFF',
@@ -398,11 +526,21 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  exitText: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '600',
+  },
   progressText: {
     fontSize: 16,
     fontWeight: '600',
     color: '#C4B5FD',
-    marginBottom: 8,
     textAlign: 'center',
   },
   progressBar: {
@@ -426,7 +564,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 24,
-    marginBottom: 24,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
@@ -436,16 +574,52 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     marginBottom: 12,
   },
+  questionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
   questionText: {
     fontSize: 22,
     fontWeight: 'bold',
     color: '#1A1A1A',
     lineHeight: 32,
+    flex: 1,
   },
-  pronunciationText: {
-    fontSize: 16,
-    color: '#6B7280',
-    marginTop: 8,
+  speakButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#EDE9FE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  speakButtonText: {
+    fontSize: 20,
+  },
+  hintButton: {
+    alignSelf: 'flex-start',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  hintButtonText: {
+    fontSize: 14,
+    color: '#8B5CF6',
+    fontWeight: '600',
+  },
+  hintBox: {
+    backgroundColor: '#FEF3C7',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  hintText: {
+    fontSize: 15,
+    color: '#92400E',
+    fontWeight: '600',
   },
   answerSection: {
     marginBottom: 24,
@@ -480,5 +654,36 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  feedbackBox: {
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  feedbackCorrect: {
+    backgroundColor: '#D1FAE5',
+    borderWidth: 1,
+    borderColor: '#6EE7B7',
+  },
+  feedbackWrong: {
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+  },
+  feedbackText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  feedbackTextCorrect: {
+    color: '#065F46',
+  },
+  feedbackTextWrong: {
+    color: '#991B1B',
+  },
+  feedbackCorrectAnswer: {
+    fontSize: 15,
+    color: '#991B1B',
+    marginTop: 8,
   },
 });

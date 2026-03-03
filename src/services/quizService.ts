@@ -22,10 +22,22 @@ export interface QuizStatistics {
 export interface WordQuizStats {
   wordId: number;
   word: string;
+  categoryId: number;
   totalCount: number;
   correctCount: number;
   incorrectCount: number;
   accuracy: number;
+}
+
+export interface CategoryQuizStats {
+  categoryId: number;
+  categoryName: string;
+  wordCount: number;
+  quizCount: number;
+  correctCount: number;
+  incorrectCount: number;
+  accuracy: number;
+  weakWordCount: number;
 }
 
 export interface DailyActivity {
@@ -132,17 +144,21 @@ export const quizService = {
     };
   },
 
-  async getWordQuizStats(): Promise<WordQuizStats[]> {
+  async getWordQuizStats(filterCategoryId?: number): Promise<WordQuizStats[]> {
     const allResults = await quizResultStorage.getAll();
     const allWords = await wordStorage.getAll();
 
-    const wordMap = new Map<number, string>();
+    const wordMap = new Map<number, { word: string; categoryId: number }>();
     for (const w of allWords) {
-      wordMap.set(w.wordId, w.word);
+      wordMap.set(w.wordId, { word: w.word, categoryId: w.categoryId });
     }
 
     const statsMap = new Map<number, { correct: number; total: number }>();
     for (const r of allResults) {
+      if (filterCategoryId != null) {
+        const wordInfo = wordMap.get(r.wordId);
+        if (!wordInfo || wordInfo.categoryId !== filterCategoryId) continue;
+      }
       const stats = statsMap.get(r.wordId) || { correct: 0, total: 0 };
       stats.total++;
       if (r.isCorrect) stats.correct++;
@@ -151,15 +167,79 @@ export const quizService = {
 
     const result: WordQuizStats[] = [];
     statsMap.forEach((stats, wordId) => {
+      const wordInfo = wordMap.get(wordId);
       result.push({
         wordId,
-        word: wordMap.get(wordId) || '(삭제된 단어)',
+        word: wordInfo?.word || '(삭제된 단어)',
+        categoryId: wordInfo?.categoryId || 0,
         totalCount: stats.total,
         correctCount: stats.correct,
         incorrectCount: stats.total - stats.correct,
         accuracy: (stats.correct / stats.total) * 100,
       });
     });
+
+    return result;
+  },
+
+  async getCategoryQuizStats(): Promise<CategoryQuizStats[]> {
+    const allResults = await quizResultStorage.getAll();
+    const allWords = await wordStorage.getAll();
+    const allCategories = await categoryStorage.getAll();
+
+    // wordId → categoryId 매핑
+    const wordCategoryMap = new Map<number, number>();
+    for (const w of allWords) {
+      wordCategoryMap.set(w.wordId, w.categoryId);
+    }
+
+    // 카테고리별 단어 수
+    const categoryWordCount = new Map<number, number>();
+    for (const w of allWords) {
+      categoryWordCount.set(w.categoryId, (categoryWordCount.get(w.categoryId) || 0) + 1);
+    }
+
+    // 카테고리별 퀴즈 결과 집계
+    const categoryStatsMap = new Map<number, { correct: number; total: number; wordResults: Map<number, { correct: number; total: number }> }>();
+    for (const r of allResults) {
+      const catId = wordCategoryMap.get(r.wordId);
+      if (catId == null) continue;
+
+      if (!categoryStatsMap.has(catId)) {
+        categoryStatsMap.set(catId, { correct: 0, total: 0, wordResults: new Map() });
+      }
+      const catStats = categoryStatsMap.get(catId)!;
+      catStats.total++;
+      if (r.isCorrect) catStats.correct++;
+
+      // 단어별 결과 (취약 단어 집계용)
+      const wordStats = catStats.wordResults.get(r.wordId) || { correct: 0, total: 0 };
+      wordStats.total++;
+      if (r.isCorrect) wordStats.correct++;
+      catStats.wordResults.set(r.wordId, wordStats);
+    }
+
+    const result: CategoryQuizStats[] = allCategories
+      .sort((a, b) => a.displayOrder - b.displayOrder)
+      .map((cat) => {
+        const stats = categoryStatsMap.get(cat.categoryId);
+        let weakWordCount = 0;
+        if (stats) {
+          stats.wordResults.forEach((ws) => {
+            if ((ws.correct / ws.total) * 100 < 50) weakWordCount++;
+          });
+        }
+        return {
+          categoryId: cat.categoryId,
+          categoryName: cat.categoryName,
+          wordCount: categoryWordCount.get(cat.categoryId) || 0,
+          quizCount: stats?.total || 0,
+          correctCount: stats?.correct || 0,
+          incorrectCount: (stats?.total || 0) - (stats?.correct || 0),
+          accuracy: stats && stats.total > 0 ? (stats.correct / stats.total) * 100 : 0,
+          weakWordCount,
+        };
+      });
 
     return result;
   },

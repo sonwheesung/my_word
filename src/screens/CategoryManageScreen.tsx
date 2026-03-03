@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -35,6 +35,8 @@ export default function CategoryManageScreen({ onBack }: CategoryManageScreenPro
   const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
 
+  const descriptionRef = useRef<TextInput>(null);
+
   useEffect(() => {
     loadCategories();
   }, []);
@@ -45,7 +47,7 @@ export default function CategoryManageScreen({ onBack }: CategoryManageScreenPro
       const data = await categoryService.getCategories();
       setCategories(data);
     } catch (error: any) {
-      console.error('카테고리 조회 실패:', error);
+      console.warn('카테고리 조회 실패:', error);
       showToast('카테고리를 불러오는데 실패했습니다', 'error');
     } finally {
       setLoading(false);
@@ -74,6 +76,8 @@ export default function CategoryManageScreen({ onBack }: CategoryManageScreenPro
   };
 
   const handleSave = async () => {
+    if (saving) return; // 이중 방어
+
     if (!categoryName.trim()) {
       showToast('카테고리 이름을 입력해주세요', 'error');
       return;
@@ -100,7 +104,7 @@ export default function CategoryManageScreen({ onBack }: CategoryManageScreenPro
       closeModal();
       loadCategories();
     } catch (error: any) {
-      console.error('카테고리 저장 실패:', error);
+      console.warn('카테고리 저장 실패:', error);
       showToast(error.message || '카테고리 저장에 실패했습니다', 'error');
     } finally {
       setSaving(false);
@@ -122,7 +126,7 @@ export default function CategoryManageScreen({ onBack }: CategoryManageScreenPro
               showToast('카테고리가 삭제되었습니다', 'success');
               loadCategories();
             } catch (error: any) {
-              console.error('카테고리 삭제 실패:', error);
+              console.warn('카테고리 삭제 실패:', error);
               showToast(error.message || '카테고리 삭제에 실패했습니다', 'error');
             }
           },
@@ -161,7 +165,7 @@ export default function CategoryManageScreen({ onBack }: CategoryManageScreenPro
         }))
       );
     } catch (error: any) {
-      console.error('카테고리 순서 변경 실패:', error);
+      console.warn('카테고리 순서 변경 실패:', error);
       showToast('카테고리 순서 변경에 실패했습니다', 'error');
       loadCategories(); // 실패 시 다시 로드
     }
@@ -198,6 +202,7 @@ export default function CategoryManageScreen({ onBack }: CategoryManageScreenPro
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -299,17 +304,25 @@ export default function CategoryManageScreen({ onBack }: CategoryManageScreenPro
                 placeholder="예: 영어, 일본어, 중국어"
                 value={categoryName}
                 onChangeText={setCategoryName}
+                autoCorrect={false}
+                returnKeyType="next"
+                blurOnSubmit={false}
+                onSubmitEditing={() => descriptionRef.current?.focus()}
                 editable={!saving}
+                maxLength={20}
               />
 
               <Text style={styles.label}>설명 (선택)</Text>
               <TextInput
+                ref={descriptionRef}
                 style={[styles.input, styles.textArea]}
                 placeholder="카테고리 설명"
                 value={description}
                 onChangeText={setDescription}
+                autoCorrect={false}
                 multiline
                 numberOfLines={3}
+                maxLength={200}
                 editable={!saving}
               />
             </View>

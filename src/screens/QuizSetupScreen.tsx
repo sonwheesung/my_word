@@ -39,6 +39,7 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
   const [selectedWordCount, setSelectedWordCount] = useState(10);
   const [loading, setLoading] = useState(true);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
 
   useEffect(() => {
     loadCategories();
@@ -59,7 +60,7 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
         }
       }
     } catch (error: any) {
-      console.error('카테고리 조회 실패:', error);
+      console.warn('카테고리 조회 실패:', error);
       showToast('카테고리를 불러오는데 실패했습니다', 'error');
     } finally {
       setLoading(false);
@@ -82,6 +83,7 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
   };
 
   const handleStartQuiz = () => {
+    if (isStarting) return;
     if (!selectedCategoryId) {
       showToast('카테고리를 선택해주세요', 'error');
       return;
@@ -94,6 +96,7 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
       showToast(`단어가 ${availableWordCount}개뿐입니다. 문제 수를 줄여주세요`, 'error');
       return;
     }
+    setIsStarting(true);
     onStartQuiz(selectedCategoryId, selectedMode, selectedWordCount);
   };
 
@@ -191,6 +194,24 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
             )}
           </View>
           <View style={styles.wordCountButtons}>
+            {availableWordCount > 0 && availableWordCount < WORD_COUNTS[0] && (
+              <TouchableOpacity
+                style={[
+                  styles.wordCountButton,
+                  selectedWordCount === availableWordCount && styles.wordCountButtonSelected,
+                ]}
+                onPress={() => setSelectedWordCount(availableWordCount)}
+              >
+                <Text
+                  style={[
+                    styles.wordCountButtonText,
+                    selectedWordCount === availableWordCount && styles.wordCountButtonTextSelected,
+                  ]}
+                >
+                  전체 ({availableWordCount})
+                </Text>
+              </TouchableOpacity>
+            )}
             {WORD_COUNTS.map((count) => {
               const isDisabled = availableWordCount > 0 && count > availableWordCount;
               return (
@@ -224,7 +245,11 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
           )}
         </View>
 
-        <TouchableOpacity style={styles.startButton} onPress={handleStartQuiz}>
+        <TouchableOpacity
+          style={[styles.startButton, isStarting && { opacity: 0.6 }]}
+          onPress={handleStartQuiz}
+          disabled={isStarting}
+        >
           <Text style={styles.startButtonText}>퀴즈 시작</Text>
         </TouchableOpacity>
       </ScrollView>

@@ -20,9 +20,10 @@ export interface Word {
   wordId: number;
   categoryId: number;
   word: string;
-  pronunciation?: string;
   meanings: string[];
   examples: WordExample[];
+  tags?: string[];
+  memo?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -35,10 +36,11 @@ export interface WordExample {
 export interface WordRequest {
   categoryId: number;
   word: string;
-  pronunciation?: string;
   meanings: string[];
   examples: {
     example: string;
     translation?: string;
   }[];
+  tags?: string[];
+  memo?: string;
 }

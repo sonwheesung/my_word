@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Platform,
   Modal,
   RefreshControl,
+  Dimensions,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { categoryService } from '../services/categoryService';
@@ -19,6 +20,7 @@ import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
 import ScreenHeader from '../components/ScreenHeader';
 import { WordCardSkeleton } from '../components/SkeletonLoader';
+import * as Speech from 'expo-speech';
 
 interface ManageWordsScreenProps {
   onBack: () => void;
@@ -62,7 +64,7 @@ export default function ManageWordsScreen({
         setSelectedCategoryId(data[0].categoryId);
       }
     } catch (error: any) {
-      console.error('카테고리 조회 실패:', error);
+      console.warn('카테고리 조회 실패:', error);
       showToast('카테고리를 불러오는데 실패했습니다', 'error');
     } finally {
       setLoading(false);
@@ -75,7 +77,7 @@ export default function ManageWordsScreen({
       const data = await wordService.getWords(categoryId);
       setWords(data);
     } catch (error: any) {
-      console.error('단어 조회 실패:', error);
+      console.warn('단어 조회 실패:', error);
       showToast('단어를 불러오는데 실패했습니다', 'error');
     } finally {
       setLoadingWords(false);
@@ -97,7 +99,7 @@ export default function ManageWordsScreen({
             }
             loadCategories();
           } catch (error: any) {
-            console.error('단어 삭제 실패:', error);
+            console.warn('단어 삭제 실패:', error);
             showToast(error.message || '단어 삭제에 실패했습니다', 'error');
           }
         },
@@ -117,16 +119,23 @@ export default function ManageWordsScreen({
     }
   };
 
+  const speakWord = (text: string) => {
+    Speech.speak(text, {
+      language: 'en-US',
+      rate: 0.85,
+    });
+  };
+
   // 검색 필터링
-  const filteredWords = words.filter((word) => {
-    if (!searchQuery.trim()) return true;
+  const filteredWords = useMemo(() => {
+    if (!searchQuery.trim()) return words;
     const query = searchQuery.toLowerCase();
-    return (
+    return words.filter((word) =>
       word.word.toLowerCase().includes(query) ||
       word.meanings.some((meaning) => meaning.toLowerCase().includes(query)) ||
-      (word.pronunciation && word.pronunciation.toLowerCase().includes(query))
+      (word.tags ?? []).some((tag) => tag.toLowerCase().includes(query))
     );
-  });
+  }, [words, searchQuery]);
 
   if (loading) {
     return (
@@ -228,12 +237,17 @@ export default function ManageWordsScreen({
               value={searchQuery}
               onChangeText={setSearchQuery}
               placeholderTextColor="#9CA3AF"
+              maxLength={100}
+              autoCorrect={false}
+              autoCapitalize="none"
+              returnKeyType="search"
             />
           </View>
 
           <ScrollView
             style={styles.scrollView}
             contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
@@ -266,13 +280,32 @@ export default function ManageWordsScreen({
               style={styles.wordCard}
               onPress={() => setSelectedWord(word)}
             >
-              <Text style={styles.wordText}>{word.word}</Text>
-              {word.pronunciation && (
-                <Text style={styles.pronunciationText}>[{word.pronunciation}]</Text>
-              )}
+              <View style={styles.wordCardHeader}>
+                <Text style={styles.wordText}>{word.word}</Text>
+                <TouchableOpacity
+                  style={styles.speakButton}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    speakWord(word.word);
+                  }}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Text style={styles.speakButtonText}>🔊</Text>
+                </TouchableOpacity>
+              </View>
               <Text style={styles.wordMeaningPreview} numberOfLines={1}>
-                {word.meanings[0]}
+                {word.meanings.length > 0 ? word.meanings[0] : ''}
               </Text>
+              {word.tags && word.tags.length > 0 && (
+                <View style={styles.wordCardTags}>
+                  {word.tags.slice(0, 3).map((tag, index) => (
+                    <Text key={index} style={styles.wordCardTagText}>#{tag}</Text>
+                  ))}
+                  {word.tags.length > 3 && (
+                    <Text style={styles.wordCardTagMore}>+{word.tags.length - 3}</Text>
+                  )}
+                </View>
+              )}
             </TouchableOpacity>
           ))
         )}
@@ -292,52 +325,75 @@ export default function ManageWordsScreen({
           activeOpacity={1}
           onPress={() => setSelectedWord(null)}
         >
-          <TouchableOpacity
-            activeOpacity={1}
-            onPress={(e) => e.stopPropagation()}
-            style={styles.modalContent}
-          >
+          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
             {selectedWord && (
-              <ScrollView>
-                <View style={styles.modalHeader}>
-                  <View>
-                    <Text style={styles.modalWordText}>{selectedWord.word}</Text>
-                    {selectedWord.pronunciation && (
-                      <Text style={styles.modalPronunciationText}>
-                        [{selectedWord.pronunciation}]
-                      </Text>
-                    )}
+              <>
+                <ScrollView style={{ maxHeight: Dimensions.get('window').height * 0.55 }}>
+                  <View style={styles.modalHeader}>
+                    <View style={styles.modalWordRow}>
+                      <Text style={styles.modalWordText}>{selectedWord.word}</Text>
+                      <TouchableOpacity
+                        style={styles.modalSpeakButton}
+                        onPress={() => speakWord(selectedWord.word)}
+                      >
+                        <Text style={styles.modalSpeakButtonText}>🔊</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
-                </View>
 
-                {/* 뜻 */}
-                <View style={styles.modalSection}>
-                  <Text style={styles.modalLabel}>뜻</Text>
-                  {selectedWord.meanings.map((meaning, index) => (
-                    <Text key={index} style={styles.modalMeaningText}>
-                      {index + 1}. {meaning}
-                    </Text>
-                  ))}
-                </View>
-
-                {/* 예문 */}
-                {selectedWord.examples && selectedWord.examples.length > 0 && (
+                  {/* 뜻 */}
                   <View style={styles.modalSection}>
-                    <Text style={styles.modalLabel}>예문</Text>
-                    {selectedWord.examples.map((example, index) => (
-                      <View key={index} style={styles.modalExampleItem}>
-                        <Text style={styles.modalExampleText}>{example.example}</Text>
-                        {example.translation && (
-                          <Text style={styles.modalExampleTranslation}>
-                            {example.translation}
-                          </Text>
-                        )}
-                      </View>
+                    <Text style={styles.modalLabel}>뜻</Text>
+                    {selectedWord.meanings.map((meaning, index) => (
+                      <Text key={index} style={styles.modalMeaningText}>
+                        {index + 1}. {meaning}
+                      </Text>
                     ))}
                   </View>
-                )}
 
-                {/* 버튼 */}
+                  {/* 예문 */}
+                  {selectedWord.examples && selectedWord.examples.length > 0 && (
+                    <View style={styles.modalSection}>
+                      <Text style={styles.modalLabel}>예문</Text>
+                      {selectedWord.examples.map((example, index) => (
+                        <View key={index} style={styles.modalExampleItem}>
+                          <Text style={styles.modalExampleText}>{example.example}</Text>
+                          {example.translation && (
+                            <Text style={styles.modalExampleTranslation}>
+                              {example.translation}
+                            </Text>
+                          )}
+                        </View>
+                      ))}
+                    </View>
+                  )}
+
+                  {/* 태그 */}
+                  {selectedWord.tags && selectedWord.tags.length > 0 && (
+                    <View style={styles.modalSection}>
+                      <Text style={styles.modalLabel}>태그</Text>
+                      <View style={styles.modalTagsContainer}>
+                        {selectedWord.tags.map((tag, index) => (
+                          <View key={index} style={styles.modalTagChip}>
+                            <Text style={styles.modalTagChipText}>{tag}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+                  )}
+
+                  {/* 메모 */}
+                  {selectedWord.memo && selectedWord.memo.trim() !== '' && (
+                    <View style={styles.modalSection}>
+                      <Text style={styles.modalLabel}>메모</Text>
+                      <View style={styles.modalMemoContainer}>
+                        <Text style={styles.modalMemoText}>{selectedWord.memo}</Text>
+                      </View>
+                    </View>
+                  )}
+                </ScrollView>
+
+                {/* 버튼 - ScrollView 바깥에 항상 고정 */}
                 <View style={styles.modalButtons}>
                   <TouchableOpacity
                     style={styles.modalEditButton}
@@ -364,9 +420,9 @@ export default function ManageWordsScreen({
                     <Text style={styles.modalCloseButtonText}>닫기</Text>
                   </TouchableOpacity>
                 </View>
-              </ScrollView>
+              </>
             )}
-          </TouchableOpacity>
+          </View>
         </TouchableOpacity>
       </Modal>
 
@@ -544,16 +600,23 @@ const styles = StyleSheet.create({
       },
     }),
   },
+  wordCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   wordText: {
     fontSize: 16,
     fontWeight: '600',
     color: '#1A1A1A',
     marginBottom: 4,
+    flex: 1,
   },
-  pronunciationText: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 6,
+  speakButton: {
+    padding: 4,
+  },
+  speakButtonText: {
+    fontSize: 18,
   },
   wordMeaningPreview: {
     fontSize: 14,
@@ -571,7 +634,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     width: '100%',
     maxWidth: 500,
-    maxHeight: '80%',
     padding: 20,
   },
   modalHeader: {
@@ -580,11 +642,27 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
+  modalWordRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
   modalWordText: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#1A1A1A',
     marginBottom: 4,
+  },
+  modalSpeakButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#EDE9FE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalSpeakButtonText: {
+    fontSize: 20,
   },
   modalPronunciationText: {
     fontSize: 16,
@@ -625,7 +703,10 @@ const styles = StyleSheet.create({
   modalButtons: {
     flexDirection: 'row',
     gap: 6,
-    marginTop: 10,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    marginTop: 4,
   },
   modalEditButton: {
     flex: 1,
@@ -665,5 +746,50 @@ const styles = StyleSheet.create({
     color: '#374151',
     fontSize: 13,
     fontWeight: '600',
+  },
+  wordCardTags: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+    marginTop: 6,
+  },
+  wordCardTagText: {
+    fontSize: 11,
+    color: '#7C3AED',
+    backgroundColor: '#EDE9FE',
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    overflow: 'hidden',
+  },
+  wordCardTagMore: {
+    fontSize: 11,
+    color: '#9CA3AF',
+  },
+  modalTagsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  modalTagChip: {
+    backgroundColor: '#EDE9FE',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  modalTagChipText: {
+    fontSize: 13,
+    color: '#7C3AED',
+    fontWeight: '500',
+  },
+  modalMemoContainer: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    padding: 12,
+  },
+  modalMemoText: {
+    fontSize: 14,
+    color: '#374151',
+    lineHeight: 20,
   },
 });

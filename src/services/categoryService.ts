@@ -21,10 +21,26 @@ export const categoryService = {
   },
 
   async createCategory(data: CategoryRequest): Promise<Category> {
+    const existing = await categoryStorage.getAll();
+    const duplicate = existing.find(
+      (c) => c.categoryName.trim().toLowerCase() === data.categoryName.trim().toLowerCase(),
+    );
+    if (duplicate) {
+      throw new Error('이미 같은 이름의 카테고리가 존재합니다');
+    }
     return categoryStorage.create(data);
   },
 
   async updateCategory(id: number, data: CategoryRequest): Promise<Category> {
+    const existing = await categoryStorage.getAll();
+    const duplicate = existing.find(
+      (c) =>
+        c.categoryId !== id &&
+        c.categoryName.trim().toLowerCase() === data.categoryName.trim().toLowerCase(),
+    );
+    if (duplicate) {
+      throw new Error('이미 같은 이름의 카테고리가 존재합니다');
+    }
     return categoryStorage.update(id, data);
   },
 

@@ -49,7 +49,7 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
       const data = await quizService.getMyPageStats();
       setStats(data);
     } catch (error: any) {
-      console.error('마이페이지 통계 조회 실패:', error);
+      console.warn('마이페이지 통계 조회 실패:', error);
       showToast('통계를 불러오는데 실패했습니다', 'error');
     } finally {
       setLoading(false);

@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "puppeteer": {
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "puppeteer-mcp-claude", "serve"]
+    }
+  }
+}

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import * as Speech from 'expo-speech';
 import type { QuizResult } from '../services/quizService';
 
 interface QuizResultScreenProps {
@@ -8,6 +9,7 @@ interface QuizResultScreenProps {
   totalCount: number;
   results: QuizResult[];
   onRetry: () => void;
+  onRetryWrong: () => void;
   onBackToHome: () => void;
 }
 
@@ -16,14 +18,33 @@ export default function QuizResultScreen({
   totalCount,
   results,
   onRetry,
+  onRetryWrong,
   onBackToHome,
 }: QuizResultScreenProps) {
   const [showWrongAnswers, setShowWrongAnswers] = useState(false);
-  const percentage = Math.round((correctCount / totalCount) * 100);
-  const isPerfect = correctCount === totalCount;
+  const percentage = totalCount > 0 ? Math.round((correctCount / totalCount) * 100) : 0;
+  const isPerfect = correctCount === totalCount && totalCount > 0;
   const isGood = percentage >= 70;
 
   const wrongResults = results.filter((r) => !r.isCorrect);
+
+  const speakEnglish = (text: string) => {
+    Speech.speak(text, { language: 'en-US', rate: 0.85 });
+  };
+
+  // 퀴즈 타입에 따라 영어 텍스트 판별
+  const getEnglishText = (result: QuizResult): string | null => {
+    if (!result.word || !result.correctAnswer) return null;
+    // word_to_meaning, example_to_meaning: 문제(word)가 영어
+    if (result.quizType === 'word_to_meaning' || result.quizType === 'example_to_meaning') {
+      return result.word;
+    }
+    // meaning_to_word, translation_to_example: 정답(correctAnswer)이 영어
+    if (result.quizType === 'meaning_to_word' || result.quizType === 'translation_to_example') {
+      return result.correctAnswer;
+    }
+    return null;
+  };
 
   return (
     <View style={styles.container}>
@@ -62,12 +83,20 @@ export default function QuizResultScreen({
 
         <View style={styles.buttonContainer}>
           {wrongResults.length > 0 && (
-            <TouchableOpacity
-              style={styles.wrongAnswerButton}
-              onPress={() => setShowWrongAnswers(true)}
-            >
-              <Text style={styles.wrongAnswerButtonText}>틀린 정답 확인하기</Text>
-            </TouchableOpacity>
+            <>
+              <TouchableOpacity
+                style={styles.wrongAnswerButton}
+                onPress={() => setShowWrongAnswers(true)}
+              >
+                <Text style={styles.wrongAnswerButtonText}>틀린 정답 확인하기</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.retryWrongButton}
+                onPress={onRetryWrong}
+              >
+                <Text style={styles.retryWrongButtonText}>틀린 문제만 다시 풀기</Text>
+              </TouchableOpacity>
+            </>
           )}
           <TouchableOpacity style={styles.retryButton} onPress={onRetry}>
             <Text style={styles.retryButtonText}>다시 풀기</Text>
@@ -94,25 +123,39 @@ export default function QuizResultScreen({
           </View>
 
           <ScrollView style={styles.modalContent}>
-            {wrongResults.map((result, index) => (
-              <View key={index} style={styles.wrongItem}>
-                <Text style={styles.wrongIndex}>{index + 1}</Text>
-                <View style={styles.wrongDetail}>
-                  <View style={styles.wrongRow}>
-                    <Text style={styles.wrongLabel}>문제</Text>
-                    <Text style={styles.wrongWord}>{result.word}</Text>
+            {wrongResults.map((result, index) => {
+              const englishText = getEnglishText(result);
+              return (
+                <View key={index} style={styles.wrongItem}>
+                  <View style={styles.wrongIndexArea}>
+                    <Text style={styles.wrongIndex}>{index + 1}</Text>
+                    {englishText && (
+                      <TouchableOpacity
+                        style={styles.wrongSpeakButton}
+                        onPress={() => speakEnglish(englishText)}
+                        hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                      >
+                        <Text style={styles.wrongSpeakButtonText}>🔊</Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
-                  <View style={styles.wrongRow}>
-                    <Text style={styles.wrongLabel}>정답</Text>
-                    <Text style={styles.correctAnswerText}>{result.correctAnswer}</Text>
-                  </View>
-                  <View style={styles.wrongRow}>
-                    <Text style={styles.wrongLabel}>내 답</Text>
-                    <Text style={styles.userAnswerText}>{result.userAnswer}</Text>
+                  <View style={styles.wrongDetail}>
+                    <View style={styles.wrongRow}>
+                      <Text style={styles.wrongLabel}>문제</Text>
+                      <Text style={styles.wrongWord}>{result.word}</Text>
+                    </View>
+                    <View style={styles.wrongRow}>
+                      <Text style={styles.wrongLabel}>정답</Text>
+                      <Text style={styles.correctAnswerText}>{result.correctAnswer}</Text>
+                    </View>
+                    <View style={styles.wrongRow}>
+                      <Text style={styles.wrongLabel}>내 답</Text>
+                      <Text style={styles.userAnswerText}>{result.userAnswer}</Text>
+                    </View>
                   </View>
                 </View>
-              </View>
-            ))}
+              );
+            })}
           </ScrollView>
         </View>
       </Modal>
@@ -211,6 +254,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
+  retryWrongButton: {
+    backgroundColor: '#FEF3C7',
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  retryWrongButtonText: {
+    color: '#92400E',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
   retryButton: {
     backgroundColor: '#C4B5FD',
     borderRadius: 8,
@@ -272,15 +328,28 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
+  wrongIndexArea: {
+    alignItems: 'center',
+    marginRight: 16,
+    gap: 8,
+  },
   wrongIndex: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#EF4444',
-    marginRight: 16,
     minWidth: 24,
     textAlign: 'center',
-    alignSelf: 'flex-start',
-    marginTop: 2,
+  },
+  wrongSpeakButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#EDE9FE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  wrongSpeakButtonText: {
+    fontSize: 14,
   },
   wrongDetail: {
     flex: 1,
