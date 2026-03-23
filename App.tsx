@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, ScrollView, BackHandler, Alert } from 'react-native';
 import HomeScreen from './src/screens/HomeScreen';
 import ManageWordsScreen from './src/screens/ManageWordsScreen';
 import AddWordScreen from './src/screens/AddWordScreen';
@@ -57,6 +57,27 @@ function AppContent() {
   const [quizWordCount, setQuizWordCount] = useState(10);
   const [quizResults, setQuizResults] = useState<QuizResult[]>([]);
   const [retryWordIds, setRetryWordIds] = useState<number[] | undefined>(undefined);
+
+  // 홈 화면에서 뒤로가기 시 종료 확인
+  useEffect(() => {
+    if (currentScreen !== 'home') return;
+
+    const backAction = () => {
+      Alert.alert(
+        '앱 종료',
+        '종료하시겠습니까?',
+        [
+          { text: '취소', style: 'cancel' },
+          { text: '종료', style: 'destructive', onPress: () => BackHandler.exitApp() },
+        ],
+        { cancelable: true },
+      );
+      return true;
+    };
+
+    const subscription = BackHandler.addEventListener('hardwareBackPress', backAction);
+    return () => subscription.remove();
+  }, [currentScreen]);
 
   if (currentScreen === 'manageWords') {
     return (
