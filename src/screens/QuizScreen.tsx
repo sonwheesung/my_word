@@ -362,6 +362,9 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ret
   const currentQuestion = questions[currentIndex];
   const progress = `${currentIndex + 1} / ${questions.length}`;
 
+  // 답이 한국어(뜻)인 유형인지 판별
+  const isKoreanAnswer = currentQuestion.quizType === 'word_to_meaning' || currentQuestion.quizType === 'example_to_meaning';
+
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
@@ -419,12 +422,13 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ret
           <Text style={styles.answerLabel}>답</Text>
           <TextInput
             style={styles.answerInput}
-            placeholder="답을 입력하세요"
+            placeholder={isKoreanAnswer ? '뜻을 입력하세요' : '단어를 입력하세요'}
             value={userAnswer}
             onChangeText={setUserAnswer}
             autoFocus
-            autoCorrect={false}
-            autoCapitalize="none"
+            autoCorrect={isKoreanAnswer}
+            autoCapitalize={isKoreanAnswer ? 'sentences' : 'none'}
+            inputMode={isKoreanAnswer ? 'text' : 'text'}
             returnKeyType={currentQuestion.quizType === 'translation_to_example' ? 'default' : 'done'}
             onSubmitEditing={currentQuestion.quizType !== 'translation_to_example' ? handleSubmit : undefined}
             editable={!isSubmitting}
