@@ -35,16 +35,19 @@ interface QuizResult {
   userAnswer?: string;
 }
 
+type QuizDirection = 'word_to_meaning' | 'meaning_to_word';
+
 interface QuizScreenProps {
   categoryId: number;
   mode: QuizMode;
   wordCount: number;
+  direction: QuizDirection;
   retryWordIds?: number[];
   onComplete: (results: QuizResult[]) => void;
   onExit: () => void;
 }
 
-export default function QuizScreen({ categoryId, mode, wordCount, retryWordIds, onComplete, onExit }: QuizScreenProps) {
+export default function QuizScreen({ categoryId, mode, wordCount, direction, retryWordIds, onComplete, onExit }: QuizScreenProps) {
   const [loading, setLoading] = useState(true);
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -130,7 +133,7 @@ export default function QuizScreen({ categoryId, mode, wordCount, retryWordIds, 
             quizType = 'word_to_meaning';
           }
         } else {
-          quizType = 'word_to_meaning';
+          quizType = direction;
         }
 
         return generateQuestion(word, quizType);

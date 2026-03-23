@@ -17,16 +17,22 @@ import ScreenHeader from '../components/ScreenHeader';
 
 interface QuizSetupScreenProps {
   onBack: () => void;
-  onStartQuiz: (categoryId: number, mode: QuizMode, wordCount: number) => void;
+  onStartQuiz: (categoryId: number, mode: QuizMode, wordCount: number, direction: QuizDirection) => void;
 }
 
 export type QuizMode = 'random' | 'recent' | 'weak' | 'mixed';
+export type QuizDirection = 'word_to_meaning' | 'meaning_to_word';
 
 const QUIZ_MODES: Array<{ value: QuizMode; label: string; description: string }> = [
   { value: 'random', label: '모두 무작위', description: '전체 단어에서 랜덤으로 출제' },
   { value: 'recent', label: '최신순', description: '최근에 추가한 단어 위주로 출제' },
   { value: 'weak', label: '취약한 단어', description: '틀린 단어 위주로 출제' },
   { value: 'mixed', label: '여러 형태', description: '다양한 문제 유형으로 출제' },
+];
+
+const QUIZ_DIRECTIONS: Array<{ value: QuizDirection; label: string; description: string }> = [
+  { value: 'word_to_meaning', label: '단어 → 뜻', description: '단어를 보고 뜻을 입력' },
+  { value: 'meaning_to_word', label: '뜻 → 단어', description: '뜻을 보고 단어를 입력' },
 ];
 
 const WORD_COUNTS = [5, 10, 15, 20, 30];
@@ -36,6 +42,7 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [selectedMode, setSelectedMode] = useState<QuizMode>('random');
+  const [selectedDirection, setSelectedDirection] = useState<QuizDirection>('word_to_meaning');
   const [selectedWordCount, setSelectedWordCount] = useState(10);
   const [loading, setLoading] = useState(true);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
@@ -97,7 +104,7 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
       return;
     }
     setIsStarting(true);
-    onStartQuiz(selectedCategoryId, selectedMode, selectedWordCount);
+    onStartQuiz(selectedCategoryId, selectedMode, selectedWordCount, selectedDirection);
   };
 
   if (loading) {
@@ -184,6 +191,43 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
             </TouchableOpacity>
           ))}
         </View>
+
+        {/* 출제 방향 선택 (여러 형태 모드 제외) */}
+        {selectedMode !== 'mixed' && (
+          <View style={styles.section}>
+            <Text style={styles.label}>출제 방향</Text>
+            {QUIZ_DIRECTIONS.map((dir) => (
+              <TouchableOpacity
+                key={dir.value}
+                style={[
+                  styles.modeOption,
+                  selectedDirection === dir.value && styles.modeOptionSelected,
+                ]}
+                onPress={() => setSelectedDirection(dir.value)}
+              >
+                <View style={styles.modeOptionContent}>
+                  <Text
+                    style={[
+                      styles.modeOptionLabel,
+                      selectedDirection === dir.value && styles.modeOptionLabelSelected,
+                    ]}
+                  >
+                    {dir.label}
+                  </Text>
+                  <Text style={styles.modeOptionDescription}>{dir.description}</Text>
+                </View>
+                <View
+                  style={[
+                    styles.radio,
+                    selectedDirection === dir.value && styles.radioSelected,
+                  ]}
+                >
+                  {selectedDirection === dir.value && <View style={styles.radioDot} />}
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
 
         {/* 단어 수 선택 */}
         <View style={styles.section}>

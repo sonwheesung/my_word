@@ -9,7 +9,7 @@ import QuizScreen from './src/screens/QuizScreen';
 import QuizResultScreen from './src/screens/QuizResultScreen';
 import StatisticsScreen from './src/screens/StatisticsScreen';
 import MyPageScreen from './src/screens/MyPageScreen';
-import type { QuizMode } from './src/screens/QuizSetupScreen';
+import type { QuizMode, QuizDirection } from './src/screens/QuizSetupScreen';
 import type { QuizResult } from './src/services/quizService';
 
 // 에러 바운더리: 렌더링 에러를 화면에 표시
@@ -55,6 +55,7 @@ function AppContent() {
   const [quizCategoryId, setQuizCategoryId] = useState<number | null>(null);
   const [quizMode, setQuizMode] = useState<QuizMode>('random');
   const [quizWordCount, setQuizWordCount] = useState(10);
+  const [quizDirection, setQuizDirection] = useState<QuizDirection>('word_to_meaning');
   const [quizResults, setQuizResults] = useState<QuizResult[]>([]);
   const [retryWordIds, setRetryWordIds] = useState<number[] | undefined>(undefined);
 
@@ -121,10 +122,11 @@ function AppContent() {
     return (
       <QuizSetupScreen
         onBack={() => setCurrentScreen('home')}
-        onStartQuiz={(categoryId, mode, wordCount) => {
+        onStartQuiz={(categoryId, mode, wordCount, direction) => {
           setQuizCategoryId(categoryId);
           setQuizMode(mode);
           setQuizWordCount(wordCount);
+          setQuizDirection(direction);
           setCurrentScreen('quiz');
         }}
       />
@@ -137,6 +139,7 @@ function AppContent() {
         categoryId={quizCategoryId}
         mode={quizMode}
         wordCount={retryWordIds ? retryWordIds.length : quizWordCount}
+        direction={quizDirection}
         retryWordIds={retryWordIds}
         onComplete={(results) => {
           setQuizResults(results);
