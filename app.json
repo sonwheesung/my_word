@@ -28,7 +28,13 @@
     },
     "plugins": [
       "expo-asset",
-      "expo-font"
+      "expo-font",
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-2731473780180274~9707608518"
+        }
+      ]
     ],
     "scheme": "myword",
     "extra": {

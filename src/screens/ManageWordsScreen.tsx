@@ -21,6 +21,7 @@ import { useToast } from '../hooks/useToast';
 import ScreenHeader from '../components/ScreenHeader';
 import { WordCardSkeleton } from '../components/SkeletonLoader';
 import * as Speech from 'expo-speech';
+import AdBanner from '../components/AdBanner';
 
 interface ManageWordsScreenProps {
   onBack: () => void;
@@ -425,6 +426,9 @@ export default function ManageWordsScreen({
           </View>
         </TouchableOpacity>
       </Modal>
+
+      {/* 하단 배너 광고 */}
+      <AdBanner />
 
       <Toast
         message={toast.message}

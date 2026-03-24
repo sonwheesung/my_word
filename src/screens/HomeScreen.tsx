@@ -11,6 +11,7 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { quizService } from '../services/quizService';
 import type { QuizStatistics, MyPageStats } from '../services/quizService';
+import AdBanner from '../components/AdBanner';
 
 interface HomeScreenProps {
   onNavigateToManageWords: () => void;
@@ -167,6 +168,9 @@ export default function HomeScreen({
           ))}
         </View>
       </View>
+
+      {/* 하단 배너 광고 */}
+      <AdBanner />
     </ScrollView>
   );
 }

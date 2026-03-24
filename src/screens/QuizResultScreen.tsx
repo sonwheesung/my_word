@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as Speech from 'expo-speech';
 import type { QuizResult } from '../services/quizService';
+import { useInterstitialAd } from '../hooks/useInterstitialAd';
+import AdBanner from '../components/AdBanner';
 
 interface QuizResultScreenProps {
   correctCount: number;
@@ -22,7 +24,16 @@ export default function QuizResultScreen({
   onBackToHome,
 }: QuizResultScreenProps) {
   const [showWrongAnswers, setShowWrongAnswers] = useState(false);
+  const { showAd } = useInterstitialAd();
   const percentage = totalCount > 0 ? Math.round((correctCount / totalCount) * 100) : 0;
+
+  // 퀴즈 결과 화면 진입 시 전면 광고 표시
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      showAd();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [showAd]);
   const isPerfect = correctCount === totalCount && totalCount > 0;
   const isGood = percentage >= 70;
 
@@ -105,6 +116,9 @@ export default function QuizResultScreen({
             <Text style={styles.homeButtonText}>홈으로</Text>
           </TouchableOpacity>
         </View>
+
+        {/* 하단 배너 광고 */}
+        <AdBanner />
       </ScrollView>
 
       {/* 틀린 정답 확인 모달 */}
