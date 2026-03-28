@@ -1,15 +1,29 @@
 import React from 'react';
 import { View, StyleSheet, Platform } from 'react-native';
-import { BannerAd, BannerAdSize, TestIds } from 'react-native-google-mobile-ads';
-import { ADMOB_BANNER_ID } from '../constants/adConfig';
 
-const adUnitId = __DEV__ ? TestIds.ADAPTIVE_BANNER : ADMOB_BANNER_ID;
+let BannerAd: any = null;
+let BannerAdSize: any = null;
+let TestIds: any = null;
+let adsAvailable = false;
+
+try {
+  const ads = require('react-native-google-mobile-ads');
+  BannerAd = ads.BannerAd;
+  BannerAdSize = ads.BannerAdSize;
+  TestIds = ads.TestIds;
+  adsAvailable = true;
+} catch {
+  // 네이티브 모듈 없음 (Expo Go 또는 웹)
+}
+
+const { ADMOB_BANNER_ID } = require('../constants/adConfig');
 
 export default function AdBanner() {
-  // 웹에서는 광고 미표시
-  if (Platform.OS === 'web') {
+  if (Platform.OS === 'web' || !adsAvailable || !BannerAd) {
     return null;
   }
+
+  const adUnitId = __DEV__ ? TestIds.ADAPTIVE_BANNER : ADMOB_BANNER_ID;
 
   return (
     <View style={styles.container}>

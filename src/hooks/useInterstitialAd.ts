@@ -1,17 +1,31 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { Platform } from 'react-native';
-import { InterstitialAd, AdEventType, TestIds } from 'react-native-google-mobile-ads';
-import { ADMOB_INTERSTITIAL_ID } from '../constants/adConfig';
 
-const adUnitId = __DEV__ ? TestIds.INTERSTITIAL : ADMOB_INTERSTITIAL_ID;
+let InterstitialAd: any = null;
+let AdEventType: any = null;
+let TestIds: any = null;
+let adsAvailable = false;
+
+try {
+  const ads = require('react-native-google-mobile-ads');
+  InterstitialAd = ads.InterstitialAd;
+  AdEventType = ads.AdEventType;
+  TestIds = ads.TestIds;
+  adsAvailable = true;
+} catch {
+  // 네이티브 모듈 없음 (Expo Go 또는 웹)
+}
+
+const { ADMOB_INTERSTITIAL_ID } = require('../constants/adConfig');
 
 export function useInterstitialAd() {
-  const adRef = useRef<InterstitialAd | null>(null);
+  const adRef = useRef<any>(null);
   const loadedRef = useRef(false);
 
   useEffect(() => {
-    if (Platform.OS === 'web') return;
+    if (Platform.OS === 'web' || !adsAvailable || !InterstitialAd) return;
 
+    const adUnitId = __DEV__ ? TestIds.INTERSTITIAL : ADMOB_INTERSTITIAL_ID;
     const interstitial = InterstitialAd.createForAdRequest(adUnitId);
 
     const unsubscribeLoaded = interstitial.addAdEventListener(
@@ -39,7 +53,7 @@ export function useInterstitialAd() {
   }, []);
 
   const showAd = useCallback(() => {
-    if (Platform.OS === 'web') return;
+    if (Platform.OS === 'web' || !adsAvailable) return;
     if (adRef.current && loadedRef.current) {
       adRef.current.show();
     }

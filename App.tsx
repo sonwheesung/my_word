@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, BackHandler, Alert } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import HomeScreen from './src/screens/HomeScreen';
 import ManageWordsScreen from './src/screens/ManageWordsScreen';
 import AddWordScreen from './src/screens/AddWordScreen';
@@ -9,7 +10,11 @@ import QuizScreen from './src/screens/QuizScreen';
 import QuizResultScreen from './src/screens/QuizResultScreen';
 import StatisticsScreen from './src/screens/StatisticsScreen';
 import MyPageScreen from './src/screens/MyPageScreen';
-import type { QuizMode, QuizDirection } from './src/screens/QuizSetupScreen';
+import ImportWordsScreen from './src/screens/ImportWordsScreen';
+import UpdateModal from './src/components/UpdateModal';
+import { versionService } from './src/services/versionService';
+import type { VersionCheckResult } from './src/services/versionService';
+import type { QuizMode, QuizDirection, QuizAnswerType } from './src/screens/QuizSetupScreen';
 import type { QuizResult } from './src/services/quizService';
 
 // 에러 바운더리: 렌더링 에러를 화면에 표시
@@ -44,7 +49,7 @@ class ErrorBoundary extends React.Component<
   }
 }
 
-type Screen = 'home' | 'manageWords' | 'addWord' | 'editWord' | 'manageCategories' | 'quizSetup' | 'quiz' | 'quizResult' | 'statistics' | 'myPage';
+type Screen = 'home' | 'manageWords' | 'addWord' | 'editWord' | 'manageCategories' | 'quizSetup' | 'quiz' | 'quizResult' | 'statistics' | 'myPage' | 'importWords';
 
 function AppContent() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('home');
@@ -56,8 +61,29 @@ function AppContent() {
   const [quizMode, setQuizMode] = useState<QuizMode>('random');
   const [quizWordCount, setQuizWordCount] = useState(10);
   const [quizDirection, setQuizDirection] = useState<QuizDirection>('word_to_meaning');
+  const [quizAnswerType, setQuizAnswerType] = useState<QuizAnswerType>('subjective');
   const [quizResults, setQuizResults] = useState<QuizResult[]>([]);
   const [retryWordIds, setRetryWordIds] = useState<number[] | undefined>(undefined);
+
+  // 버전 업데이트 관련 상태
+  const [updateInfo, setUpdateInfo] = useState<VersionCheckResult | null>(null);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+
+  // 앱 시작 시 버전 체크
+  useEffect(() => {
+    const checkVersion = async () => {
+      try {
+        const result = await versionService.checkForUpdate();
+        if (result.hasUpdate) {
+          setUpdateInfo(result);
+          setShowUpdateModal(true);
+        }
+      } catch {
+        // 버전 체크 실패 시 무시
+      }
+    };
+    checkVersion();
+  }, []);
 
   // 홈 화면에서 뒤로가기 시 종료 확인
   useEffect(() => {
@@ -98,6 +124,10 @@ function AppContent() {
           setPreviousScreen('manageWords');
           setCurrentScreen('manageCategories');
         }}
+        onImportWords={() => {
+          setPreviousScreen('manageWords');
+          setCurrentScreen('importWords');
+        }}
       />
     );
   }
@@ -112,6 +142,15 @@ function AppContent() {
     );
   }
 
+  if (currentScreen === 'importWords') {
+    return (
+      <ImportWordsScreen
+        onBack={() => setCurrentScreen(previousScreen)}
+        onImportComplete={() => setCurrentScreen('manageWords')}
+      />
+    );
+  }
+
   if (currentScreen === 'manageCategories') {
     return (
       <CategoryManageScreen onBack={() => setCurrentScreen(previousScreen)} />
@@ -122,11 +161,12 @@ function AppContent() {
     return (
       <QuizSetupScreen
         onBack={() => setCurrentScreen('home')}
-        onStartQuiz={(categoryId, mode, wordCount, direction) => {
+        onStartQuiz={(categoryId, mode, wordCount, direction, answerType) => {
           setQuizCategoryId(categoryId);
           setQuizMode(mode);
           setQuizWordCount(wordCount);
           setQuizDirection(direction);
+          setQuizAnswerType(answerType);
           setCurrentScreen('quiz');
         }}
       />
@@ -140,6 +180,7 @@ function AppContent() {
         mode={quizMode}
         wordCount={retryWordIds ? retryWordIds.length : quizWordCount}
         direction={quizDirection}
+        answerType={quizAnswerType}
         retryWordIds={retryWordIds}
         onComplete={(results) => {
           setQuizResults(results);
@@ -187,28 +228,46 @@ function AppContent() {
   }
 
   return (
-    <HomeScreen
-      onNavigateToManageWords={() => setCurrentScreen('manageWords')}
-      onAddWord={() => {
-        setPreviousScreen('home');
-        setEditingWordId(null);
-        setCurrentScreen('addWord');
-      }}
-      onStartQuiz={() => setCurrentScreen('quizSetup')}
-      onViewStatistics={() => setCurrentScreen('statistics')}
-      onMyPage={() => setCurrentScreen('myPage')}
-      onManageCategories={() => {
-        setPreviousScreen('home');
-        setCurrentScreen('manageCategories');
-      }}
-    />
+    <>
+      <HomeScreen
+        onNavigateToManageWords={() => setCurrentScreen('manageWords')}
+        onAddWord={() => {
+          setPreviousScreen('home');
+          setEditingWordId(null);
+          setCurrentScreen('addWord');
+        }}
+        onStartQuiz={() => setCurrentScreen('quizSetup')}
+        onViewStatistics={() => setCurrentScreen('statistics')}
+        onMyPage={() => setCurrentScreen('myPage')}
+        onManageCategories={() => {
+          setPreviousScreen('home');
+          setCurrentScreen('manageCategories');
+        }}
+      />
+      {updateInfo && (
+        <UpdateModal
+          visible={showUpdateModal}
+          currentVersion={updateInfo.currentVersion}
+          latestVersion={updateInfo.latestVersion}
+          onSkip={async () => {
+            await versionService.skipVersion(updateInfo.latestVersion);
+            setShowUpdateModal(false);
+          }}
+          onClose={() => setShowUpdateModal(false)}
+        />
+      )}
+    </>
   );
 }
 
 export default function App() {
   return (
-    <ErrorBoundary>
-      <AppContent />
-    </ErrorBoundary>
+    <SafeAreaProvider>
+      <ErrorBoundary>
+        <SafeAreaView style={{ flex: 1 }} edges={['bottom']}>
+          <AppContent />
+        </SafeAreaView>
+      </ErrorBoundary>
+    </SafeAreaProvider>
   );
 }

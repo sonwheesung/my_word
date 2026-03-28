@@ -65,6 +65,7 @@ export interface StoredQuizResult {
   wordId: number;
   isCorrect: boolean;
   quizType: string;
+  answerType?: string; // 'subjective' | 'multiple_choice'
   word?: string;
   correctAnswer?: string;
   userAnswer?: string;
@@ -208,6 +209,7 @@ export const quizResultStorage = {
       wordId: number;
       isCorrect: boolean;
       quizType: string;
+      answerType?: string;
       word?: string;
       correctAnswer?: string;
       userAnswer?: string;
@@ -222,6 +224,7 @@ export const quizResultStorage = {
         wordId: r.wordId,
         isCorrect: r.isCorrect,
         quizType: r.quizType,
+        answerType: r.answerType,
         word: r.word,
         correctAnswer: r.correctAnswer,
         userAnswer: r.userAnswer,

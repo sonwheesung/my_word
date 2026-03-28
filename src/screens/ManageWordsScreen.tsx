@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -13,8 +13,10 @@ import {
   Dimensions,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import * as Clipboard from 'expo-clipboard';
 import { categoryService } from '../services/categoryService';
 import { wordService } from '../services/wordService';
+import { shareService } from '../services/shareService';
 import type { Category, Word } from '../types/word';
 import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
@@ -28,6 +30,7 @@ interface ManageWordsScreenProps {
   onAddWord: () => void;
   onEditWord: (wordId: number) => void;
   onManageCategories: () => void;
+  onImportWords: () => void;
 }
 
 export default function ManageWordsScreen({
@@ -35,6 +38,7 @@ export default function ManageWordsScreen({
   onAddWord,
   onEditWord,
   onManageCategories,
+  onImportWords,
 }: ManageWordsScreenProps) {
   const { toast, showToast, hideToast } = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
@@ -45,6 +49,10 @@ export default function ManageWordsScreen({
   const [refreshing, setRefreshing] = useState(false);
   const [selectedWord, setSelectedWord] = useState<Word | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // 공유 관련 상태
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedWordIds, setSelectedWordIds] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     loadCategories();
@@ -127,7 +135,30 @@ export default function ManageWordsScreen({
     });
   };
 
-  // 검색 필터링
+  // 공유 관련 함수
+  const toggleSelectMode = useCallback(() => {
+    if (isSelectMode) {
+      setIsSelectMode(false);
+      setSelectedWordIds(new Set());
+    } else {
+      setIsSelectMode(true);
+      setSelectedWordIds(new Set());
+    }
+  }, [isSelectMode]);
+
+  const toggleWordSelection = useCallback((wordId: number) => {
+    setSelectedWordIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(wordId)) {
+        next.delete(wordId);
+      } else {
+        next.add(wordId);
+      }
+      return next;
+    });
+  }, []);
+
+  // 검색 필터링 (selectAllWords보다 먼저 선언)
   const filteredWords = useMemo(() => {
     if (!searchQuery.trim()) return words;
     const query = searchQuery.toLowerCase();
@@ -137,6 +168,45 @@ export default function ManageWordsScreen({
       (word.tags ?? []).some((tag) => tag.toLowerCase().includes(query))
     );
   }, [words, searchQuery]);
+
+  const selectAllWords = useCallback(() => {
+    if (selectedWordIds.size === filteredWords.length) {
+      setSelectedWordIds(new Set());
+    } else {
+      setSelectedWordIds(new Set(filteredWords.map((w) => w.wordId)));
+    }
+  }, [filteredWords, selectedWordIds.size]);
+
+  const handleShareAll = useCallback(async () => {
+    if (words.length === 0) {
+      showToast('공유할 단어가 없습니다', 'info');
+      return;
+    }
+    const csv = shareService.exportWordsToCSV(words);
+    await Clipboard.setStringAsync(csv);
+    showToast(`${words.length}개 단어가 클립보드에 복사되었습니다`, 'success');
+  }, [words, showToast]);
+
+  const handleShareSelected = useCallback(async () => {
+    if (selectedWordIds.size === 0) {
+      showToast('공유할 단어를 선택해주세요', 'info');
+      return;
+    }
+    const selectedWords = words.filter((w) => selectedWordIds.has(w.wordId));
+    const csv = shareService.exportWordsToCSV(selectedWords);
+    await Clipboard.setStringAsync(csv);
+    showToast(`${selectedWords.length}개 단어가 클립보드에 복사되었습니다`, 'success');
+    setIsSelectMode(false);
+    setSelectedWordIds(new Set());
+  }, [words, selectedWordIds, showToast]);
+
+  const showShareOptions = useCallback(() => {
+    Alert.alert('단어 공유', '공유 방식을 선택하세요', [
+      { text: '전체 공유', onPress: handleShareAll },
+      { text: '선택 공유', onPress: () => setIsSelectMode(true) },
+      { text: '취소', style: 'cancel' },
+    ]);
+  }, [handleShareAll]);
 
   if (loading) {
     return (
@@ -188,10 +258,46 @@ export default function ManageWordsScreen({
     <View style={styles.container}>
       <StatusBar style="dark" />
       <ScreenHeader
-        title="단어장"
-        onBack={onBack}
-        rightButton={{ text: '관리', onPress: onManageCategories }}
+        title={isSelectMode ? `${selectedWordIds.size}개 선택` : '단어장'}
+        onBack={isSelectMode ? toggleSelectMode : onBack}
+        rightButton={
+          isSelectMode
+            ? { text: '공유', onPress: handleShareSelected }
+            : { text: '관리', onPress: onManageCategories }
+        }
       />
+
+      {/* 공유/받기 액션 바 */}
+      {!isSelectMode && (
+        <View style={styles.actionBar}>
+          <TouchableOpacity style={styles.actionButton} onPress={showShareOptions}>
+            <Text style={styles.actionButtonText}>공유</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.actionButton} onPress={onImportWords}>
+            <Text style={styles.actionButtonText}>받기</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* 선택 모드 전체선택 바 */}
+      {isSelectMode && (
+        <View style={styles.selectBar}>
+          <TouchableOpacity style={styles.selectAllButton} onPress={selectAllWords}>
+            <View style={[
+              styles.selectCheckbox,
+              selectedWordIds.size === filteredWords.length && filteredWords.length > 0 && styles.selectCheckboxChecked,
+            ]}>
+              {selectedWordIds.size === filteredWords.length && filteredWords.length > 0 && (
+                <Text style={styles.selectCheckMark}>✓</Text>
+              )}
+            </View>
+            <Text style={styles.selectAllText}>전체 선택</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.cancelSelectButton} onPress={toggleSelectMode}>
+            <Text style={styles.cancelSelectText}>취소</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       <View style={styles.contentContainer}>
         {/* 카테고리 목록 (왼쪽) */}
@@ -278,21 +384,46 @@ export default function ManageWordsScreen({
           filteredWords.map((word) => (
             <TouchableOpacity
               key={word.wordId}
-              style={styles.wordCard}
-              onPress={() => setSelectedWord(word)}
+              style={[styles.wordCard, isSelectMode && selectedWordIds.has(word.wordId) && styles.wordCardSelected]}
+              onPress={() => {
+                if (isSelectMode) {
+                  toggleWordSelection(word.wordId);
+                } else {
+                  setSelectedWord(word);
+                }
+              }}
+              onLongPress={() => {
+                if (!isSelectMode) {
+                  setIsSelectMode(true);
+                  setSelectedWordIds(new Set([word.wordId]));
+                }
+              }}
             >
               <View style={styles.wordCardHeader}>
+                {isSelectMode && (
+                  <View style={[
+                    styles.selectCheckbox,
+                    selectedWordIds.has(word.wordId) && styles.selectCheckboxChecked,
+                    { marginRight: 10 },
+                  ]}>
+                    {selectedWordIds.has(word.wordId) && (
+                      <Text style={styles.selectCheckMark}>✓</Text>
+                    )}
+                  </View>
+                )}
                 <Text style={styles.wordText}>{word.word}</Text>
-                <TouchableOpacity
-                  style={styles.speakButton}
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    speakWord(word.word);
-                  }}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Text style={styles.speakButtonText}>🔊</Text>
-                </TouchableOpacity>
+                {!isSelectMode && (
+                  <TouchableOpacity
+                    style={styles.speakButton}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      speakWord(word.word);
+                    }}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Text style={styles.speakButtonText}>🔊</Text>
+                  </TouchableOpacity>
+                )}
               </View>
               <Text style={styles.wordMeaningPreview} numberOfLines={1}>
                 {word.meanings.length > 0 ? word.meanings[0] : ''}
@@ -300,7 +431,9 @@ export default function ManageWordsScreen({
               {word.tags && word.tags.length > 0 && (
                 <View style={styles.wordCardTags}>
                   {word.tags.slice(0, 3).map((tag, index) => (
-                    <Text key={index} style={styles.wordCardTagText}>#{tag}</Text>
+                    <View key={index} style={styles.wordCardTagChip}>
+                      <Text style={styles.wordCardTagText}>#{tag}</Text>
+                    </View>
                   ))}
                   {word.tags.length > 3 && (
                     <Text style={styles.wordCardTagMore}>+{word.tags.length - 3}</Text>
@@ -757,14 +890,16 @@ const styles = StyleSheet.create({
     gap: 4,
     marginTop: 6,
   },
-  wordCardTagText: {
-    fontSize: 11,
-    color: '#7C3AED',
+  wordCardTagChip: {
     backgroundColor: '#EDE9FE',
     borderRadius: 4,
     paddingHorizontal: 6,
-    paddingVertical: 1,
-    overflow: 'hidden',
+    paddingVertical: 2,
+  },
+  wordCardTagText: {
+    fontSize: 11,
+    color: '#7C3AED',
+    lineHeight: 16,
   },
   wordCardTagMore: {
     fontSize: 11,
@@ -795,5 +930,80 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#374151',
     lineHeight: 20,
+  },
+  // 공유/받기 액션 바
+  actionBar: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    gap: 8,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  actionButton: {
+    flex: 1,
+    backgroundColor: '#EEF2FF',
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  actionButtonText: {
+    fontSize: 14,
+    color: '#6366F1',
+    fontWeight: '600',
+  },
+  // 선택 모드
+  selectBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: '#EEF2FF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#C7D2FE',
+  },
+  selectAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  selectAllText: {
+    fontSize: 14,
+    color: '#6366F1',
+    fontWeight: '600',
+  },
+  cancelSelectButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  cancelSelectText: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  selectCheckbox: {
+    width: 20,
+    height: 20,
+    borderWidth: 2,
+    borderColor: '#D1D5DB',
+    borderRadius: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  selectCheckboxChecked: {
+    backgroundColor: '#6366F1',
+    borderColor: '#6366F1',
+  },
+  selectCheckMark: {
+    fontSize: 12,
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
+  wordCardSelected: {
+    borderWidth: 2,
+    borderColor: '#6366F1',
+    backgroundColor: '#EEF2FF',
   },
 });

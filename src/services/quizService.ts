@@ -4,6 +4,7 @@ export interface QuizResult {
   wordId: number;
   isCorrect: boolean;
   quizType: string;
+  answerType?: string; // 'subjective' | 'multiple_choice'
   word?: string;
   correctAnswer?: string;
   userAnswer?: string;
