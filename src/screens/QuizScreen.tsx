@@ -10,11 +10,13 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { MaterialIcons } from '@expo/vector-icons';
 import * as Speech from 'expo-speech';
 import { wordService } from '../services/wordService';
 import { quizService } from '../services/quizService';
 import { useInterstitialAd } from '../hooks/useInterstitialAd';
 import type { Word } from '../types/word';
+import { useTheme } from '../contexts/ThemeContext';
 
 export type QuizMode = 'random' | 'recent' | 'weak' | 'mixed';
 type QuizAnswerType = 'subjective' | 'multiple_choice';
@@ -53,6 +55,7 @@ interface QuizScreenProps {
 }
 
 export default function QuizScreen({ categoryId, mode, wordCount, direction, answerType, retryWordIds, onComplete, onExit }: QuizScreenProps) {
+  const { colors } = useTheme();
   const [loading, setLoading] = useState(true);
   const [allWords, setAllWords] = useState<Word[]>([]); // 보기 생성용 전체 단어
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
@@ -426,22 +429,22 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#C4B5FD" />
-        <Text style={styles.loadingText}>퀴즈 준비 중...</Text>
+      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.accent} />
+        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>퀴즈 준비 중...</Text>
       </View>
     );
   }
 
   if (questions.length === 0) {
     return (
-      <View style={styles.emptyContainer}>
-        <StatusBar style="dark" />
-        <Text style={styles.emptyIcon}>📝</Text>
-        <Text style={styles.emptyTitle}>퀴즈를 시작할 수 없습니다</Text>
-        <Text style={styles.emptySubtitle}>등록된 단어가 없습니다</Text>
-        <TouchableOpacity style={styles.emptyBackButton} onPress={onExit}>
-          <Text style={styles.emptyBackButtonText}>돌아가기</Text>
+      <View style={[styles.emptyContainer, { backgroundColor: colors.background }]}>
+        <StatusBar style={colors.isDark ? 'light' : 'dark'} />
+        <MaterialIcons name="edit-note" size={64} color={colors.textTertiary} />
+        <Text style={[styles.emptyTitle, { color: colors.text }]}>퀴즈를 시작할 수 없습니다</Text>
+        <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>등록된 단어가 없습니다</Text>
+        <TouchableOpacity style={[styles.emptyBackButton, { backgroundColor: colors.border }]} onPress={onExit}>
+          <Text style={[styles.emptyBackButtonText, { color: colors.textSecondary }]}>돌아가기</Text>
         </TouchableOpacity>
       </View>
     );
@@ -454,23 +457,26 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
   const isKoreanAnswer = currentQuestion.quizType === 'word_to_meaning' || currentQuestion.quizType === 'example_to_meaning';
 
   return (
-    <View style={styles.container}>
-      <StatusBar style="dark" />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar style={colors.isDark ? 'light' : 'dark'} />
 
       {/* 진행 상태 */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <View style={styles.headerRow}>
           <TouchableOpacity onPress={handleExit} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Text style={styles.exitText}>✕ 나가기</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <MaterialIcons name="close" size={18} color={colors.textSecondary} />
+              <Text style={[styles.exitText, { color: colors.textSecondary }]}>나가기</Text>
+            </View>
           </TouchableOpacity>
-          <Text style={styles.progressText}>{progress}</Text>
+          <Text style={[styles.progressText, { color: colors.accent }]}>{progress}</Text>
           <View style={{ width: 64 }} />
         </View>
-        <View style={styles.progressBar}>
+        <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
           <View
             style={[
               styles.progressFill,
-              { width: `${((currentIndex + 1) / questions.length) * 100}%` }
+              { width: `${((currentIndex + 1) / questions.length) * 100}%`, backgroundColor: colors.accent }
             ]}
           />
         </View>
@@ -478,17 +484,17 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         {/* 질문 */}
-        <View style={styles.questionCard}>
-          <Text style={styles.questionLabel}>{getQuizTypeLabel(currentQuestion.quizType)}</Text>
+        <View style={[styles.questionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.questionLabel, { color: colors.textSecondary }]}>{getQuizTypeLabel(currentQuestion.quizType)}</Text>
           <View style={styles.questionRow}>
-            <Text style={styles.questionText}>{currentQuestion.question}</Text>
+            <Text style={[styles.questionText, { color: colors.text }]}>{currentQuestion.question}</Text>
             {canSpeak(currentQuestion.quizType) && (
               <TouchableOpacity
-                style={styles.speakButton}
+                style={[styles.speakButton, { backgroundColor: colors.primaryLight }]}
                 onPress={() => speakWord(currentQuestion.question)}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <Text style={styles.speakButtonText}>🔊</Text>
+                <MaterialIcons name="volume-up" size={22} color={colors.primary} />
               </TouchableOpacity>
             )}
           </View>
@@ -497,11 +503,17 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
         {/* 힌트 */}
         {!showHint ? (
           <TouchableOpacity style={styles.hintButton} onPress={() => setShowHint(true)}>
-            <Text style={styles.hintButtonText}>💡 힌트 보기</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <MaterialIcons name="lightbulb-outline" size={18} color="#8B5CF6" />
+              <Text style={styles.hintButtonText}> 힌트 보기</Text>
+            </View>
           </TouchableOpacity>
         ) : (
           <View style={styles.hintBox}>
-            <Text style={styles.hintText}>💡 {getHint(currentQuestion)}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <MaterialIcons name="lightbulb-outline" size={18} color="#92400E" />
+              <Text style={styles.hintText}> {getHint(currentQuestion)}</Text>
+            </View>
           </View>
         )}
 
@@ -518,16 +530,18 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
                   key={idx}
                   style={[
                     styles.choiceButton,
+                    { backgroundColor: colors.card, borderColor: colors.border },
                     isCorrectChoice && styles.choiceCorrect,
                     isWrongSelected && styles.choiceWrong,
-                    isSelected && !feedback && styles.choiceSelected,
+                    isSelected && !feedback && { borderColor: colors.accent, backgroundColor: colors.primaryLight },
                   ]}
                   onPress={() => handleChoiceSelect(choice)}
                   disabled={isSubmitting}
                 >
-                  <Text style={styles.choiceNumber}>{String.fromCharCode(65 + idx)}</Text>
+                  <Text style={[styles.choiceNumber, { backgroundColor: colors.borderLight, color: colors.textSecondary }]}>{String.fromCharCode(65 + idx)}</Text>
                   <Text style={[
                     styles.choiceText,
+                    { color: colors.text },
                     isCorrectChoice && styles.choiceTextCorrect,
                     isWrongSelected && styles.choiceTextWrong,
                   ]}>
@@ -539,9 +553,9 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
           </View>
         ) : (
           <View style={styles.answerSection}>
-            <Text style={styles.answerLabel}>답</Text>
+            <Text style={[styles.answerLabel, { color: colors.textSecondary }]}>답</Text>
             <TextInput
-              style={styles.answerInput}
+              style={[styles.answerInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
               placeholder={isKoreanAnswer ? '뜻을 입력하세요' : '단어를 입력하세요'}
               value={userAnswer}
               onChangeText={setUserAnswer}
@@ -581,7 +595,7 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
         {/* 제출 버튼 (주관식만) */}
         {!isMultipleChoice && (
           <TouchableOpacity
-            style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
+            style={[styles.submitButton, { backgroundColor: colors.accent }, isSubmitting && styles.submitButtonDisabled]}
             onPress={handleSubmit}
             disabled={isSubmitting}
           >
@@ -639,7 +653,7 @@ const styles = StyleSheet.create({
   },
   emptyBackButton: {
     backgroundColor: '#E5E7EB',
-    borderRadius: 8,
+    borderRadius: 16,
     paddingVertical: 12,
     paddingHorizontal: 24,
   },
@@ -692,7 +706,7 @@ const styles = StyleSheet.create({
   },
   questionCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 20,
     padding: 24,
     marginBottom: 16,
     borderWidth: 1,
@@ -740,7 +754,7 @@ const styles = StyleSheet.create({
   },
   hintBox: {
     backgroundColor: '#FEF3C7',
-    borderRadius: 8,
+    borderRadius: 16,
     padding: 12,
     marginBottom: 16,
     borderWidth: 1,
@@ -764,7 +778,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 8,
+    borderRadius: 16,
     padding: 14,
     fontSize: 16,
     color: '#1A1A1A',
@@ -772,7 +786,7 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     backgroundColor: '#C4B5FD',
-    borderRadius: 8,
+    borderRadius: 16,
     padding: 16,
     alignItems: 'center',
     marginTop: 8,
@@ -786,7 +800,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   feedbackBox: {
-    borderRadius: 12,
+    borderRadius: 20,
     padding: 16,
     marginBottom: 16,
     alignItems: 'center',
@@ -827,7 +841,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: 2,
     borderColor: '#E5E7EB',
-    borderRadius: 10,
+    borderRadius: 16,
     padding: 16,
   },
   choiceSelected: {

@@ -1,5 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface ScreenHeaderProps {
   title: string;
@@ -11,15 +13,17 @@ interface ScreenHeaderProps {
 }
 
 export default function ScreenHeader({ title, onBack, rightButton }: ScreenHeaderProps) {
+  const { colors } = useTheme();
+
   return (
-    <View style={styles.header}>
+    <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
       <TouchableOpacity onPress={onBack} style={styles.backButton}>
-        <Text style={styles.backButtonText}>←</Text>
+        <MaterialIcons name="arrow-back-ios-new" size={20} color={colors.primary} />
       </TouchableOpacity>
-      <Text style={styles.title}>{title}</Text>
+      <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
       {rightButton ? (
         <TouchableOpacity onPress={rightButton.onPress} style={styles.rightButton}>
-          <Text style={styles.rightButtonText}>{rightButton.text}</Text>
+          <Text style={[styles.rightButtonText, { color: colors.primary }]}>{rightButton.text}</Text>
         </TouchableOpacity>
       ) : (
         <View style={styles.rightButton} />
@@ -30,7 +34,6 @@ export default function ScreenHeader({ title, onBack, rightButton }: ScreenHeade
 
 const styles = StyleSheet.create({
   header: {
-    backgroundColor: '#FFFFFF',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -38,7 +41,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingTop: 48,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
   },
   backButton: {
     width: 40,
@@ -46,15 +48,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  backButtonText: {
-    fontSize: 24,
-    color: '#6366F1',
-    fontWeight: '600',
-  },
   title: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#1A1A1A',
   },
   rightButton: {
     width: 60,
@@ -62,7 +58,6 @@ const styles = StyleSheet.create({
   },
   rightButtonText: {
     fontSize: 14,
-    color: '#6366F1',
     fontWeight: '600',
   },
 });

@@ -24,6 +24,7 @@
 - `docs/data-model.md` : 데이터 모델
 - `docs/screens.md` : 화면별 기능 명세
 - `docs/services-api.md` : 서비스 API 명세
+- `docs/test-cases.md` : 테스트 케이스 (QA-LEAD/TESTER 기준 문서)
 - `docs/CHANGELOG.md` : 변경 이력
 - `README.md` : 프로젝트 개요
 

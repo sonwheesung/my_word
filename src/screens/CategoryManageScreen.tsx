@@ -12,6 +12,7 @@ import {
   Modal,
   RefreshControl,
 } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { categoryService } from '../services/categoryService';
 import type { Category } from '../types/word';
@@ -19,12 +20,14 @@ import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
 import ScreenHeader from '../components/ScreenHeader';
 import { CategoryCardSkeleton } from '../components/SkeletonLoader';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface CategoryManageScreenProps {
   onBack: () => void;
 }
 
 export default function CategoryManageScreen({ onBack }: CategoryManageScreenProps) {
+  const { colors } = useTheme();
   const { toast, showToast, hideToast } = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -173,10 +176,10 @@ export default function CategoryManageScreen({ onBack }: CategoryManageScreenPro
 
   if (loading) {
     return (
-      <View style={styles.container}>
-        <StatusBar style="dark" />
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <StatusBar style={colors.isDark ? 'light' : 'dark'} />
         <ScreenHeader title="카테고리 관리" onBack={onBack} />
-        <View style={styles.skeletonAddButton}>
+        <View style={[styles.skeletonAddButton, { backgroundColor: colors.border }]}>
           <View style={styles.skeletonBar} />
         </View>
         <View style={{ padding: 16, paddingTop: 0 }}>
@@ -189,12 +192,12 @@ export default function CategoryManageScreen({ onBack }: CategoryManageScreenPro
   }
 
   return (
-    <View style={styles.container}>
-      <StatusBar style="dark" />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar style={colors.isDark ? 'light' : 'dark'} />
       <ScreenHeader title="카테고리 관리" onBack={onBack} />
 
       {/* 추가 버튼 */}
-      <TouchableOpacity style={styles.addButton} onPress={openCreateModal}>
+      <TouchableOpacity style={[styles.addButton, { backgroundColor: colors.accent }]} onPress={openCreateModal}>
         <Text style={styles.addButtonText}>+ 카테고리 추가</Text>
       </TouchableOpacity>
 
@@ -207,70 +210,62 @@ export default function CategoryManageScreen({ onBack }: CategoryManageScreenPro
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={['#6366F1']}
-            tintColor="#6366F1"
+            colors={[colors.primary]}
+            tintColor={colors.primary}
           />
         }
       >
         {categories.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyIcon}>📂</Text>
-            <Text style={styles.emptyText}>등록된 카테고리가 없습니다</Text>
-            <Text style={styles.emptyHint}>카테고리를 추가해보세요</Text>
+            <MaterialIcons name="folder-open" size={64} color={colors.textTertiary} />
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>등록된 카테고리가 없습니다</Text>
+            <Text style={[styles.emptyHint, { color: colors.textTertiary }]}>카테고리를 추가해보세요</Text>
           </View>
         ) : (
           categories.map((category, index) => (
-            <View key={category.categoryId} style={styles.categoryCard}>
+            <View key={category.categoryId} style={[styles.categoryCard, { backgroundColor: colors.card }]}>
               {/* 순서 변경 버튼 */}
               <View style={styles.orderButtons}>
                 <TouchableOpacity
                   onPress={() => moveCategory(index, 'up')}
                   disabled={index === 0}
-                  style={[styles.orderButton, index === 0 && styles.orderButtonDisabled]}
+                  style={[styles.orderButton, { backgroundColor: colors.borderLight }, index === 0 && styles.orderButtonDisabled]}
                 >
-                  <Text style={[styles.orderButtonText, index === 0 && styles.orderButtonTextDisabled]}>
-                    ▲
-                  </Text>
+                  <MaterialIcons name="arrow-drop-up" size={20} color={index === 0 ? '#9CA3AF' : colors.primary} />
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => moveCategory(index, 'down')}
                   disabled={index === categories.length - 1}
                   style={[
                     styles.orderButton,
+                    { backgroundColor: colors.borderLight },
                     index === categories.length - 1 && styles.orderButtonDisabled,
                   ]}
                 >
-                  <Text
-                    style={[
-                      styles.orderButtonText,
-                      index === categories.length - 1 && styles.orderButtonTextDisabled,
-                    ]}
-                  >
-                    ▼
-                  </Text>
+                  <MaterialIcons name="arrow-drop-down" size={20} color={index === categories.length - 1 ? '#9CA3AF' : colors.primary} />
                 </TouchableOpacity>
               </View>
 
               {/* 카테고리 정보 */}
               <View style={styles.categoryInfo}>
                 <View style={styles.categoryNameRow}>
-                  <Text style={styles.categoryNameText}>{category.categoryName}</Text>
+                  <Text style={[styles.categoryNameText, { color: colors.text }]}>{category.categoryName}</Text>
                   {category.wordCount != null && (
-                    <Text style={styles.categoryWordCountBadge}>{category.wordCount}개</Text>
+                    <Text style={[styles.categoryWordCountBadge, { color: colors.primary, backgroundColor: colors.primaryLight }]}>{category.wordCount}개</Text>
                   )}
                 </View>
                 {category.description && (
-                  <Text style={styles.categoryDescription}>{category.description}</Text>
+                  <Text style={[styles.categoryDescription, { color: colors.textSecondary }]}>{category.description}</Text>
                 )}
               </View>
 
               {/* 수정/삭제 버튼 */}
               <View style={styles.categoryActions}>
                 <TouchableOpacity
-                  style={styles.editButton}
+                  style={[styles.editButton, { backgroundColor: colors.primaryLight }]}
                   onPress={() => openEditModal(category)}
                 >
-                  <Text style={styles.editButtonText}>수정</Text>
+                  <Text style={[styles.editButtonText, { color: colors.primary }]}>수정</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.deleteButton}
@@ -292,16 +287,17 @@ export default function CategoryManageScreen({ onBack }: CategoryManageScreenPro
         onRequestClose={closeModal}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>
               {editingCategory ? '카테고리 수정' : '카테고리 추가'}
             </Text>
 
             <View style={styles.modalForm}>
-              <Text style={styles.label}>카테고리 이름 *</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>카테고리 이름 *</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
                 placeholder="예: 영어, 일본어, 중국어"
+                placeholderTextColor={colors.textTertiary}
                 value={categoryName}
                 onChangeText={setCategoryName}
                 autoCorrect={false}
@@ -312,11 +308,12 @@ export default function CategoryManageScreen({ onBack }: CategoryManageScreenPro
                 maxLength={20}
               />
 
-              <Text style={styles.label}>설명 (선택)</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>설명 (선택)</Text>
               <TextInput
                 ref={descriptionRef}
-                style={[styles.input, styles.textArea]}
+                style={[styles.input, styles.textArea, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
                 placeholder="카테고리 설명"
+                placeholderTextColor={colors.textTertiary}
                 value={description}
                 onChangeText={setDescription}
                 autoCorrect={false}
@@ -329,14 +326,14 @@ export default function CategoryManageScreen({ onBack }: CategoryManageScreenPro
 
             <View style={styles.modalButtons}>
               <TouchableOpacity
-                style={[styles.modalButton, styles.modalCancelButton]}
+                style={[styles.modalButton, styles.modalCancelButton, { backgroundColor: colors.border }]}
                 onPress={closeModal}
                 disabled={saving}
               >
-                <Text style={styles.modalCancelButtonText}>취소</Text>
+                <Text style={[styles.modalCancelButtonText, { color: colors.textSecondary }]}>취소</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalButton, styles.modalSaveButton, saving && styles.modalButtonDisabled]}
+                style={[styles.modalButton, styles.modalSaveButton, { backgroundColor: colors.accent }, saving && styles.modalButtonDisabled]}
                 onPress={handleSave}
                 disabled={saving}
               >
@@ -370,7 +367,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#C4B5FD',
     margin: 16,
     padding: 14,
-    borderRadius: 8,
+    borderRadius: 16,
     alignItems: 'center',
   },
   addButtonText: {
@@ -382,7 +379,7 @@ const styles = StyleSheet.create({
     margin: 16,
     padding: 14,
     backgroundColor: '#E5E7EB',
-    borderRadius: 8,
+    borderRadius: 16,
     alignItems: 'center',
   },
   skeletonBar: {
@@ -395,7 +392,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: 16,
+    padding: 20,
     paddingTop: 0,
   },
   emptyContainer: {
@@ -417,19 +414,19 @@ const styles = StyleSheet.create({
   },
   categoryCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 8,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
     ...Platform.select({
-      web: { boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)' },
+      web: { boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)' },
       default: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 3,
-        elevation: 2,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+        elevation: 4,
       },
     }),
   },
@@ -493,7 +490,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#E9D5FF',
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 6,
+    borderRadius: 10,
   },
   editButtonText: {
     color: '#A78BFA',
@@ -504,7 +501,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FECACA',
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 6,
+    borderRadius: 10,
   },
   deleteButtonText: {
     color: '#F87171',
@@ -520,7 +517,7 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 20,
     padding: 20,
     width: '100%',
     maxWidth: 400,
@@ -544,7 +541,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 8,
+    borderRadius: 16,
     padding: 12,
     fontSize: 15,
     color: '#1A1A1A',
@@ -561,7 +558,7 @@ const styles = StyleSheet.create({
   modalButton: {
     flex: 1,
     padding: 14,
-    borderRadius: 8,
+    borderRadius: 16,
     alignItems: 'center',
   },
   modalCancelButton: {

@@ -13,6 +13,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { MaterialIcons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { categoryService } from '../services/categoryService';
 import { wordService } from '../services/wordService';
@@ -24,6 +25,7 @@ import ScreenHeader from '../components/ScreenHeader';
 import { WordCardSkeleton } from '../components/SkeletonLoader';
 import * as Speech from 'expo-speech';
 import AdBanner from '../components/AdBanner';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface ManageWordsScreenProps {
   onBack: () => void;
@@ -40,6 +42,7 @@ export default function ManageWordsScreen({
   onManageCategories,
   onImportWords,
 }: ManageWordsScreenProps) {
+  const { colors } = useTheme();
   const { toast, showToast, hideToast } = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
@@ -210,7 +213,7 @@ export default function ManageWordsScreen({
 
   if (loading) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         <StatusBar style="dark" />
         <ScreenHeader
           title="단어장"
@@ -218,10 +221,10 @@ export default function ManageWordsScreen({
           rightButton={{ text: '관리', onPress: onManageCategories }}
         />
         <View style={styles.contentContainer}>
-          <View style={styles.categoryList}>
+          <View style={[styles.categoryList, { backgroundColor: colors.card, borderRightColor: colors.border }]}>
             {[1, 2, 3].map((i) => (
-              <View key={i} style={styles.skeletonCategoryItem}>
-                <View style={styles.skeletonBar} />
+              <View key={i} style={[styles.skeletonCategoryItem, { borderBottomColor: colors.borderLight }]}>
+                <View style={[styles.skeletonBar, { backgroundColor: colors.border }]} />
               </View>
             ))}
           </View>
@@ -239,15 +242,15 @@ export default function ManageWordsScreen({
 
   if (categories.length === 0) {
     return (
-      <View style={styles.emptyContainer}>
+      <View style={[styles.emptyContainer, { backgroundColor: colors.background }]}>
         <StatusBar style="dark" />
-        <Text style={styles.emptyIcon}>📂</Text>
-        <Text style={styles.emptyTitle}>카테고리가 없습니다</Text>
-        <Text style={styles.emptySubtitle}>먼저 카테고리를 생성해주세요</Text>
-        <TouchableOpacity style={styles.primaryButton} onPress={onManageCategories}>
-          <Text style={styles.primaryButtonText}>카테고리 관리</Text>
+        <MaterialIcons name="folder-open" size={64} color={colors.textTertiary} />
+        <Text style={[styles.emptyTitle, { color: colors.text }]}>카테고리가 없습니다</Text>
+        <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>먼저 카테고리를 생성해주세요</Text>
+        <TouchableOpacity style={[styles.primaryButton, { backgroundColor: colors.accent }]} onPress={onManageCategories}>
+          <Text style={[styles.primaryButtonText, { color: colors.card }]}>카테고리 관리</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.secondaryButton} onPress={onBack}>
+        <TouchableOpacity style={[styles.secondaryButton, { backgroundColor: colors.border }]} onPress={onBack}>
           <Text style={styles.secondaryButtonText}>돌아가기</Text>
         </TouchableOpacity>
       </View>
@@ -255,7 +258,7 @@ export default function ManageWordsScreen({
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar style="dark" />
       <ScreenHeader
         title={isSelectMode ? `${selectedWordIds.size}개 선택` : '단어장'}
@@ -269,53 +272,55 @@ export default function ManageWordsScreen({
 
       {/* 공유/받기 액션 바 */}
       {!isSelectMode && (
-        <View style={styles.actionBar}>
-          <TouchableOpacity style={styles.actionButton} onPress={showShareOptions}>
-            <Text style={styles.actionButtonText}>공유</Text>
+        <View style={[styles.actionBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+          <TouchableOpacity style={[styles.actionButton, { backgroundColor: colors.primaryLight }]} onPress={showShareOptions}>
+            <Text style={[styles.actionButtonText, { color: colors.primary }]}>공유</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionButton} onPress={onImportWords}>
-            <Text style={styles.actionButtonText}>받기</Text>
+          <TouchableOpacity style={[styles.actionButton, { backgroundColor: colors.primaryLight }]} onPress={onImportWords}>
+            <Text style={[styles.actionButtonText, { color: colors.primary }]}>받기</Text>
           </TouchableOpacity>
         </View>
       )}
 
       {/* 선택 모드 전체선택 바 */}
       {isSelectMode && (
-        <View style={styles.selectBar}>
+        <View style={[styles.selectBar, { backgroundColor: colors.primaryLight }]}>
           <TouchableOpacity style={styles.selectAllButton} onPress={selectAllWords}>
             <View style={[
               styles.selectCheckbox,
-              selectedWordIds.size === filteredWords.length && filteredWords.length > 0 && styles.selectCheckboxChecked,
+              selectedWordIds.size === filteredWords.length && filteredWords.length > 0 && [styles.selectCheckboxChecked, { backgroundColor: colors.primary, borderColor: colors.primary }],
             ]}>
               {selectedWordIds.size === filteredWords.length && filteredWords.length > 0 && (
-                <Text style={styles.selectCheckMark}>✓</Text>
+                <MaterialIcons name="check" size={14} color="#FFFFFF" />
               )}
             </View>
-            <Text style={styles.selectAllText}>전체 선택</Text>
+            <Text style={[styles.selectAllText, { color: colors.primary }]}>전체 선택</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.cancelSelectButton} onPress={toggleSelectMode}>
-            <Text style={styles.cancelSelectText}>취소</Text>
+            <Text style={[styles.cancelSelectText, { color: colors.textSecondary }]}>취소</Text>
           </TouchableOpacity>
         </View>
       )}
 
       <View style={styles.contentContainer}>
         {/* 카테고리 목록 (왼쪽) */}
-        <View style={styles.categoryList}>
+        <View style={[styles.categoryList, { backgroundColor: colors.card, borderRightColor: colors.border }]}>
           <ScrollView showsVerticalScrollIndicator={false}>
             {categories.map((category) => (
               <TouchableOpacity
                 key={category.categoryId}
                 style={[
                   styles.categoryItem,
-                  selectedCategoryId === category.categoryId && styles.categoryItemActive,
+                  { borderBottomColor: colors.borderLight },
+                  selectedCategoryId === category.categoryId && [styles.categoryItemActive, { backgroundColor: colors.primaryLight, borderLeftColor: colors.primary }],
                 ]}
                 onPress={() => setSelectedCategoryId(category.categoryId)}
               >
                 <Text
                   style={[
                     styles.categoryItemText,
-                    selectedCategoryId === category.categoryId && styles.categoryItemTextActive,
+                    { color: colors.textSecondary },
+                    selectedCategoryId === category.categoryId && [styles.categoryItemTextActive, { color: colors.primary }],
                   ]}
                   numberOfLines={1}
                 >
@@ -324,7 +329,8 @@ export default function ManageWordsScreen({
                 <Text
                   style={[
                     styles.categoryWordCount,
-                    selectedCategoryId === category.categoryId && styles.categoryWordCountActive,
+                    { color: colors.textTertiary, backgroundColor: colors.borderLight },
+                    selectedCategoryId === category.categoryId && [styles.categoryWordCountActive, { color: colors.primary }],
                   ]}
                 >
                   {category.wordCount ?? 0}
@@ -339,11 +345,11 @@ export default function ManageWordsScreen({
           {/* 검색 */}
           <View style={styles.searchContainer}>
             <TextInput
-              style={styles.searchInput}
+              style={[styles.searchInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
               placeholder="단어 또는 뜻 검색..."
               value={searchQuery}
               onChangeText={setSearchQuery}
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={colors.textTertiary}
               maxLength={100}
               autoCorrect={false}
               autoCapitalize="none"
@@ -359,8 +365,8 @@ export default function ManageWordsScreen({
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={onRefresh}
-                colors={['#6366F1']}
-                tintColor="#6366F1"
+                colors={[colors.primary]}
+                tintColor={colors.primary}
               />
             }
           >
@@ -372,19 +378,19 @@ export default function ManageWordsScreen({
           </View>
         ) : words.length === 0 ? (
           <View style={styles.emptyWordsContainer}>
-            <Text style={styles.emptyWordsIcon}>📝</Text>
-            <Text style={styles.emptyWordsText}>등록된 단어가 없습니다</Text>
+            <MaterialIcons name="edit-note" size={48} color={colors.textTertiary} />
+            <Text style={[styles.emptyWordsText, { color: colors.textSecondary }]}>등록된 단어가 없습니다</Text>
           </View>
         ) : filteredWords.length === 0 ? (
           <View style={styles.emptyWordsContainer}>
-            <Text style={styles.emptyWordsIcon}>🔍</Text>
-            <Text style={styles.emptyWordsText}>검색 결과가 없습니다</Text>
+            <MaterialIcons name="search-off" size={48} color={colors.textTertiary} />
+            <Text style={[styles.emptyWordsText, { color: colors.textSecondary }]}>검색 결과가 없습니다</Text>
           </View>
         ) : (
           filteredWords.map((word) => (
             <TouchableOpacity
               key={word.wordId}
-              style={[styles.wordCard, isSelectMode && selectedWordIds.has(word.wordId) && styles.wordCardSelected]}
+              style={[styles.wordCard, { backgroundColor: colors.card }, isSelectMode && selectedWordIds.has(word.wordId) && [styles.wordCardSelected, { borderColor: colors.primary, backgroundColor: colors.primaryLight }]]}
               onPress={() => {
                 if (isSelectMode) {
                   toggleWordSelection(word.wordId);
@@ -403,15 +409,15 @@ export default function ManageWordsScreen({
                 {isSelectMode && (
                   <View style={[
                     styles.selectCheckbox,
-                    selectedWordIds.has(word.wordId) && styles.selectCheckboxChecked,
+                    selectedWordIds.has(word.wordId) && [styles.selectCheckboxChecked, { backgroundColor: colors.primary, borderColor: colors.primary }],
                     { marginRight: 10 },
                   ]}>
                     {selectedWordIds.has(word.wordId) && (
-                      <Text style={styles.selectCheckMark}>✓</Text>
+                      <MaterialIcons name="check" size={14} color="#FFFFFF" />
                     )}
                   </View>
                 )}
-                <Text style={styles.wordText}>{word.word}</Text>
+                <Text style={[styles.wordText, { color: colors.text }]}>{word.word}</Text>
                 {!isSelectMode && (
                   <TouchableOpacity
                     style={styles.speakButton}
@@ -421,22 +427,22 @@ export default function ManageWordsScreen({
                     }}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
-                    <Text style={styles.speakButtonText}>🔊</Text>
+                    <MaterialIcons name="volume-up" size={20} color={colors.primary} />
                   </TouchableOpacity>
                 )}
               </View>
-              <Text style={styles.wordMeaningPreview} numberOfLines={1}>
+              <Text style={[styles.wordMeaningPreview, { color: colors.textSecondary }]} numberOfLines={1}>
                 {word.meanings.length > 0 ? word.meanings[0] : ''}
               </Text>
               {word.tags && word.tags.length > 0 && (
                 <View style={styles.wordCardTags}>
                   {word.tags.slice(0, 3).map((tag, index) => (
-                    <View key={index} style={styles.wordCardTagChip}>
-                      <Text style={styles.wordCardTagText}>#{tag}</Text>
+                    <View key={index} style={[styles.wordCardTagChip, { backgroundColor: colors.primaryLight }]}>
+                      <Text style={[styles.wordCardTagText, { color: colors.primary }]}>#{tag}</Text>
                     </View>
                   ))}
                   {word.tags.length > 3 && (
-                    <Text style={styles.wordCardTagMore}>+{word.tags.length - 3}</Text>
+                    <Text style={[styles.wordCardTagMore, { color: colors.textTertiary }]}>+{word.tags.length - 3}</Text>
                   )}
                 </View>
               )}
@@ -459,25 +465,25 @@ export default function ManageWordsScreen({
           activeOpacity={1}
           onPress={() => setSelectedWord(null)}
         >
-          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]} onStartShouldSetResponder={() => true}>
             {selectedWord && (
               <>
                 <ScrollView style={{ maxHeight: Dimensions.get('window').height * 0.55 }}>
-                  <View style={styles.modalHeader}>
+                  <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
                     <View style={styles.modalWordRow}>
-                      <Text style={styles.modalWordText}>{selectedWord.word}</Text>
+                      <Text style={[styles.modalWordText, { color: colors.text }]}>{selectedWord.word}</Text>
                       <TouchableOpacity
-                        style={styles.modalSpeakButton}
+                        style={[styles.modalSpeakButton, { backgroundColor: colors.primaryLight }]}
                         onPress={() => speakWord(selectedWord.word)}
                       >
-                        <Text style={styles.modalSpeakButtonText}>🔊</Text>
+                        <MaterialIcons name="volume-up" size={20} color={colors.primary} />
                       </TouchableOpacity>
                     </View>
                   </View>
 
                   {/* 뜻 */}
                   <View style={styles.modalSection}>
-                    <Text style={styles.modalLabel}>뜻</Text>
+                    <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>뜻</Text>
                     {selectedWord.meanings.map((meaning, index) => (
                       <Text key={index} style={styles.modalMeaningText}>
                         {index + 1}. {meaning}
@@ -488,12 +494,12 @@ export default function ManageWordsScreen({
                   {/* 예문 */}
                   {selectedWord.examples && selectedWord.examples.length > 0 && (
                     <View style={styles.modalSection}>
-                      <Text style={styles.modalLabel}>예문</Text>
+                      <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>예문</Text>
                       {selectedWord.examples.map((example, index) => (
                         <View key={index} style={styles.modalExampleItem}>
-                          <Text style={styles.modalExampleText}>{example.example}</Text>
+                          <Text style={[styles.modalExampleText, { color: colors.text }]}>{example.example}</Text>
                           {example.translation && (
-                            <Text style={styles.modalExampleTranslation}>
+                            <Text style={[styles.modalExampleTranslation, { color: colors.textSecondary }]}>
                               {example.translation}
                             </Text>
                           )}
@@ -505,11 +511,11 @@ export default function ManageWordsScreen({
                   {/* 태그 */}
                   {selectedWord.tags && selectedWord.tags.length > 0 && (
                     <View style={styles.modalSection}>
-                      <Text style={styles.modalLabel}>태그</Text>
+                      <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>태그</Text>
                       <View style={styles.modalTagsContainer}>
                         {selectedWord.tags.map((tag, index) => (
-                          <View key={index} style={styles.modalTagChip}>
-                            <Text style={styles.modalTagChipText}>{tag}</Text>
+                          <View key={index} style={[styles.modalTagChip, { backgroundColor: colors.primaryLight }]}>
+                            <Text style={[styles.modalTagChipText, { color: colors.primary }]}>{tag}</Text>
                           </View>
                         ))}
                       </View>
@@ -519,7 +525,7 @@ export default function ManageWordsScreen({
                   {/* 메모 */}
                   {selectedWord.memo && selectedWord.memo.trim() !== '' && (
                     <View style={styles.modalSection}>
-                      <Text style={styles.modalLabel}>메모</Text>
+                      <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>메모</Text>
                       <View style={styles.modalMemoContainer}>
                         <Text style={styles.modalMemoText}>{selectedWord.memo}</Text>
                       </View>
@@ -528,9 +534,9 @@ export default function ManageWordsScreen({
                 </ScrollView>
 
                 {/* 버튼 - ScrollView 바깥에 항상 고정 */}
-                <View style={styles.modalButtons}>
+                <View style={[styles.modalButtons, { borderTopColor: colors.border }]}>
                   <TouchableOpacity
-                    style={styles.modalEditButton}
+                    style={[styles.modalEditButton, { backgroundColor: colors.accent }]}
                     onPress={() => {
                       setSelectedWord(null);
                       onEditWord(selectedWord.wordId);
@@ -548,7 +554,7 @@ export default function ManageWordsScreen({
                     <Text style={styles.modalDeleteButtonText}>삭제</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={styles.modalCloseButton}
+                    style={[styles.modalCloseButton, { backgroundColor: colors.border }]}
                     onPress={() => setSelectedWord(null)}
                   >
                     <Text style={styles.modalCloseButtonText}>닫기</Text>
@@ -586,7 +592,6 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   emptyIcon: {
-    fontSize: 64,
     marginBottom: 16,
   },
   emptyTitle: {
@@ -604,7 +609,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 12,
     backgroundColor: '#C4B5FD',
-    borderRadius: 8,
+    borderRadius: 16,
     marginBottom: 12,
   },
   primaryButtonText: {
@@ -616,7 +621,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 12,
     backgroundColor: '#E5E7EB',
-    borderRadius: 8,
+    borderRadius: 16,
   },
   secondaryButtonText: {
     color: '#374151',
@@ -696,7 +701,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 8,
+    borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 15,
@@ -714,7 +719,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyWordsIcon: {
-    fontSize: 48,
     marginBottom: 12,
   },
   emptyWordsText: {
@@ -723,17 +727,17 @@ const styles = StyleSheet.create({
   },
   wordCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 8,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 12,
     ...Platform.select({
-      web: { boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)' },
+      web: { boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)' },
       default: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 3,
-        elevation: 2,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+        elevation: 3,
       },
     }),
   },
@@ -753,7 +757,6 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   speakButtonText: {
-    fontSize: 18,
   },
   wordMeaningPreview: {
     fontSize: 14,
@@ -768,7 +771,7 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 20,
     width: '100%',
     maxWidth: 500,
     padding: 20,
@@ -799,7 +802,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   modalSpeakButtonText: {
-    fontSize: 20,
   },
   modalPronunciationText: {
     fontSize: 16,
@@ -945,7 +947,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#EEF2FF',
     paddingVertical: 10,
-    borderRadius: 8,
+    borderRadius: 16,
     alignItems: 'center',
   },
   actionButtonText: {
@@ -997,9 +999,6 @@ const styles = StyleSheet.create({
     borderColor: '#6366F1',
   },
   selectCheckMark: {
-    fontSize: 12,
-    color: '#FFFFFF',
-    fontWeight: 'bold',
   },
   wordCardSelected: {
     borderWidth: 2,

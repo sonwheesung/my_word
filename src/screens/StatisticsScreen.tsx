@@ -11,11 +11,13 @@ import {
   Modal,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { MaterialIcons } from '@expo/vector-icons';
 import { quizService, QuizStatistics, WordQuizStats, CategoryQuizStats } from '../services/quizService';
 import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
 import ScreenHeader from '../components/ScreenHeader';
 import SkeletonLoader from '../components/SkeletonLoader';
+import { useTheme } from '../contexts/ThemeContext';
 
 type SortKey = 'word' | 'accuracy' | 'totalCount' | 'correctCount' | 'incorrectCount';
 type SortOrder = 'asc' | 'desc';
@@ -25,6 +27,7 @@ interface StatisticsScreenProps {
 }
 
 export default function StatisticsScreen({ onBack }: StatisticsScreenProps) {
+  const { colors } = useTheme();
   const { toast, showToast, hideToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -126,28 +129,31 @@ export default function StatisticsScreen({ onBack }: StatisticsScreenProps) {
     return '#EF4444';
   };
 
-  const getMotivationMessage = (): { emoji: string; title: string; desc: string } | null => {
+  const getMotivationMessage = (): { iconName: React.ComponentProps<typeof MaterialIcons>['name']; iconColor: string; title: string; desc: string } | null => {
     if (!statistics || statistics.totalQuizCount === 0) return null;
 
     const { accuracy, totalQuizCount, weakWordCount, correctCount } = statistics;
 
     if (accuracy >= 90) {
       return {
-        emoji: '🏆',
+        iconName: 'emoji-events',
+        iconColor: '#F59E0B',
         title: '놀라운 실력이에요!',
         desc: `정답률 ${accuracy.toFixed(0)}%! 완벽에 가까운 학습 성과입니다`,
       };
     }
     if (accuracy >= 70) {
       return {
-        emoji: '🔥',
+        iconName: 'local-fire-department',
+        iconColor: '#EF4444',
         title: '잘하고 있어요!',
         desc: `정답률 ${accuracy.toFixed(0)}%! 조금만 더 하면 마스터할 수 있어요`,
       };
     }
     if (accuracy >= 50) {
       return {
-        emoji: '💪',
+        iconName: 'fitness-center',
+        iconColor: '#F59E0B',
         title: '꾸준히 성장 중!',
         desc: weakWordCount > 0
           ? `취약 단어 ${weakWordCount}개를 집중 학습해보세요`
@@ -155,7 +161,8 @@ export default function StatisticsScreen({ onBack }: StatisticsScreenProps) {
       };
     }
     return {
-      emoji: '📖',
+      iconName: 'menu-book',
+      iconColor: '#92400E',
       title: '포기하지 마세요!',
       desc: `${correctCount}개나 맞혔어요! 반복하면 반드시 늘어납니다`,
     };
@@ -163,12 +170,12 @@ export default function StatisticsScreen({ onBack }: StatisticsScreenProps) {
 
   if (loading) {
     return (
-      <View style={styles.container}>
-        <StatusBar style="dark" />
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <StatusBar style={colors.isDark ? 'light' : 'dark'} />
         <ScreenHeader title="학습 통계" onBack={onBack} />
         <View style={{ padding: 16 }}>
           {/* 통계 카드 스켈레톤 */}
-          <View style={styles.skeletonCard}>
+          <View style={[styles.skeletonCard, { backgroundColor: colors.card }]}>
             <SkeletonLoader width="40%" height={18} style={{ marginBottom: 16 }} />
             <View style={{ flexDirection: 'row', justifyContent: 'space-around' }}>
               <View style={{ alignItems: 'center' }}>
@@ -181,7 +188,7 @@ export default function StatisticsScreen({ onBack }: StatisticsScreenProps) {
               </View>
             </View>
           </View>
-          <View style={styles.skeletonCard}>
+          <View style={[styles.skeletonCard, { backgroundColor: colors.card }]}>
             <SkeletonLoader width="35%" height={18} style={{ marginBottom: 16 }} />
             <SkeletonLoader width="100%" height={80} borderRadius={8} style={{ marginBottom: 16 }} />
             <View style={{ flexDirection: 'row', justifyContent: 'space-around' }}>
@@ -206,12 +213,12 @@ export default function StatisticsScreen({ onBack }: StatisticsScreenProps) {
 
   if (!statistics) {
     return (
-      <View style={styles.emptyContainer}>
-        <StatusBar style="dark" />
-        <Text style={styles.emptyIcon}>📊</Text>
-        <Text style={styles.emptyTitle}>통계 데이터가 없습니다</Text>
-        <Text style={styles.emptySubtitle}>퀴즈를 풀어보세요!</Text>
-        <TouchableOpacity style={styles.backButton} onPress={onBack}>
+      <View style={[styles.emptyContainer, { backgroundColor: colors.background }]}>
+        <StatusBar style={colors.isDark ? 'light' : 'dark'} />
+        <MaterialIcons name="bar-chart" size={64} color={colors.textTertiary} />
+        <Text style={[styles.emptyTitle, { color: colors.text }]}>통계 데이터가 없습니다</Text>
+        <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>퀴즈를 풀어보세요!</Text>
+        <TouchableOpacity style={[styles.backButton, { backgroundColor: colors.accent }]} onPress={onBack}>
           <Text style={styles.backButtonText}>돌아가기</Text>
         </TouchableOpacity>
       </View>
@@ -219,8 +226,8 @@ export default function StatisticsScreen({ onBack }: StatisticsScreenProps) {
   }
 
   return (
-    <View style={styles.container}>
-      <StatusBar style="dark" />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar style={colors.isDark ? 'light' : 'dark'} />
       <ScreenHeader title="학습 통계" onBack={onBack} />
 
       <ScrollView
@@ -230,62 +237,62 @@ export default function StatisticsScreen({ onBack }: StatisticsScreenProps) {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={['#C4B5FD']}
-            tintColor="#C4B5FD"
+            colors={[colors.accent]}
+            tintColor={colors.accent}
           />
         }
       >
         {/* 전체 통계 카드 */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>📈 전체 학습 현황</Text>
+        <View style={[styles.card, { backgroundColor: colors.card }]}>
+          <View style={styles.cardTitleRow}><MaterialIcons name="trending-up" size={18} color={colors.primary} /><Text style={[styles.cardTitle, { color: colors.text }]}>전체 학습 현황</Text></View>
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{statistics.totalWordCount}</Text>
-              <Text style={styles.statLabel}>등록 단어</Text>
+              <Text style={[styles.statValue, { color: colors.accent }]}>{statistics.totalWordCount}</Text>
+              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>등록 단어</Text>
             </View>
-            <View style={styles.statDivider} />
+            <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{statistics.totalCategoryCount}</Text>
-              <Text style={styles.statLabel}>카테고리</Text>
+              <Text style={[styles.statValue, { color: colors.accent }]}>{statistics.totalCategoryCount}</Text>
+              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>카테고리</Text>
             </View>
           </View>
         </View>
 
         {/* 퀴즈 통계 카드 */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>✏️ 퀴즈 성적</Text>
+        <View style={[styles.card, { backgroundColor: colors.card }]}>
+          <View style={styles.cardTitleRow}><MaterialIcons name="quiz" size={18} color={colors.primary} /><Text style={[styles.cardTitle, { color: colors.text }]}>퀴즈 성적</Text></View>
           {statistics.totalQuizCount > 0 ? (
             <>
-              <View style={styles.accuracyContainer}>
-                <Text style={styles.accuracyValue}>
+              <View style={[styles.accuracyContainer, { backgroundColor: colors.surface }]}>
+                <Text style={[styles.accuracyValue, { color: colors.accent }]}>
                   {statistics.accuracy.toFixed(1)}%
                 </Text>
-                <Text style={styles.accuracyLabel}>정답률</Text>
+                <Text style={[styles.accuracyLabel, { color: colors.textSecondary }]}>정답률</Text>
               </View>
               <View style={styles.statsRow}>
                 <View style={styles.statItem}>
                   <Text style={[styles.statValue, styles.correctValue]}>
                     {statistics.correctCount}
                   </Text>
-                  <Text style={styles.statLabel}>정답</Text>
+                  <Text style={[styles.statLabel, { color: colors.textSecondary }]}>정답</Text>
                 </View>
-                <View style={styles.statDivider} />
+                <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
                 <View style={styles.statItem}>
                   <Text style={[styles.statValue, styles.incorrectValue]}>
                     {statistics.incorrectCount}
                   </Text>
-                  <Text style={styles.statLabel}>오답</Text>
+                  <Text style={[styles.statLabel, { color: colors.textSecondary }]}>오답</Text>
                 </View>
-                <View style={styles.statDivider} />
+                <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
                 <View style={styles.statItem}>
-                  <Text style={styles.statValue}>{statistics.totalQuizCount}</Text>
-                  <Text style={styles.statLabel}>총 문제</Text>
+                  <Text style={[styles.statValue, { color: colors.accent }]}>{statistics.totalQuizCount}</Text>
+                  <Text style={[styles.statLabel, { color: colors.textSecondary }]}>총 문제</Text>
                 </View>
               </View>
             </>
           ) : (
             <View style={styles.noDataContainer}>
-              <Text style={styles.noDataText}>아직 풀이한 퀴즈가 없습니다</Text>
+              <Text style={[styles.noDataText, { color: colors.textTertiary }]}>아직 풀이한 퀴즈가 없습니다</Text>
             </View>
           )}
         </View>
@@ -296,7 +303,7 @@ export default function StatisticsScreen({ onBack }: StatisticsScreenProps) {
           if (!motivation) return null;
           return (
             <View style={styles.motivationCard}>
-              <Text style={styles.motivationEmoji}>{motivation.emoji}</Text>
+              <MaterialIcons name={motivation.iconName} size={32} color={motivation.iconColor} style={{ marginRight: 12 }} />
               <View style={styles.motivationContent}>
                 <Text style={styles.motivationTitle}>{motivation.title}</Text>
                 <Text style={styles.motivationDesc}>{motivation.desc}</Text>
@@ -307,31 +314,31 @@ export default function StatisticsScreen({ onBack }: StatisticsScreenProps) {
 
         {/* 단어 정답률 버튼 */}
         {statistics.totalQuizCount > 0 && (
-          <TouchableOpacity style={styles.wordStatsButton} onPress={() => openWordStats()}>
-            <Text style={styles.wordStatsButtonIcon}>📋</Text>
+          <TouchableOpacity style={[styles.wordStatsButton, { backgroundColor: colors.card, borderColor: colors.primaryLight }]} onPress={() => openWordStats()}>
+            <MaterialIcons name="assignment" size={28} color={colors.primary} style={{ marginRight: 12 }} />
             <View style={styles.wordStatsButtonContent}>
-              <Text style={styles.wordStatsButtonTitle}>단어 정답률</Text>
-              <Text style={styles.wordStatsButtonDesc}>단어별 퀴즈 성적을 확인하세요</Text>
+              <Text style={[styles.wordStatsButtonTitle, { color: colors.text }]}>단어 정답률</Text>
+              <Text style={[styles.wordStatsButtonDesc, { color: colors.textSecondary }]}>단어별 퀴즈 성적을 확인하세요</Text>
             </View>
-            <Text style={styles.wordStatsButtonArrow}>→</Text>
+            <Text style={[styles.wordStatsButtonArrow, { color: colors.accent }]}>→</Text>
           </TouchableOpacity>
         )}
 
         {/* 카테고리별 통계 */}
         {categoryStats.length > 0 && (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>📁 카테고리별 성적</Text>
+          <View style={[styles.card, { backgroundColor: colors.card }]}>
+            <View style={styles.cardTitleRow}><MaterialIcons name="folder" size={18} color={colors.primary} /><Text style={[styles.cardTitle, { color: colors.text }]}>카테고리별 성적</Text></View>
             {categoryStats.map((cat) => (
               <TouchableOpacity
                 key={cat.categoryId}
-                style={styles.categoryStatItem}
+                style={[styles.categoryStatItem, { borderBottomColor: colors.borderLight }]}
                 onPress={() => cat.quizCount > 0 ? openWordStats(cat.categoryId, cat.categoryName) : undefined}
                 activeOpacity={cat.quizCount > 0 ? 0.7 : 1}
               >
                 <View style={styles.categoryStatHeader}>
                   <View style={styles.categoryStatNameRow}>
-                    <Text style={styles.categoryStatName}>{cat.categoryName}</Text>
-                    <Text style={styles.categoryStatWordCount}>{cat.wordCount}개 단어</Text>
+                    <Text style={[styles.categoryStatName, { color: colors.text }]}>{cat.categoryName}</Text>
+                    <Text style={[styles.categoryStatWordCount, { color: colors.textTertiary }]}>{cat.wordCount}개 단어</Text>
                   </View>
                   {cat.quizCount > 0 ? (
                     <Text style={[styles.categoryStatAccuracy, { color: getAccuracyColor(cat.accuracy) }]}>
@@ -343,7 +350,7 @@ export default function StatisticsScreen({ onBack }: StatisticsScreenProps) {
                 </View>
                 {cat.quizCount > 0 && (
                   <>
-                    <View style={styles.categoryStatBar}>
+                    <View style={[styles.categoryStatBar, { backgroundColor: colors.borderLight }]}>
                       <View
                         style={[
                           styles.categoryStatBarFill,
@@ -378,7 +385,7 @@ export default function StatisticsScreen({ onBack }: StatisticsScreenProps) {
                   </>
                 )}
                 {cat.quizCount === 0 && (
-                  <Text style={styles.categoryStatNoQuiz}>아직 퀴즈 기록이 없습니다</Text>
+                  <Text style={[styles.categoryStatNoQuiz, { color: colors.textTertiary }]}>아직 퀴즈 기록이 없습니다</Text>
                 )}
               </TouchableOpacity>
             ))}
@@ -387,13 +394,13 @@ export default function StatisticsScreen({ onBack }: StatisticsScreenProps) {
 
         {/* 취약 단어 카드 */}
         {statistics.weakWordCount > 0 && (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>⚠️ 취약한 단어</Text>
+          <View style={[styles.card, { backgroundColor: colors.card }]}>
+            <View style={styles.cardTitleRow}><MaterialIcons name="warning" size={18} color="#F59E0B" /><Text style={[styles.cardTitle, { color: colors.text }]}>취약한 단어</Text></View>
             <View style={styles.weakWordInfo}>
               <Text style={styles.weakWordCount}>
                 {statistics.weakWordCount}개의 단어
               </Text>
-              <Text style={styles.weakWordDesc}>
+              <Text style={[styles.weakWordDesc, { color: colors.textSecondary }]}>
                 정답률이 50% 미만인 단어들입니다
               </Text>
             </View>
@@ -402,10 +409,10 @@ export default function StatisticsScreen({ onBack }: StatisticsScreenProps) {
 
         {/* 학습 권장 */}
         {statistics.totalQuizCount === 0 && statistics.totalWordCount > 0 && (
-          <View style={[styles.card, styles.recommendCard]}>
-            <Text style={styles.recommendIcon}>💡</Text>
-            <Text style={styles.recommendTitle}>학습을 시작해보세요!</Text>
-            <Text style={styles.recommendDesc}>
+          <View style={[styles.card, styles.recommendCard, { backgroundColor: colors.primaryLight }]}>
+            <MaterialIcons name="lightbulb" size={48} color={colors.primary} style={{ marginBottom: 12 }} />
+            <Text style={[styles.recommendTitle, { color: colors.primary }]}>학습을 시작해보세요!</Text>
+            <Text style={[styles.recommendDesc, { color: colors.accent }]}>
               {statistics.totalWordCount}개의 단어가 학습을 기다리고 있습니다
             </Text>
           </View>
@@ -419,25 +426,25 @@ export default function StatisticsScreen({ onBack }: StatisticsScreenProps) {
         presentationStyle="pageSheet"
         onRequestClose={() => setShowWordStats(false)}
       >
-        <View style={styles.modalContainer}>
+        <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
           {/* 모달 헤더 */}
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>{wordStatsTitle}</Text>
+          <View style={[styles.modalHeader, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>{wordStatsTitle}</Text>
             <TouchableOpacity onPress={() => setShowWordStats(false)}>
-              <Text style={styles.modalCloseText}>닫기</Text>
+              <Text style={[styles.modalCloseText, { color: colors.accent }]}>닫기</Text>
             </TouchableOpacity>
           </View>
 
           {/* 정렬 버튼들 */}
-          <View style={styles.sortContainer}>
+          <View style={[styles.sortContainer, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sortScroll}>
               {(['word', 'accuracy', 'totalCount', 'correctCount', 'incorrectCount'] as SortKey[]).map((key) => (
                 <TouchableOpacity
                   key={key}
-                  style={[styles.sortChip, sortKey === key && styles.sortChipActive]}
+                  style={[styles.sortChip, { backgroundColor: colors.borderLight, borderColor: colors.border }, sortKey === key && { backgroundColor: colors.primaryLight, borderColor: colors.accent }]}
                   onPress={() => handleSortPress(key)}
                 >
-                  <Text style={[styles.sortChipText, sortKey === key && styles.sortChipTextActive]}>
+                  <Text style={[styles.sortChipText, { color: colors.textSecondary }, sortKey === key && { color: colors.primary, fontWeight: '700' }]}>
                     {getSortLabel(key)}
                     {sortKey === key && (sortOrder === 'asc' ? ' ↑' : ' ↓')}
                   </Text>
@@ -449,20 +456,20 @@ export default function StatisticsScreen({ onBack }: StatisticsScreenProps) {
           {/* 단어 리스트 */}
           {wordStatsLoading ? (
             <View style={styles.modalLoadingContainer}>
-              <ActivityIndicator size="large" color="#C4B5FD" />
+              <ActivityIndicator size="large" color={colors.accent} />
             </View>
           ) : sortedWordStats.length === 0 ? (
             <View style={styles.modalEmptyContainer}>
-              <Text style={styles.modalEmptyText}>퀴즈 기록이 없습니다</Text>
+              <Text style={[styles.modalEmptyText, { color: colors.textTertiary }]}>퀴즈 기록이 없습니다</Text>
             </View>
           ) : (
             <ScrollView style={styles.modalContent}>
               {sortedWordStats.map((item, index) => (
-                <View key={item.wordId} style={styles.wordItem}>
+                <View key={item.wordId} style={[styles.wordItem, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <View style={styles.wordItemLeft}>
-                    <Text style={styles.wordItemRank}>{index + 1}</Text>
+                    <Text style={[styles.wordItemRank, { color: colors.textTertiary }]}>{index + 1}</Text>
                     <View style={styles.wordItemInfo}>
-                      <Text style={styles.wordItemWord}>{item.word}</Text>
+                      <Text style={[styles.wordItemWord, { color: colors.text }]}>{item.word}</Text>
                       <View style={styles.wordItemStats}>
                         <Text style={styles.wordItemStatText}>
                           퀴즈 <Text style={styles.wordItemStatBold}>{item.totalCount}</Text>
@@ -513,7 +520,6 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   emptyIcon: {
-    fontSize: 64,
     marginBottom: 16,
   },
   emptyTitle: {
@@ -531,7 +537,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 12,
     backgroundColor: '#C4B5FD',
-    borderRadius: 8,
+    borderRadius: 16,
   },
   backButtonText: {
     color: '#FFFFFF',
@@ -547,32 +553,37 @@ const styles = StyleSheet.create({
   // Skeleton
   skeletonCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 20,
     padding: 20,
     marginBottom: 16,
   },
   // Cards
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 20,
     padding: 20,
     marginBottom: 16,
     ...Platform.select({
-      web: { boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)' },
+      web: { boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)' },
       default: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        elevation: 2,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+        elevation: 3,
       },
     }),
+  },
+  cardTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
   },
   cardTitle: {
     fontSize: 16,
     fontWeight: 'bold',
     color: '#1A1A1A',
-    marginBottom: 16,
   },
   statsRow: {
     flexDirection: 'row',
@@ -603,7 +614,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     paddingVertical: 16,
     backgroundColor: '#F9FAFB',
-    borderRadius: 8,
+    borderRadius: 16,
   },
   accuracyValue: {
     fontSize: 48,
@@ -632,17 +643,13 @@ const styles = StyleSheet.create({
   // 모티베이션 카드
   motivationCard: {
     backgroundColor: '#FFFBEB',
-    borderRadius: 12,
+    borderRadius: 20,
     padding: 16,
     marginBottom: 16,
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#FDE68A',
-  },
-  motivationEmoji: {
-    fontSize: 32,
-    marginRight: 12,
   },
   motivationContent: {
     flex: 1,
@@ -661,7 +668,7 @@ const styles = StyleSheet.create({
   // 단어 정답률 버튼
   wordStatsButton: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 20,
     padding: 16,
     marginBottom: 16,
     flexDirection: 'row',
@@ -669,19 +676,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#DDD6FE',
     ...Platform.select({
-      web: { boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)' },
+      web: { boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)' },
       default: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        elevation: 2,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+        elevation: 3,
       },
     }),
-  },
-  wordStatsButtonIcon: {
-    fontSize: 28,
-    marginRight: 12,
   },
   wordStatsButtonContent: {
     flex: 1,
@@ -788,7 +791,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   recommendIcon: {
-    fontSize: 48,
     marginBottom: 12,
   },
   recommendTitle: {
@@ -884,7 +886,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#FFFFFF',
-    borderRadius: 10,
+    borderRadius: 14,
     padding: 14,
     marginBottom: 8,
     borderWidth: 1,
@@ -931,7 +933,7 @@ const styles = StyleSheet.create({
   wordItemAccuracy: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 8,
+    borderRadius: 16,
     marginLeft: 12,
   },
   wordItemAccuracyText: {

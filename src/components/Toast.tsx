@@ -6,6 +6,7 @@ import {
   Animated,
   Platform,
 } from 'react-native';
+import { useTheme } from '../contexts/ThemeContext';
 
 export type ToastType = 'success' | 'error' | 'info';
 
@@ -24,6 +25,7 @@ export default function Toast({
   onHide,
   duration = 3000,
 }: ToastProps) {
+  const { colors } = useTheme();
   const opacity = React.useRef(new Animated.Value(0)).current;
 
   useEffect(() => {

@@ -11,7 +11,9 @@ import QuizResultScreen from './src/screens/QuizResultScreen';
 import StatisticsScreen from './src/screens/StatisticsScreen';
 import MyPageScreen from './src/screens/MyPageScreen';
 import ImportWordsScreen from './src/screens/ImportWordsScreen';
+import SettingsScreen from './src/screens/SettingsScreen';
 import UpdateModal from './src/components/UpdateModal';
+import { ThemeProvider } from './src/contexts/ThemeContext';
 import { versionService } from './src/services/versionService';
 import type { VersionCheckResult } from './src/services/versionService';
 import type { QuizMode, QuizDirection, QuizAnswerType } from './src/screens/QuizSetupScreen';
@@ -49,7 +51,7 @@ class ErrorBoundary extends React.Component<
   }
 }
 
-type Screen = 'home' | 'manageWords' | 'addWord' | 'editWord' | 'manageCategories' | 'quizSetup' | 'quiz' | 'quizResult' | 'statistics' | 'myPage' | 'importWords';
+type Screen = 'home' | 'manageWords' | 'addWord' | 'editWord' | 'manageCategories' | 'quizSetup' | 'quiz' | 'quizResult' | 'statistics' | 'myPage' | 'importWords' | 'settings';
 
 function AppContent() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('home');
@@ -85,26 +87,56 @@ function AppContent() {
     checkVersion();
   }, []);
 
-  // 홈 화면에서 뒤로가기 시 종료 확인
-  useEffect(() => {
-    if (currentScreen !== 'home') return;
+  // 뒤로가기 핸들러: 홈이면 종료 확인, 다른 화면이면 이전 화면으로 이동
+  const handleBackNavigation = useCallback(() => {
+    switch (currentScreen) {
+      case 'addWord':
+      case 'editWord':
+      case 'importWords':
+      case 'manageCategories':
+        setCurrentScreen(previousScreen);
+        break;
+      case 'manageWords':
+      case 'quizSetup':
+      case 'statistics':
+      case 'myPage':
+      case 'settings':
+        setCurrentScreen('home');
+        break;
+      case 'quiz':
+        setRetryWordIds(undefined);
+        setCurrentScreen('quizSetup');
+        break;
+      case 'quizResult':
+        setRetryWordIds(undefined);
+        setCurrentScreen('home');
+        break;
+      default:
+        break;
+    }
+  }, [currentScreen, previousScreen]);
 
+  useEffect(() => {
     const backAction = () => {
-      Alert.alert(
-        '앱 종료',
-        '종료하시겠습니까?',
-        [
-          { text: '취소', style: 'cancel' },
-          { text: '종료', style: 'destructive', onPress: () => BackHandler.exitApp() },
-        ],
-        { cancelable: true },
-      );
+      if (currentScreen === 'home') {
+        Alert.alert(
+          '앱 종료',
+          '종료하시겠습니까?',
+          [
+            { text: '취소', style: 'cancel' },
+            { text: '종료', style: 'destructive', onPress: () => BackHandler.exitApp() },
+          ],
+          { cancelable: true },
+        );
+      } else {
+        handleBackNavigation();
+      }
       return true;
     };
 
     const subscription = BackHandler.addEventListener('hardwareBackPress', backAction);
     return () => subscription.remove();
-  }, [currentScreen]);
+  }, [currentScreen, handleBackNavigation]);
 
   if (currentScreen === 'manageWords') {
     return (
@@ -227,6 +259,10 @@ function AppContent() {
     return <MyPageScreen onBack={() => setCurrentScreen('home')} />;
   }
 
+  if (currentScreen === 'settings') {
+    return <SettingsScreen onBack={() => setCurrentScreen('home')} />;
+  }
+
   return (
     <>
       <HomeScreen
@@ -239,6 +275,7 @@ function AppContent() {
         onStartQuiz={() => setCurrentScreen('quizSetup')}
         onViewStatistics={() => setCurrentScreen('statistics')}
         onMyPage={() => setCurrentScreen('myPage')}
+        onSettings={() => setCurrentScreen('settings')}
         onManageCategories={() => {
           setPreviousScreen('home');
           setCurrentScreen('manageCategories');
@@ -262,12 +299,14 @@ function AppContent() {
 
 export default function App() {
   return (
-    <SafeAreaProvider>
-      <ErrorBoundary>
-        <SafeAreaView style={{ flex: 1 }} edges={['bottom']}>
-          <AppContent />
-        </SafeAreaView>
-      </ErrorBoundary>
-    </SafeAreaProvider>
+    <ThemeProvider>
+      <SafeAreaProvider>
+        <ErrorBoundary>
+          <SafeAreaView style={{ flex: 1 }} edges={['bottom']}>
+            <AppContent />
+          </SafeAreaView>
+        </ErrorBoundary>
+      </SafeAreaProvider>
+    </ThemeProvider>
   );
 }

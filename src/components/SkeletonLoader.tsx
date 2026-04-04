@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, Animated, ViewStyle, StyleProp } from 'react-native';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface SkeletonLoaderProps {
   width?: number | string;
@@ -14,6 +15,7 @@ export default function SkeletonLoader({
   borderRadius = 4,
   style,
 }: SkeletonLoaderProps) {
+  const { colors } = useTheme();
   const opacity = useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {
@@ -46,6 +48,7 @@ export default function SkeletonLoader({
           height,
           borderRadius,
           opacity,
+          backgroundColor: colors.border,
         },
         style,
       ]}
@@ -55,8 +58,9 @@ export default function SkeletonLoader({
 
 // 단어 카드 스켈레톤
 export function WordCardSkeleton() {
+  const { colors } = useTheme();
   return (
-    <View style={styles.wordCardSkeleton}>
+    <View style={[styles.wordCardSkeleton, { backgroundColor: colors.card }]}>
       <SkeletonLoader width="60%" height={18} style={{ marginBottom: 8 }} />
       <SkeletonLoader width="40%" height={14} style={{ marginBottom: 8 }} />
       <SkeletonLoader width="80%" height={14} />
@@ -66,8 +70,9 @@ export function WordCardSkeleton() {
 
 // 카테고리 카드 스켈레톤
 export function CategoryCardSkeleton() {
+  const { colors } = useTheme();
   return (
-    <View style={styles.categoryCardSkeleton}>
+    <View style={[styles.categoryCardSkeleton, { backgroundColor: colors.card }]}>
       <SkeletonLoader width="50%" height={18} style={{ marginBottom: 8 }} />
       <SkeletonLoader width="70%" height={14} />
     </View>

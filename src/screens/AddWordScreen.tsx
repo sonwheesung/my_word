@@ -11,6 +11,7 @@ import {
   Modal,
   Keyboard,
 } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { categoryService } from '../services/categoryService';
 import { wordService } from '../services/wordService';
@@ -19,6 +20,7 @@ import type { Category } from '../types/word';
 import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
 import ScreenHeader from '../components/ScreenHeader';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface AddWordScreenProps {
   wordId?: number | null;
@@ -27,6 +29,7 @@ interface AddWordScreenProps {
 }
 
 export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordScreenProps) {
+  const { colors } = useTheme();
   const { toast, showToast, hideToast } = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
@@ -298,9 +301,9 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
 
   if (loadingCategories || loadingWord) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6366F1" />
-        <Text style={styles.loadingText}>
+      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
           {loadingWord ? '단어 로딩 중...' : '카테고리 로딩 중...'}
         </Text>
       </View>
@@ -309,12 +312,12 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
 
   if (categories.length === 0) {
     return (
-      <View style={styles.emptyContainer}>
-        <StatusBar style="dark" />
-        <Text style={styles.emptyIcon}>📂</Text>
-        <Text style={styles.emptyTitle}>카테고리가 없습니다</Text>
-        <Text style={styles.emptySubtitle}>먼저 카테고리를 생성해주세요</Text>
-        <TouchableOpacity style={styles.backButton} onPress={onBack}>
+      <View style={[styles.emptyContainer, { backgroundColor: colors.background }]}>
+        <StatusBar style={colors.isDark ? 'light' : 'dark'} />
+        <MaterialIcons name="folder-open" size={64} color={colors.textTertiary} />
+        <Text style={[styles.emptyTitle, { color: colors.text }]}>카테고리가 없습니다</Text>
+        <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>먼저 카테고리를 생성해주세요</Text>
+        <TouchableOpacity style={[styles.backButton, { backgroundColor: colors.accent }]} onPress={onBack}>
           <Text style={styles.backButtonText}>돌아가기</Text>
         </TouchableOpacity>
       </View>
@@ -322,23 +325,23 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
   }
 
   return (
-    <View style={styles.container}>
-      <StatusBar style="dark" />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar style={colors.isDark ? 'light' : 'dark'} />
       <ScreenHeader title={isEditMode ? '단어 수정' : '단어 추가'} onBack={onBack} />
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         {/* 카테고리 선택 */}
         <View style={styles.section}>
-          <Text style={styles.label}>카테고리 *</Text>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>카테고리 *</Text>
           <TouchableOpacity
-            style={styles.categorySelector}
+            style={[styles.categorySelector, { backgroundColor: colors.card, borderColor: colors.border }]}
             onPress={() => setShowCategoryPicker(true)}
             disabled={loading}
           >
-            <Text style={styles.categorySelectorText}>
+            <Text style={[styles.categorySelectorText, { color: colors.text }]}>
               {selectedCategory?.categoryName || '카테고리 선택'}
             </Text>
-            <Text style={styles.categorySelectorIcon}>▼</Text>
+            <MaterialIcons name="keyboard-arrow-down" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
 
           <Modal
@@ -352,15 +355,16 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
               activeOpacity={1}
               onPress={() => setShowCategoryPicker(false)}
             >
-              <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>카테고리 선택</Text>
+              <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+                <Text style={[styles.modalTitle, { color: colors.text, borderBottomColor: colors.border }]}>카테고리 선택</Text>
                 <ScrollView style={styles.categoryList}>
                   {categories.map((category) => (
                     <TouchableOpacity
                       key={category.categoryId}
                       style={[
                         styles.categoryOption,
-                        selectedCategoryId === category.categoryId && styles.categoryOptionSelected,
+                        { borderBottomColor: colors.borderLight },
+                        selectedCategoryId === category.categoryId && { backgroundColor: colors.primaryLight },
                       ]}
                       onPress={() => {
                         setSelectedCategoryId(category.categoryId);
@@ -370,8 +374,8 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
                       <Text
                         style={[
                           styles.categoryOptionText,
-                          selectedCategoryId === category.categoryId &&
-                            styles.categoryOptionTextSelected,
+                          { color: colors.textSecondary },
+                          selectedCategoryId === category.categoryId && { color: colors.primary, fontWeight: '600' },
                         ]}
                       >
                         {category.categoryName}
@@ -386,11 +390,12 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
 
         {/* 단어 입력 */}
         <View style={styles.section}>
-          <Text style={styles.label}>단어 *</Text>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>단어 *</Text>
           <View style={styles.wordInputRow}>
             <TextInput
-              style={[styles.input, styles.wordInput]}
+              style={[styles.input, styles.wordInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
               placeholder="단어를 입력하세요"
+              placeholderTextColor={colors.textTertiary}
               value={word}
               onChangeText={(text) => setWord(text.length > 0 ? text[0].toLowerCase() + text.slice(1) : text)}
               autoCapitalize="none"
@@ -402,7 +407,7 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
               editable={!loading && !searching}
             />
             <TouchableOpacity
-              style={[styles.searchButton, (searching || !word.trim()) && styles.searchButtonDisabled]}
+              style={[styles.searchButton, { backgroundColor: colors.primary }, (searching || !word.trim()) && styles.searchButtonDisabled]}
               onPress={handleDictionarySearch}
               disabled={searching || !word.trim() || loading}
             >
@@ -413,14 +418,14 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
               )}
             </TouchableOpacity>
           </View>
-          <Text style={styles.wordInputHint}>단어 입력 후 검색 버튼을 누르면 뜻과 예문을 자동으로 가져옵니다</Text>
+          <Text style={[styles.wordInputHint, { color: colors.textTertiary }]}>단어 입력 후 검색 버튼을 누르면 뜻과 예문을 자동으로 가져옵니다</Text>
         </View>
 
         {/* 뜻 입력 */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.label}>뜻 *</Text>
-            <TouchableOpacity onPress={addMeaning} disabled={loading} style={styles.addButton}>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>뜻 *</Text>
+            <TouchableOpacity onPress={addMeaning} disabled={loading} style={[styles.addButton, { backgroundColor: colors.accent }]}>
               <Text style={styles.addButtonText}>+ 추가</Text>
             </TouchableOpacity>
           </View>
@@ -429,8 +434,9 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
             <View key={index} style={styles.listItem}>
               <TextInput
                 ref={index === 0 ? firstMeaningRef : undefined}
-                style={[styles.input, styles.listItemInput]}
+                style={[styles.input, styles.listItemInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
                 placeholder={`뜻 ${index + 1}`}
+                placeholderTextColor={colors.textTertiary}
                 value={meaning}
                 onChangeText={(value) => updateMeaning(index, value)}
                 autoCorrect={false}
@@ -443,7 +449,7 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
                   disabled={loading}
                   style={styles.removeButton}
                 >
-                  <Text style={styles.removeButtonText}>✕</Text>
+                  <MaterialIcons name="close" size={16} color="#F87171" />
                 </TouchableOpacity>
               )}
             </View>
@@ -453,29 +459,30 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
         {/* 예문 입력 */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.label}>예문 (선택)</Text>
-            <TouchableOpacity onPress={addExample} disabled={loading} style={styles.addButton}>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>예문 (선택)</Text>
+            <TouchableOpacity onPress={addExample} disabled={loading} style={[styles.addButton, { backgroundColor: colors.accent }]}>
               <Text style={styles.addButtonText}>+ 추가</Text>
             </TouchableOpacity>
           </View>
 
           {examples.map((example, index) => (
-            <View key={index} style={styles.exampleItem}>
+            <View key={index} style={[styles.exampleItem, { backgroundColor: colors.surface }]}>
               <View style={styles.exampleHeader}>
-                <Text style={styles.exampleNumber}>예문 {index + 1}</Text>
+                <Text style={[styles.exampleNumber, { color: colors.textSecondary }]}>예문 {index + 1}</Text>
                 {examples.length > 1 && (
                   <TouchableOpacity
                     onPress={() => removeExample(index)}
                     disabled={loading}
                     style={styles.removeButton}
                   >
-                    <Text style={styles.removeButtonText}>✕</Text>
+                    <MaterialIcons name="close" size={16} color="#F87171" />
                   </TouchableOpacity>
                 )}
               </View>
               <TextInput
-                style={[styles.input, styles.exampleInput]}
+                style={[styles.input, styles.exampleInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
                 placeholder="예문"
+                placeholderTextColor={colors.textTertiary}
                 value={example.example}
                 onChangeText={(value) => {
                   const formatted = value.length > 0 ? value[0].toUpperCase() + value.slice(1) : value;
@@ -488,8 +495,9 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
                 editable={!loading}
               />
               <TextInput
-                style={[styles.input, styles.exampleInput]}
+                style={[styles.input, styles.exampleInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
                 placeholder="번역 (선택)"
+                placeholderTextColor={colors.textTertiary}
                 value={example.translation}
                 onChangeText={(value) => updateExample(index, 'translation', value)}
                 autoCorrect={false}
@@ -503,18 +511,18 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
 
         {/* 태그 입력 */}
         <View style={styles.section}>
-          <Text style={styles.label}>태그 (선택)</Text>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>태그 (선택)</Text>
           {tags.length > 0 && (
             <View style={styles.tagChipsContainer}>
               {tags.map((tag, index) => (
-                <View key={index} style={styles.tagChip}>
-                  <Text style={styles.tagChipText}>{tag}</Text>
+                <View key={index} style={[styles.tagChip, { backgroundColor: colors.primaryLight }]}>
+                  <Text style={[styles.tagChipText, { color: colors.primary }]}>{tag}</Text>
                   <TouchableOpacity
                     onPress={() => removeTag(index)}
                     disabled={loading}
-                    style={styles.tagChipRemove}
+                    style={[styles.tagChipRemove, { backgroundColor: colors.primaryLight }]}
                   >
-                    <Text style={styles.tagChipRemoveText}>✕</Text>
+                    <MaterialIcons name="close" size={12} color={colors.primary} />
                   </TouchableOpacity>
                 </View>
               ))}
@@ -522,8 +530,9 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
           )}
           <View style={styles.tagInputRow}>
             <TextInput
-              style={[styles.input, styles.tagInput]}
+              style={[styles.input, styles.tagInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
               placeholder="태그 입력 (예: 동사, 비즈니스)"
+              placeholderTextColor={colors.textTertiary}
               value={tagInput}
               onChangeText={setTagInput}
               onSubmitEditing={addTag}
@@ -538,6 +547,7 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
               disabled={loading || !tagInput.trim()}
               style={[
                 styles.tagAddButton,
+                { backgroundColor: colors.accent },
                 (!tagInput.trim() || loading) && styles.tagAddButtonDisabled,
               ]}
             >
@@ -548,10 +558,11 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
 
         {/* 메모 */}
         <View style={styles.section}>
-          <Text style={styles.label}>메모 (선택)</Text>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>메모 (선택)</Text>
           <TextInput
-            style={[styles.input, styles.memoInput]}
+            style={[styles.input, styles.memoInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
             placeholder="헷갈리는 점, 외우는 팁 등을 메모하세요"
+            placeholderTextColor={colors.textTertiary}
             value={memo}
             onChangeText={setMemo}
             multiline
@@ -564,7 +575,7 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
 
         {/* 저장 버튼 */}
         <TouchableOpacity
-          style={[styles.saveButton, loading && styles.saveButtonDisabled]}
+          style={[styles.saveButton, { backgroundColor: colors.accent }, loading && styles.saveButtonDisabled]}
           onPress={handleSave}
           disabled={loading}
         >
@@ -628,7 +639,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: 16,
+    padding: 20,
   },
   section: {
     marginBottom: 24,
@@ -649,7 +660,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 8,
+    borderRadius: 16,
     padding: 12,
     fontSize: 15,
     color: '#1A1A1A',
@@ -663,8 +674,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   searchButton: {
-    backgroundColor: '#8B5CF6',
-    borderRadius: 8,
+    borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 12,
     alignItems: 'center',
@@ -691,7 +701,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 8,
+    borderRadius: 16,
     padding: 12,
   },
   categorySelectorText: {
@@ -711,7 +721,7 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 20,
     width: '100%',
     maxWidth: 400,
     maxHeight: '60%',
@@ -747,7 +757,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     backgroundColor: '#C4B5FD',
-    borderRadius: 6,
+    borderRadius: 10,
   },
   addButtonText: {
     fontSize: 13,
@@ -780,7 +790,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     padding: 12,
     backgroundColor: '#F9FAFB',
-    borderRadius: 8,
+    borderRadius: 16,
   },
   exampleHeader: {
     flexDirection: 'row',
@@ -798,7 +808,7 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     backgroundColor: '#C4B5FD',
-    borderRadius: 8,
+    borderRadius: 16,
     padding: 16,
     alignItems: 'center',
     marginTop: 8,
@@ -816,7 +826,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 12,
     backgroundColor: '#C4B5FD',
-    borderRadius: 8,
+    borderRadius: 16,
   },
   backButtonText: {
     color: '#FFFFFF',
@@ -868,7 +878,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     backgroundColor: '#C4B5FD',
-    borderRadius: 8,
+    borderRadius: 16,
   },
   tagAddButtonDisabled: {
     opacity: 0.5,

@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { MaterialIcons } from '@expo/vector-icons';
 import * as Speech from 'expo-speech';
 import type { QuizResult } from '../services/quizService';
 import { useInterstitialAd } from '../hooks/useInterstitialAd';
 import AdBanner from '../components/AdBanner';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface QuizResultScreenProps {
   correctCount: number;
@@ -23,6 +25,7 @@ export default function QuizResultScreen({
   onRetryWrong,
   onBackToHome,
 }: QuizResultScreenProps) {
+  const { colors } = useTheme();
   const [showWrongAnswers, setShowWrongAnswers] = useState(false);
   const { showAd } = useInterstitialAd();
   const percentage = totalCount > 0 ? Math.round((correctCount / totalCount) * 100) : 0;
@@ -58,37 +61,43 @@ export default function QuizResultScreen({
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar style="dark" />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar style={colors.isDark ? 'light' : 'dark'} />
 
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.emoji}>
-          {isPerfect ? '🎉' : isGood ? '😊' : '📝'}
-        </Text>
+        <View style={styles.emoji}>
+          {isPerfect ? (
+            <MaterialIcons name="emoji-events" size={80} color="#F59E0B" />
+          ) : isGood ? (
+            <MaterialIcons name="sentiment-satisfied-alt" size={80} color={colors.primary} />
+          ) : (
+            <MaterialIcons name="refresh" size={80} color={colors.textTertiary} />
+          )}
+        </View>
 
-        <Text style={styles.title}>
+        <Text style={[styles.title, { color: colors.text }]}>
           {isPerfect ? '완벽합니다!' : isGood ? '잘했어요!' : '다시 도전해보세요!'}
         </Text>
 
         <View style={styles.scoreContainer}>
-          <Text style={styles.scoreLabel}>정답률</Text>
-          <Text style={styles.scoreValue}>{percentage}%</Text>
-          <Text style={styles.scoreDetail}>
+          <Text style={[styles.scoreLabel, { color: colors.textSecondary }]}>정답률</Text>
+          <Text style={[styles.scoreValue, { color: colors.accent }]}>{percentage}%</Text>
+          <Text style={[styles.scoreDetail, { color: colors.textSecondary }]}>
             {correctCount} / {totalCount} 문제
           </Text>
         </View>
 
-        <View style={styles.statsContainer}>
+        <View style={[styles.statsContainer, { backgroundColor: colors.card }]}>
           <View style={styles.statItem}>
             <Text style={styles.statValue}>{correctCount}</Text>
-            <Text style={styles.statLabel}>정답</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>정답</Text>
           </View>
-          <View style={styles.statDivider} />
+          <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
           <View style={styles.statItem}>
             <Text style={[styles.statValue, styles.wrongValue]}>
               {totalCount - correctCount}
             </Text>
-            <Text style={styles.statLabel}>오답</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>오답</Text>
           </View>
         </View>
 
@@ -109,11 +118,11 @@ export default function QuizResultScreen({
               </TouchableOpacity>
             </>
           )}
-          <TouchableOpacity style={styles.retryButton} onPress={onRetry}>
+          <TouchableOpacity style={[styles.retryButton, { backgroundColor: colors.accent }]} onPress={onRetry}>
             <Text style={styles.retryButtonText}>다시 풀기</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.homeButton} onPress={onBackToHome}>
-            <Text style={styles.homeButtonText}>홈으로</Text>
+          <TouchableOpacity style={[styles.homeButton, { backgroundColor: colors.border }]} onPress={onBackToHome}>
+            <Text style={[styles.homeButtonText, { color: colors.textSecondary }]}>홈으로</Text>
           </TouchableOpacity>
         </View>
 
@@ -128,11 +137,11 @@ export default function QuizResultScreen({
         presentationStyle="pageSheet"
         onRequestClose={() => setShowWrongAnswers(false)}
       >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>틀린 문제 확인</Text>
+        <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+          <View style={[styles.modalHeader, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>틀린 문제 확인</Text>
             <TouchableOpacity onPress={() => setShowWrongAnswers(false)}>
-              <Text style={styles.modalCloseText}>닫기</Text>
+              <Text style={[styles.modalCloseText, { color: colors.accent }]}>닫기</Text>
             </TouchableOpacity>
           </View>
 
@@ -140,30 +149,30 @@ export default function QuizResultScreen({
             {wrongResults.map((result, index) => {
               const englishText = getEnglishText(result);
               return (
-                <View key={index} style={styles.wrongItem}>
+                <View key={index} style={[styles.wrongItem, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <View style={styles.wrongIndexArea}>
                     <Text style={styles.wrongIndex}>{index + 1}</Text>
                     {englishText && (
                       <TouchableOpacity
-                        style={styles.wrongSpeakButton}
+                        style={[styles.wrongSpeakButton, { backgroundColor: colors.primaryLight }]}
                         onPress={() => speakEnglish(englishText)}
                         hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
                       >
-                        <Text style={styles.wrongSpeakButtonText}>🔊</Text>
+                        <MaterialIcons name="volume-up" size={16} color={colors.primary} />
                       </TouchableOpacity>
                     )}
                   </View>
                   <View style={styles.wrongDetail}>
                     <View style={styles.wrongRow}>
-                      <Text style={styles.wrongLabel}>문제</Text>
-                      <Text style={styles.wrongWord}>{result.word}</Text>
+                      <Text style={[styles.wrongLabel, { color: colors.textSecondary }]}>문제</Text>
+                      <Text style={[styles.wrongWord, { color: colors.text }]}>{result.word}</Text>
                     </View>
                     <View style={styles.wrongRow}>
-                      <Text style={styles.wrongLabel}>정답</Text>
+                      <Text style={[styles.wrongLabel, { color: colors.textSecondary }]}>정답</Text>
                       <Text style={styles.correctAnswerText}>{result.correctAnswer}</Text>
                     </View>
                     <View style={styles.wrongRow}>
-                      <Text style={styles.wrongLabel}>내 답</Text>
+                      <Text style={[styles.wrongLabel, { color: colors.textSecondary }]}>내 답</Text>
                       <Text style={styles.userAnswerText}>{result.userAnswer}</Text>
                     </View>
                   </View>
@@ -189,7 +198,6 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   emoji: {
-    fontSize: 80,
     marginBottom: 24,
   },
   title: {
@@ -220,14 +228,14 @@ const styles = StyleSheet.create({
   statsContainer: {
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 20,
     padding: 24,
     marginBottom: 40,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 5,
   },
   statItem: {
     flex: 1,
@@ -257,7 +265,7 @@ const styles = StyleSheet.create({
   },
   wrongAnswerButton: {
     backgroundColor: '#FEE2E2',
-    borderRadius: 8,
+    borderRadius: 16,
     padding: 16,
     alignItems: 'center',
     borderWidth: 1,
@@ -270,7 +278,7 @@ const styles = StyleSheet.create({
   },
   retryWrongButton: {
     backgroundColor: '#FEF3C7',
-    borderRadius: 8,
+    borderRadius: 16,
     padding: 16,
     alignItems: 'center',
     borderWidth: 1,
@@ -283,7 +291,7 @@ const styles = StyleSheet.create({
   },
   retryButton: {
     backgroundColor: '#C4B5FD',
-    borderRadius: 8,
+    borderRadius: 16,
     padding: 16,
     alignItems: 'center',
   },
@@ -294,7 +302,7 @@ const styles = StyleSheet.create({
   },
   homeButton: {
     backgroundColor: '#E5E7EB',
-    borderRadius: 8,
+    borderRadius: 16,
     padding: 16,
     alignItems: 'center',
   },
@@ -336,7 +344,7 @@ const styles = StyleSheet.create({
   wrongItem: {
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 20,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,

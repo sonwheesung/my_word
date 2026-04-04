@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,11 +7,16 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  Animated,
+  Dimensions,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { LinearGradient } from 'expo-linear-gradient';
+import { MaterialIcons } from '@expo/vector-icons';
 import { quizService } from '../services/quizService';
 import type { QuizStatistics, MyPageStats } from '../services/quizService';
 import AdBanner from '../components/AdBanner';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface HomeScreenProps {
   onNavigateToManageWords: () => void;
@@ -20,6 +25,7 @@ interface HomeScreenProps {
   onViewStatistics: () => void;
   onMyPage: () => void;
   onManageCategories: () => void;
+  onSettings: () => void;
 }
 
 interface HomeSummary {
@@ -30,14 +36,19 @@ interface HomeSummary {
   streakDays: number;
 }
 
-const MENU_ITEMS = [
-  { key: 'addWord', icon: '➕', title: '단어 추가', subtitle: '새로운 단어 등록' },
-  { key: 'manageWords', icon: '📚', title: '단어장', subtitle: '단어 관리 및 검색' },
-  { key: 'manageCategories', icon: '📂', title: '카테고리 관리', subtitle: '카테고리 추가 및 정리' },
-  { key: 'startQuiz', icon: '✏️', title: '학습하기', subtitle: '퀴즈 및 복습' },
-  { key: 'statistics', icon: '📊', title: '통계', subtitle: '학습 기록 확인' },
-  { key: 'myPage', icon: '👤', title: '마이페이지', subtitle: '출석 현황 및 프로필' },
-] as const;
+const PRIMARY_MENU = [
+  { key: 'startQuiz', icon: 'school' as const, title: '학습하기', subtitle: '퀴즈로 단어 복습' },
+  { key: 'addWord', icon: 'add' as const, title: '단어 추가', subtitle: '새로운 단어 등록' },
+];
+
+const SECONDARY_MENU = [
+  { key: 'manageWords', icon: 'menu-book' as const, title: '단어장' },
+  { key: 'manageCategories', icon: 'folder-open' as const, title: '카테고리' },
+  { key: 'statistics', icon: 'bar-chart' as const, title: '통계' },
+  { key: 'myPage', icon: 'person-outline' as const, title: '마이' },
+];
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function HomeScreen({
   onNavigateToManageWords,
@@ -46,9 +57,30 @@ export default function HomeScreen({
   onViewStatistics,
   onMyPage,
   onManageCategories,
+  onSettings,
 }: HomeScreenProps) {
+  const { colors } = useTheme();
   const [summary, setSummary] = useState<HomeSummary | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // 진입 애니메이션
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [fadeAnim, slideAnim]);
 
   const loadSummary = useCallback(async () => {
     try {
@@ -64,7 +96,6 @@ export default function HomeScreen({
         streakDays: myPage.streakDays,
       });
     } catch {
-      // 데이터 로딩 실패 시 기본값
       setSummary({ totalWords: 0, totalCategories: 0, accuracy: 0, totalQuizCount: 0, streakDays: 0 });
     } finally {
       setLoading(false);
@@ -93,233 +124,355 @@ export default function HomeScreen({
     return `${streak}일 연속! 대단해요!`;
   };
 
+  const renderStatItem = (value: string, label: string, color?: string) => (
+    <View style={styles.statItem}>
+      <Text style={[styles.statValue, color ? { color } : { color: '#FFFFFF' }]}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+    </View>
+  );
+
   return (
-    <ScrollView style={styles.container}>
-      <StatusBar style="dark" />
+    <ScrollView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      showsVerticalScrollIndicator={false}
+    >
+      <StatusBar style="light" />
 
-      {/* 헤더 */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.greeting}>반갑습니다!</Text>
-          <Text style={styles.username}>My Word 📖</Text>
+      {/* 히어로 섹션 - 그라데이션 */}
+      <LinearGradient
+        colors={[colors.gradientStart, colors.gradientEnd]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.hero}
+      >
+        {/* 장식 원형 */}
+        <View style={[styles.decorCircle, styles.decorCircle1]} />
+        <View style={[styles.decorCircle, styles.decorCircle2]} />
+
+        {/* 헤더 */}
+        <View style={styles.heroHeader}>
+          <View>
+            <Text style={styles.heroGreeting}>반갑습니다!</Text>
+            <Text style={styles.heroTitle}>My Word</Text>
+          </View>
+          <TouchableOpacity
+            onPress={onSettings}
+            activeOpacity={0.7}
+            style={styles.settingsBtn}
+          >
+            <MaterialIcons name="settings" size={22} color="rgba(255,255,255,0.9)" />
+          </TouchableOpacity>
         </View>
-      </View>
 
-      {/* 학습 현황 요약 */}
-      <View style={styles.summarySection}>
+        {/* 통계 카드 */}
         {loading ? (
-          <View style={styles.summaryLoading}>
-            <ActivityIndicator size="small" color="#C4B5FD" />
+          <View style={styles.statsLoading}>
+            <ActivityIndicator size="small" color="rgba(255,255,255,0.8)" />
           </View>
         ) : summary && (summary.totalWords > 0 || summary.totalQuizCount > 0) ? (
-          <>
-            <View style={styles.summaryRow}>
-              <View style={styles.summaryItem}>
-                <Text style={styles.summaryValue}>{summary.totalWords}</Text>
-                <Text style={styles.summaryLabel}>등록 단어</Text>
-              </View>
-              <View style={styles.summaryDivider} />
-              <View style={styles.summaryItem}>
-                <Text style={styles.summaryValue}>{summary.totalCategories}</Text>
-                <Text style={styles.summaryLabel}>카테고리</Text>
-              </View>
-              <View style={styles.summaryDivider} />
-              <View style={styles.summaryItem}>
-                <Text style={[styles.summaryValue, styles.summaryAccuracy]}>
-                  {summary.totalQuizCount > 0 ? `${Math.round(summary.accuracy)}%` : '-'}
-                </Text>
-                <Text style={styles.summaryLabel}>정답률</Text>
-              </View>
-              <View style={styles.summaryDivider} />
-              <View style={styles.summaryItem}>
-                <Text style={[styles.summaryValue, styles.summaryStreak]}>
-                  {summary.streakDays > 0 ? `${summary.streakDays}일` : '-'}
-                </Text>
-                <Text style={styles.summaryLabel}>연속 학습</Text>
-              </View>
+          <Animated.View
+            style={[
+              styles.statsContainer,
+              { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
+            ]}
+          >
+            <View style={styles.statsRow}>
+              {renderStatItem(`${summary.totalWords}`, '등록 단어')}
+              <View style={styles.statDivider} />
+              {renderStatItem(
+                summary.totalQuizCount > 0 ? `${Math.round(summary.accuracy)}%` : '-',
+                '정답률',
+                summary.totalQuizCount > 0 ? '#A7F3D0' : '#FFFFFF',
+              )}
+              <View style={styles.statDivider} />
+              {renderStatItem(
+                summary.streakDays > 0 ? `${summary.streakDays}일` : '-',
+                '연속 학습',
+                summary.streakDays > 0 ? '#FDE68A' : '#FFFFFF',
+              )}
             </View>
-            <View style={styles.streakBanner}>
-              <Text style={styles.streakIcon}>{summary.streakDays > 0 ? '🔥' : '💡'}</Text>
-              <Text style={styles.streakText}>{getStreakMessage(summary.streakDays)}</Text>
-            </View>
-          </>
+          </Animated.View>
         ) : (
-          <View style={styles.summaryEmpty}>
-            <Text style={styles.summaryEmptyIcon}>📝</Text>
-            <Text style={styles.summaryEmptyText}>단어를 추가하고 학습을 시작해보세요!</Text>
+          <View style={styles.heroEmpty}>
+            <MaterialIcons name="edit-note" size={24} color="rgba(255,255,255,0.85)" style={{ marginRight: 12 }} />
+            <Text style={styles.heroEmptyText}>단어를 추가하고 학습을 시작해보세요!</Text>
           </View>
         )}
-      </View>
 
-      {/* 기능 버튼들 - 2열 그리드 */}
-      <View style={styles.features}>
-        <View style={styles.grid}>
-          {MENU_ITEMS.map((item) => (
+        {/* 연속 학습 배너 */}
+        {!loading && summary && (summary.totalWords > 0 || summary.totalQuizCount > 0) && (
+          <View style={styles.streakBanner}>
+            <MaterialIcons
+              name={summary.streakDays > 0 ? 'local-fire-department' : 'lightbulb-outline'}
+              size={18}
+              color="rgba(255,255,255,0.9)"
+              style={{ marginRight: 8 }}
+            />
+            <Text style={styles.streakText}>
+              {getStreakMessage(summary.streakDays)}
+            </Text>
+          </View>
+        )}
+      </LinearGradient>
+
+      {/* 메인 메뉴 - 강조 카드 2개 */}
+      <Animated.View
+        style={[
+          styles.menuSection,
+          { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
+        ]}
+      >
+        <View style={styles.primaryGrid}>
+          {PRIMARY_MENU.map((item) => (
             <TouchableOpacity
               key={item.key}
-              style={styles.gridItem}
+              style={[
+                styles.primaryCard,
+                { backgroundColor: colors.card },
+                cardShadow,
+              ]}
               onPress={() => handlePress(item.key)}
               activeOpacity={0.7}
             >
-              <Text style={styles.featureIcon}>{item.icon}</Text>
-              <Text style={styles.featureTitle}>{item.title}</Text>
-              <Text style={styles.featureSubtitle}>{item.subtitle}</Text>
+              <View style={[styles.iconCircle, { backgroundColor: colors.primaryLight }]}>
+                <MaterialIcons name={item.icon} size={28} color={colors.primary} />
+              </View>
+              <Text style={[styles.primaryTitle, { color: colors.text }]}>{item.title}</Text>
+              <Text style={[styles.primarySubtitle, { color: colors.textTertiary }]}>
+                {item.subtitle}
+              </Text>
             </TouchableOpacity>
           ))}
         </View>
-      </View>
 
-      {/* 하단 배너 광고 */}
+        {/* 서브 메뉴 - 4열 소형 카드 */}
+        <View style={styles.secondaryGrid}>
+          {SECONDARY_MENU.map((item) => (
+            <TouchableOpacity
+              key={item.key}
+              style={[
+                styles.secondaryCard,
+                { backgroundColor: colors.card },
+                cardShadow,
+              ]}
+              onPress={() => handlePress(item.key)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.iconCircleSmall, { backgroundColor: colors.primaryLight }]}>
+                <MaterialIcons name={item.icon} size={22} color={colors.primary} />
+              </View>
+              <Text style={[styles.secondaryTitle, { color: colors.text }]}>{item.title}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </Animated.View>
+
+      {/* 하단 광고 */}
       <AdBanner />
     </ScrollView>
   );
 }
 
 const cardShadow = Platform.OS === 'web'
-  ? { boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)' }
+  ? { boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08)' }
   : {
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.05,
-      shadowRadius: 8,
-      elevation: 2,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.08,
+      shadowRadius: 16,
+      elevation: 4,
     };
+
+const CARD_GAP = 12;
+const SECTION_PADDING = 20;
+const PRIMARY_CARD_WIDTH = (SCREEN_WIDTH - SECTION_PADDING * 2 - CARD_GAP) / 2;
+const SECONDARY_CARD_WIDTH = (SCREEN_WIDTH - SECTION_PADDING * 2 - CARD_GAP * 3) / 4;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
   },
-  header: {
-    backgroundColor: '#FFFFFF',
-    padding: 20,
+
+  // ── 히어로 섹션 ──
+  hero: {
     paddingTop: 56,
+    paddingBottom: 28,
+    paddingHorizontal: SECTION_PADDING,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  decorCircle: {
+    position: 'absolute',
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  decorCircle1: {
+    width: 200,
+    height: 200,
+    top: -60,
+    right: -40,
+  },
+  decorCircle2: {
+    width: 120,
+    height: 120,
+    bottom: -20,
+    left: -30,
+  },
+  heroHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    marginBottom: 24,
   },
-  greeting: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 2,
+  heroGreeting: {
+    fontSize: 15,
+    color: 'rgba(255,255,255,0.8)',
+    marginBottom: 4,
   },
-  username: {
-    fontSize: 22,
+  heroTitle: {
+    fontSize: 28,
     fontWeight: 'bold',
-    color: '#1A1A1A',
+    color: '#FFFFFF',
+    letterSpacing: -0.5,
+  },
+  settingsBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
   },
 
-  // 학습 현황 요약
-  summarySection: {
-    marginHorizontal: 16,
-    marginTop: 16,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    overflow: 'hidden',
-    ...cardShadow,
-  },
-  summaryLoading: {
-    padding: 24,
+  // ── 통계 ──
+  statsLoading: {
+    padding: 20,
     alignItems: 'center',
   },
-  summaryRow: {
+  statsContainer: {
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 20,
+    paddingVertical: 18,
+    paddingHorizontal: 12,
+  },
+  statsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 8,
   },
-  summaryItem: {
+  statItem: {
     flex: 1,
     alignItems: 'center',
   },
-  summaryDivider: {
-    width: 1,
-    height: 32,
-    backgroundColor: '#E5E7EB',
-  },
-  summaryValue: {
-    fontSize: 20,
+  statValue: {
+    fontSize: 22,
     fontWeight: 'bold',
-    color: '#6366F1',
-    marginBottom: 2,
+    marginBottom: 4,
   },
-  summaryAccuracy: {
-    color: '#10B981',
-  },
-  summaryStreak: {
-    color: '#F59E0B',
-  },
-  summaryLabel: {
-    fontSize: 11,
-    color: '#9CA3AF',
+  statLabel: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.7)',
     fontWeight: '500',
   },
+  statDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+
+  // ── 연속 학습 배너 ──
   streakBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFBEB',
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 12,
     paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#FEF3C7',
-  },
-  streakIcon: {
-    fontSize: 16,
-    marginRight: 8,
+    paddingHorizontal: 14,
+    marginTop: 14,
   },
   streakText: {
     fontSize: 13,
-    color: '#92400E',
+    color: 'rgba(255,255,255,0.9)',
     fontWeight: '600',
     flex: 1,
   },
-  summaryEmpty: {
+
+  // ── Empty State (히어로 내) ──
+  heroEmpty: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 16,
     padding: 16,
   },
-  summaryEmptyIcon: {
-    fontSize: 20,
-    marginRight: 10,
-  },
-  summaryEmptyText: {
+  heroEmptyText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: 'rgba(255,255,255,0.85)',
     flex: 1,
+    fontWeight: '500',
   },
 
-  // 기능 버튼 그리드
-  features: {
-    padding: 16,
-    paddingBottom: 32,
+  // ── 메뉴 섹션 ──
+  menuSection: {
+    padding: SECTION_PADDING,
+    paddingTop: 24,
+    paddingBottom: 12,
   },
-  grid: {
+
+  // ── 강조 카드 (2열) ──
+  primaryGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  primaryCard: {
+    width: PRIMARY_CARD_WIDTH,
+    paddingVertical: 22,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    alignItems: 'center',
+  },
+  iconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  primaryTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  primarySubtitle: {
+    fontSize: 12,
+  },
+
+  // ── 서브 카드 (4열) ──
+  secondaryGrid: {
+    flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  gridItem: {
-    width: '48%',
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 14,
-    marginBottom: 12,
-    ...cardShadow,
+  secondaryCard: {
+    width: SECONDARY_CARD_WIDTH,
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    borderRadius: 16,
+    alignItems: 'center',
   },
-  featureIcon: {
-    fontSize: 26,
+  iconCircleSmall: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 8,
   },
-  featureTitle: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#1A1A1A',
-    marginBottom: 2,
-  },
-  featureSubtitle: {
+  secondaryTitle: {
     fontSize: 12,
-    color: '#9CA3AF',
+    fontWeight: '600',
   },
 });

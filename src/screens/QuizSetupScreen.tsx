@@ -9,11 +9,13 @@ import {
   Modal,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { MaterialIcons } from '@expo/vector-icons';
 import { categoryService } from '../services/categoryService';
 import type { Category } from '../types/word';
 import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
 import ScreenHeader from '../components/ScreenHeader';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface QuizSetupScreenProps {
   onBack: () => void;
@@ -44,6 +46,7 @@ const QUIZ_ANSWER_TYPES: Array<{ value: QuizAnswerType; label: string; descripti
 const WORD_COUNTS = [5, 10, 15, 20, 30];
 
 export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreenProps) {
+  const { colors } = useTheme();
   const { toast, showToast, hideToast } = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
@@ -116,21 +119,21 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#C4B5FD" />
-        <Text style={styles.loadingText}>로딩 중...</Text>
+      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.accent} />
+        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>로딩 중...</Text>
       </View>
     );
   }
 
   if (categories.length === 0) {
     return (
-      <View style={styles.emptyContainer}>
-        <StatusBar style="dark" />
-        <Text style={styles.emptyIcon}>📂</Text>
-        <Text style={styles.emptyTitle}>카테고리가 없습니다</Text>
-        <Text style={styles.emptySubtitle}>먼저 카테고리를 생성해주세요</Text>
-        <TouchableOpacity style={styles.backButton} onPress={onBack}>
+      <View style={[styles.emptyContainer, { backgroundColor: colors.background }]}>
+        <StatusBar style={colors.isDark ? 'light' : 'dark'} />
+        <MaterialIcons name="folder-open" size={64} color={colors.textTertiary} />
+        <Text style={[styles.emptyTitle, { color: colors.text }]}>카테고리가 없습니다</Text>
+        <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>먼저 카테고리를 생성해주세요</Text>
+        <TouchableOpacity style={[styles.backButton, { backgroundColor: colors.accent }]} onPress={onBack}>
           <Text style={styles.backButtonText}>돌아가기</Text>
         </TouchableOpacity>
       </View>
@@ -138,41 +141,42 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
   }
 
   return (
-    <View style={styles.container}>
-      <StatusBar style="dark" />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar style={colors.isDark ? 'light' : 'dark'} />
       <ScreenHeader title="퀴즈 설정" onBack={onBack} />
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {/* 카테고리 선택 */}
         <View style={styles.section}>
-          <Text style={styles.label}>카테고리</Text>
+          <Text style={[styles.label, { color: colors.text }]}>카테고리</Text>
           <TouchableOpacity
-            style={styles.selector}
+            style={[styles.selector, { backgroundColor: colors.card, borderColor: colors.border }]}
             onPress={() => setShowCategoryPicker(true)}
           >
             <View style={styles.selectorLeft}>
-              <Text style={styles.selectorText}>
+              <Text style={[styles.selectorText, { color: colors.text }]}>
                 {selectedCategory?.categoryName || '카테고리 선택'}
               </Text>
               {selectedCategory && (
-                <Text style={styles.selectorWordCount}>
+                <Text style={[styles.selectorWordCount, { color: colors.textSecondary }]}>
                   {availableWordCount}개 단어
                 </Text>
               )}
             </View>
-            <Text style={styles.selectorIcon}>▼</Text>
+            <MaterialIcons name="keyboard-arrow-down" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
 
         {/* 모드 선택 */}
         <View style={styles.section}>
-          <Text style={styles.label}>퀴즈 모드</Text>
+          <Text style={[styles.label, { color: colors.text }]}>퀴즈 모드</Text>
           {QUIZ_MODES.map((mode) => (
             <TouchableOpacity
               key={mode.value}
               style={[
                 styles.modeOption,
-                selectedMode === mode.value && styles.modeOptionSelected,
+                { backgroundColor: colors.card, borderColor: colors.border },
+                selectedMode === mode.value && { borderColor: colors.accent, backgroundColor: colors.primaryLight },
               ]}
               onPress={() => setSelectedMode(mode.value)}
             >
@@ -180,20 +184,21 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
                 <Text
                   style={[
                     styles.modeOptionLabel,
-                    selectedMode === mode.value && styles.modeOptionLabelSelected,
+                    { color: colors.text },
+                    selectedMode === mode.value && { color: colors.accent },
                   ]}
                 >
                   {mode.label}
                 </Text>
-                <Text style={styles.modeOptionDescription}>{mode.description}</Text>
+                <Text style={[styles.modeOptionDescription, { color: colors.textSecondary }]}>{mode.description}</Text>
               </View>
               <View
                 style={[
                   styles.radio,
-                  selectedMode === mode.value && styles.radioSelected,
+                  selectedMode === mode.value && { borderColor: colors.accent },
                 ]}
               >
-                {selectedMode === mode.value && <View style={styles.radioDot} />}
+                {selectedMode === mode.value && <View style={[styles.radioDot, { backgroundColor: colors.accent }]} />}
               </View>
             </TouchableOpacity>
           ))}
@@ -202,13 +207,14 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
         {/* 출제 방향 선택 (여러 형태 모드 제외) */}
         {selectedMode !== 'mixed' && (
           <View style={styles.section}>
-            <Text style={styles.label}>출제 방향</Text>
+            <Text style={[styles.label, { color: colors.text }]}>출제 방향</Text>
             {QUIZ_DIRECTIONS.map((dir) => (
               <TouchableOpacity
                 key={dir.value}
                 style={[
                   styles.modeOption,
-                  selectedDirection === dir.value && styles.modeOptionSelected,
+                  { backgroundColor: colors.card, borderColor: colors.border },
+                  selectedDirection === dir.value && { borderColor: colors.accent, backgroundColor: colors.primaryLight },
                 ]}
                 onPress={() => setSelectedDirection(dir.value)}
               >
@@ -216,20 +222,21 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
                   <Text
                     style={[
                       styles.modeOptionLabel,
-                      selectedDirection === dir.value && styles.modeOptionLabelSelected,
+                      { color: colors.text },
+                      selectedDirection === dir.value && { color: colors.accent },
                     ]}
                   >
                     {dir.label}
                   </Text>
-                  <Text style={styles.modeOptionDescription}>{dir.description}</Text>
+                  <Text style={[styles.modeOptionDescription, { color: colors.textSecondary }]}>{dir.description}</Text>
                 </View>
                 <View
                   style={[
                     styles.radio,
-                    selectedDirection === dir.value && styles.radioSelected,
+                    selectedDirection === dir.value && { borderColor: colors.accent },
                   ]}
                 >
-                  {selectedDirection === dir.value && <View style={styles.radioDot} />}
+                  {selectedDirection === dir.value && <View style={[styles.radioDot, { backgroundColor: colors.accent }]} />}
                 </View>
               </TouchableOpacity>
             ))}
@@ -238,13 +245,14 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
 
         {/* 답변 방식 선택 */}
         <View style={styles.section}>
-          <Text style={styles.label}>답변 방식</Text>
+          <Text style={[styles.label, { color: colors.text }]}>답변 방식</Text>
           {QUIZ_ANSWER_TYPES.map((at) => (
             <TouchableOpacity
               key={at.value}
               style={[
                 styles.modeOption,
-                selectedAnswerType === at.value && styles.modeOptionSelected,
+                { backgroundColor: colors.card, borderColor: colors.border },
+                selectedAnswerType === at.value && { borderColor: colors.accent, backgroundColor: colors.primaryLight },
               ]}
               onPress={() => setSelectedAnswerType(at.value)}
             >
@@ -252,20 +260,21 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
                 <Text
                   style={[
                     styles.modeOptionLabel,
-                    selectedAnswerType === at.value && styles.modeOptionLabelSelected,
+                    { color: colors.text },
+                    selectedAnswerType === at.value && { color: colors.accent },
                   ]}
                 >
                   {at.label}
                 </Text>
-                <Text style={styles.modeOptionDescription}>{at.description}</Text>
+                <Text style={[styles.modeOptionDescription, { color: colors.textSecondary }]}>{at.description}</Text>
               </View>
               <View
                 style={[
                   styles.radio,
-                  selectedAnswerType === at.value && styles.radioSelected,
+                  selectedAnswerType === at.value && { borderColor: colors.accent },
                 ]}
               >
-                {selectedAnswerType === at.value && <View style={styles.radioDot} />}
+                {selectedAnswerType === at.value && <View style={[styles.radioDot, { backgroundColor: colors.accent }]} />}
               </View>
             </TouchableOpacity>
           ))}
@@ -274,9 +283,9 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
         {/* 단어 수 선택 */}
         <View style={styles.section}>
           <View style={styles.labelRow}>
-            <Text style={[styles.label, { marginBottom: 0 }]}>문제 수</Text>
+            <Text style={[styles.label, { marginBottom: 0, color: colors.text }]}>문제 수</Text>
             {availableWordCount > 0 && (
-              <Text style={styles.labelHint}>최대 {availableWordCount}개</Text>
+              <Text style={[styles.labelHint, { color: colors.accent }]}>최대 {availableWordCount}개</Text>
             )}
           </View>
           <View style={styles.wordCountButtons}>
@@ -284,13 +293,15 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
               <TouchableOpacity
                 style={[
                   styles.wordCountButton,
-                  selectedWordCount === availableWordCount && styles.wordCountButtonSelected,
+                  { backgroundColor: colors.card, borderColor: colors.border },
+                  selectedWordCount === availableWordCount && { backgroundColor: colors.accent, borderColor: colors.accent },
                 ]}
                 onPress={() => setSelectedWordCount(availableWordCount)}
               >
                 <Text
                   style={[
                     styles.wordCountButtonText,
+                    { color: colors.textSecondary },
                     selectedWordCount === availableWordCount && styles.wordCountButtonTextSelected,
                   ]}
                 >
@@ -305,7 +316,8 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
                   key={count}
                   style={[
                     styles.wordCountButton,
-                    selectedWordCount === count && styles.wordCountButtonSelected,
+                    { backgroundColor: colors.card, borderColor: colors.border },
+                    selectedWordCount === count && { backgroundColor: colors.accent, borderColor: colors.accent },
                     isDisabled && styles.wordCountButtonDisabled,
                   ]}
                   onPress={() => !isDisabled && setSelectedWordCount(count)}
@@ -314,6 +326,7 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
                   <Text
                     style={[
                       styles.wordCountButtonText,
+                      { color: colors.textSecondary },
                       selectedWordCount === count && styles.wordCountButtonTextSelected,
                       isDisabled && styles.wordCountButtonTextDisabled,
                     ]}
@@ -332,7 +345,7 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
         </View>
 
         <TouchableOpacity
-          style={[styles.startButton, isStarting && { opacity: 0.6 }]}
+          style={[styles.startButton, { backgroundColor: colors.accent }, isStarting && { opacity: 0.6 }]}
           onPress={handleStartQuiz}
           disabled={isStarting}
         >
@@ -352,15 +365,16 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
           activeOpacity={1}
           onPress={() => setShowCategoryPicker(false)}
         >
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>카테고리 선택</Text>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <Text style={[styles.modalTitle, { color: colors.text, borderBottomColor: colors.border }]}>카테고리 선택</Text>
             <ScrollView style={styles.categoryList}>
               {categories.map((category) => (
                 <TouchableOpacity
                   key={category.categoryId}
                   style={[
                     styles.categoryOption,
-                    selectedCategoryId === category.categoryId && styles.categoryOptionSelected,
+                    { borderBottomColor: colors.borderLight },
+                    selectedCategoryId === category.categoryId && { backgroundColor: colors.primaryLight },
                   ]}
                   onPress={() => handleCategorySelect(category.categoryId)}
                 >
@@ -368,8 +382,8 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
                     <Text
                       style={[
                         styles.categoryOptionText,
-                        selectedCategoryId === category.categoryId &&
-                          styles.categoryOptionTextSelected,
+                        { color: colors.textSecondary },
+                        selectedCategoryId === category.categoryId && { color: colors.accent, fontWeight: '600' },
                       ]}
                     >
                       {category.categoryName}
@@ -377,8 +391,8 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
                     <Text
                       style={[
                         styles.categoryOptionCount,
-                        selectedCategoryId === category.categoryId &&
-                          styles.categoryOptionCountSelected,
+                        { color: colors.textTertiary },
+                        selectedCategoryId === category.categoryId && { color: colors.accent },
                       ]}
                     >
                       {category.wordCount ?? 0}개
@@ -443,7 +457,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 12,
     backgroundColor: '#C4B5FD',
-    borderRadius: 8,
+    borderRadius: 16,
   },
   backButtonText: {
     color: '#FFFFFF',
@@ -454,7 +468,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: 16,
+    padding: 20,
   },
   section: {
     marginBottom: 24,
@@ -477,7 +491,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 8,
+    borderRadius: 16,
     padding: 14,
   },
   selectorLeft: {
@@ -509,7 +523,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 8,
+    borderRadius: 16,
     padding: 14,
     marginBottom: 8,
   },
@@ -562,7 +576,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 8,
+    borderRadius: 16,
   },
   wordCountButtonSelected: {
     backgroundColor: '#C4B5FD',
@@ -591,7 +605,7 @@ const styles = StyleSheet.create({
   },
   startButton: {
     backgroundColor: '#C4B5FD',
-    borderRadius: 8,
+    borderRadius: 16,
     padding: 16,
     alignItems: 'center',
     marginTop: 8,
@@ -610,7 +624,7 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 20,
     width: '100%',
     maxWidth: 400,
     maxHeight: '60%',

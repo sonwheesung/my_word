@@ -8,11 +8,13 @@ import {
   RefreshControl,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { MaterialIcons } from '@expo/vector-icons';
 import { quizService, MyPageStats, DailyActivity } from '../services/quizService';
 import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
 import ScreenHeader from '../components/ScreenHeader';
 import SkeletonLoader from '../components/SkeletonLoader';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface MyPageScreenProps {
   onBack: () => void;
@@ -34,6 +36,7 @@ function getLevel(count: number): number {
 const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
 
 export default function MyPageScreen({ onBack }: MyPageScreenProps) {
+  const { colors } = useTheme();
   const { toast, showToast, hideToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -109,17 +112,17 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
 
   if (loading) {
     return (
-      <View style={styles.container}>
-        <StatusBar style="dark" />
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <StatusBar style={colors.isDark ? 'light' : 'dark'} />
         <ScreenHeader title="마이페이지" onBack={onBack} />
         <View style={{ padding: 16 }}>
           {/* 프로필 스켈레톤 */}
-          <View style={styles.skeletonCard}>
+          <View style={[styles.skeletonCard, { backgroundColor: colors.card }]}>
             <SkeletonLoader width={120} height={20} style={{ marginBottom: 8 }} />
             <SkeletonLoader width={80} height={14} />
           </View>
           {/* 통계 스켈레톤 */}
-          <View style={styles.skeletonCard}>
+          <View style={[styles.skeletonCard, { backgroundColor: colors.card }]}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-around' }}>
               <View style={{ alignItems: 'center' }}>
                 <SkeletonLoader width={50} height={28} style={{ marginBottom: 8 }} />
@@ -136,7 +139,7 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
             </View>
           </View>
           {/* 히트맵 스켈레톤 */}
-          <View style={styles.skeletonCard}>
+          <View style={[styles.skeletonCard, { backgroundColor: colors.card }]}>
             <SkeletonLoader width="40%" height={18} style={{ marginBottom: 12 }} />
             <SkeletonLoader width="100%" height={100} borderRadius={8} />
           </View>
@@ -146,8 +149,8 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
   }
 
   return (
-    <View style={styles.container}>
-      <StatusBar style="dark" />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar style={colors.isDark ? 'light' : 'dark'} />
       <ScreenHeader title="마이페이지" onBack={onBack} />
 
       <ScrollView
@@ -157,21 +160,21 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={['#C4B5FD']}
-            tintColor="#C4B5FD"
+            colors={[colors.accent]}
+            tintColor={colors.accent}
           />
         }
       >
         {/* 프로필 카드 */}
-        <View style={styles.card}>
+        <View style={[styles.card, { backgroundColor: colors.card }]}>
           <View style={styles.profileRow}>
-            <View style={styles.avatar}>
+            <View style={[styles.avatar, { backgroundColor: colors.accent }]}>
               <Text style={styles.avatarText}>M</Text>
             </View>
             <View style={styles.profileInfo}>
-              <Text style={styles.profileName}>My Word</Text>
+              <Text style={[styles.profileName, { color: colors.text }]}>My Word</Text>
               {stats && (
-                <Text style={styles.profileSub}>
+                <Text style={[styles.profileSub, { color: colors.textSecondary }]}>
                   총 {stats.totalActiveDays}일 활동
                 </Text>
               )}
@@ -181,31 +184,31 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
 
         {/* 요약 통계 */}
         {stats && (
-          <View style={styles.card}>
+          <View style={[styles.card, { backgroundColor: colors.card }]}>
             <View style={styles.summaryRow}>
               <View style={styles.summaryItem}>
-                <Text style={styles.summaryValue}>{stats.totalWordCount}</Text>
-                <Text style={styles.summaryLabel}>등록 단어</Text>
+                <Text style={[styles.summaryValue, { color: colors.accent }]}>{stats.totalWordCount}</Text>
+                <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>등록 단어</Text>
               </View>
-              <View style={styles.summaryDivider} />
+              <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />
               <View style={styles.summaryItem}>
-                <Text style={styles.summaryValue}>{stats.totalQuizCount}</Text>
-                <Text style={styles.summaryLabel}>퀴즈 횟수</Text>
+                <Text style={[styles.summaryValue, { color: colors.accent }]}>{stats.totalQuizCount}</Text>
+                <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>퀴즈 횟수</Text>
               </View>
-              <View style={styles.summaryDivider} />
+              <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />
               <View style={styles.summaryItem}>
                 <Text style={[styles.summaryValue, styles.streakValue]}>
                   {stats.streakDays}
                 </Text>
-                <Text style={styles.summaryLabel}>연속 학습</Text>
+                <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>연속 학습</Text>
               </View>
             </View>
           </View>
         )}
 
         {/* 잔디 히트맵 */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>학습 활동</Text>
+        <View style={[styles.card, { backgroundColor: colors.card }]}>
+          <Text style={[styles.cardTitle, { color: colors.text }]}>학습 활동</Text>
 
           {/* 월 라벨 */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -247,14 +250,14 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
 
               {/* 범례 */}
               <View style={styles.legendContainer}>
-                <Text style={styles.legendText}>적음</Text>
+                <Text style={[styles.legendText, { color: colors.textTertiary }]}>적음</Text>
                 {LEVEL_COLORS.map((color, i) => (
                   <View
                     key={i}
                     style={[styles.legendCell, { backgroundColor: color }]}
                   />
                 ))}
-                <Text style={styles.legendText}>많음</Text>
+                <Text style={[styles.legendText, { color: colors.textTertiary }]}>많음</Text>
               </View>
             </View>
           </ScrollView>
@@ -263,9 +266,12 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
         {/* 연속 학습 카드 */}
         {stats && stats.streakDays > 0 && (
           <View style={[styles.card, styles.streakCard]}>
-            <Text style={styles.streakEmoji}>
-              {stats.streakDays >= 7 ? '🏆' : stats.streakDays >= 3 ? '🔥' : '✨'}
-            </Text>
+            <MaterialIcons
+              name={stats.streakDays >= 7 ? 'emoji-events' : stats.streakDays >= 3 ? 'local-fire-department' : 'auto-awesome'}
+              size={32}
+              color={stats.streakDays >= 7 ? '#F59E0B' : stats.streakDays >= 3 ? '#EF4444' : '#F59E0B'}
+              style={{ marginRight: 12 }}
+            />
             <View style={styles.streakContent}>
               <Text style={styles.streakTitle}>
                 {stats.streakDays}일 연속 학습 중!
@@ -301,30 +307,30 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: 16,
+    padding: 20,
     paddingBottom: 32,
   },
   // Skeleton
   skeletonCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 20,
     padding: 20,
     marginBottom: 16,
   },
   // Cards
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 20,
     padding: 20,
     marginBottom: 16,
     ...Platform.select({
-      web: { boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)' },
+      web: { boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)' },
       default: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        elevation: 2,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+        elevation: 3,
       },
     }),
   },
@@ -448,10 +454,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFBEB',
     borderWidth: 1,
     borderColor: '#FDE68A',
-  },
-  streakEmoji: {
-    fontSize: 32,
-    marginRight: 12,
   },
   streakContent: {
     flex: 1,
