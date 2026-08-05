@@ -1,11 +1,11 @@
 import { Platform } from 'react-native';
 
 // 현재 앱 버전 (app.json과 동기화)
-export const APP_VERSION = '0.0.1';
+export const APP_VERSION = '1.0.0';
 
 // 최신 버전 (배포 시 이 값을 업데이트)
 // 이 값보다 APP_VERSION이 낮으면 업데이트 안내 표시
-export const LATEST_VERSION = '0.0.1';
+export const LATEST_VERSION = '1.0.0';
 
 // Google Play Store 링크
 export const STORE_URL = Platform.select({
