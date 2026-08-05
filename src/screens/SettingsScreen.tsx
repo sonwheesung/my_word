@@ -15,9 +15,10 @@ import ScreenHeader from '../components/ScreenHeader';
 
 interface SettingsScreenProps {
   onBack: () => void;
+  onSupport: () => void;
 }
 
-export default function SettingsScreen({ onBack }: SettingsScreenProps) {
+export default function SettingsScreen({ onBack, onSupport }: SettingsScreenProps) {
   const { colors, themeId, setThemeId } = useTheme();
 
   return (
@@ -84,6 +85,27 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
               );
             })}
           </View>
+        </View>
+
+        {/* 고객 지원 */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>고객 지원</Text>
+          <TouchableOpacity
+            onPress={onSupport}
+            activeOpacity={0.7}
+            style={[styles.linkRow, { backgroundColor: colors.card, borderColor: colors.border }]}
+          >
+            <View style={styles.linkLeft}>
+              <MaterialIcons name="chat-bubble-outline" size={20} color={colors.primary} />
+              <View>
+                <Text style={[styles.linkTitle, { color: colors.text }]}>문의하기</Text>
+                <Text style={[styles.linkSubtitle, { color: colors.textTertiary }]}>
+                  익명으로 의견을 보낼 수 있어요
+                </Text>
+              </View>
+            </View>
+            <MaterialIcons name="chevron-right" size={22} color={colors.textTertiary} />
+          </TouchableOpacity>
         </View>
 
         {/* 앱 정보 */}
@@ -161,6 +183,28 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  linkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  linkLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  linkTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  linkSubtitle: {
+    fontSize: 12,
+    marginTop: 2,
   },
   infoCard: {
     borderRadius: 16,

@@ -12,6 +12,7 @@ import StatisticsScreen from './src/screens/StatisticsScreen';
 import MyPageScreen from './src/screens/MyPageScreen';
 import ImportWordsScreen from './src/screens/ImportWordsScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
+import SupportScreen from './src/screens/SupportScreen';
 import UpdateModal from './src/components/UpdateModal';
 import { ThemeProvider } from './src/contexts/ThemeContext';
 import { versionService } from './src/services/versionService';
@@ -51,7 +52,7 @@ class ErrorBoundary extends React.Component<
   }
 }
 
-type Screen = 'home' | 'manageWords' | 'addWord' | 'editWord' | 'manageCategories' | 'quizSetup' | 'quiz' | 'quizResult' | 'statistics' | 'myPage' | 'importWords' | 'settings';
+type Screen = 'home' | 'manageWords' | 'addWord' | 'editWord' | 'manageCategories' | 'quizSetup' | 'quiz' | 'quizResult' | 'statistics' | 'myPage' | 'importWords' | 'settings' | 'support';
 
 function AppContent() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('home');
@@ -102,6 +103,10 @@ function AppContent() {
       case 'myPage':
       case 'settings':
         setCurrentScreen('home');
+        break;
+      case 'support':
+        // 진입점이 설정 화면뿐이라 항상 설정으로 되돌린다
+        setCurrentScreen('settings');
         break;
       case 'quiz':
         setRetryWordIds(undefined);
@@ -260,7 +265,16 @@ function AppContent() {
   }
 
   if (currentScreen === 'settings') {
-    return <SettingsScreen onBack={() => setCurrentScreen('home')} />;
+    return (
+      <SettingsScreen
+        onBack={() => setCurrentScreen('home')}
+        onSupport={() => setCurrentScreen('support')}
+      />
+    );
+  }
+
+  if (currentScreen === 'support') {
+    return <SupportScreen onBack={() => setCurrentScreen('settings')} />;
   }
 
   return (
