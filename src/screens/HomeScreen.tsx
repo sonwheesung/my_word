@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,6 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
-  Animated,
   Dimensions,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -62,25 +61,6 @@ export default function HomeScreen({
   const { colors } = useTheme();
   const [summary, setSummary] = useState<HomeSummary | null>(null);
   const [loading, setLoading] = useState(true);
-
-  // 진입 애니메이션
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 600,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 600,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [fadeAnim, slideAnim]);
 
   const loadSummary = useCallback(async () => {
     try {
@@ -170,12 +150,7 @@ export default function HomeScreen({
             <ActivityIndicator size="small" color="rgba(255,255,255,0.8)" />
           </View>
         ) : summary && (summary.totalWords > 0 || summary.totalQuizCount > 0) ? (
-          <Animated.View
-            style={[
-              styles.statsContainer,
-              { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
-            ]}
-          >
+          <View style={styles.statsContainer}>
             <View style={styles.statsRow}>
               {renderStatItem(`${summary.totalWords}`, '등록 단어')}
               <View style={styles.statDivider} />
@@ -191,7 +166,7 @@ export default function HomeScreen({
                 summary.streakDays > 0 ? '#FDE68A' : '#FFFFFF',
               )}
             </View>
-          </Animated.View>
+          </View>
         ) : (
           <View style={styles.heroEmpty}>
             <MaterialIcons name="edit-note" size={24} color="rgba(255,255,255,0.85)" style={{ marginRight: 12 }} />
@@ -216,12 +191,7 @@ export default function HomeScreen({
       </LinearGradient>
 
       {/* 메인 메뉴 - 강조 카드 2개 */}
-      <Animated.View
-        style={[
-          styles.menuSection,
-          { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
-        ]}
-      >
+      <View style={styles.menuSection}>
         <View style={styles.primaryGrid}>
           {PRIMARY_MENU.map((item) => (
             <TouchableOpacity
@@ -265,7 +235,7 @@ export default function HomeScreen({
             </TouchableOpacity>
           ))}
         </View>
-      </Animated.View>
+      </View>
 
       {/* 하단 광고 */}
       <AdBanner />
