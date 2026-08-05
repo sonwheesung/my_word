@@ -29,6 +29,68 @@ function escapeCSVField(field: string): string {
   return field;
 }
 
+/**
+ * CSV 전체를 레코드 단위로 분리한다.
+ * 큰따옴표로 감싸인 필드 안의 줄바꿈은 레코드 구분자로 취급하지 않는다.
+ * (내보내기가 메모/예문의 줄바꿈을 따옴표로 감싸 저장하므로 필수)
+ *
+ * @returns 레코드 본문과, 에러 표시에 사용할 시작 물리 줄 번호
+ */
+function splitCSVRecords(csv: string): Array<{ text: string; line: number }> {
+  const records: Array<{ text: string; line: number }> = [];
+  let current = '';
+  let physicalLine = 1;
+  let startLine = 1;
+  let inQuotes = false;
+  let i = 0;
+
+  while (i < csv.length) {
+    const char = csv[i];
+
+    if (char === '"') {
+      // 따옴표 안의 "" 는 이스케이프된 큰따옴표이므로 상태를 바꾸지 않는다
+      if (inQuotes && csv[i + 1] === '"') {
+        current += '""';
+        i += 2;
+        continue;
+      }
+      inQuotes = !inQuotes;
+      current += char;
+      i++;
+      continue;
+    }
+
+    // 따옴표 밖의 줄바꿈만 레코드 경계
+    if (!inQuotes && (char === '\n' || char === '\r')) {
+      if (char === '\r' && csv[i + 1] === '\n') i++; // CRLF 를 한 줄로 취급
+      records.push({ text: current, line: startLine });
+      current = '';
+      physicalLine++;
+      startLine = physicalLine;
+      i++;
+      continue;
+    }
+
+    // 따옴표 안의 줄바꿈은 본문으로 보존하되 물리 줄 번호는 증가
+    if (char === '\n') physicalLine++;
+    current += char;
+    i++;
+  }
+
+  if (inQuotes) {
+    // 따옴표가 닫히지 않은 채 입력이 끝났다면 CSV 가 깨진 것이다.
+    // 손상 범위가 뒤쪽 줄 전체로 번지지 않도록 줄 단위 분리로 되돌린다.
+    for (const chunk of current.split('\n')) {
+      records.push({ text: chunk, line: startLine });
+      startLine++;
+    }
+  } else {
+    records.push({ text: current, line: startLine });
+  }
+
+  return records;
+}
+
 function parseCSVLine(line: string): string[] {
   const fields: string[] = [];
   let current = '';
@@ -112,21 +174,21 @@ export const shareService = {
     const success: ParsedWord[] = [];
     const errors: ParseResult['errors'] = [];
 
-    const lines = csv.trim().split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
+    const records = splitCSVRecords(csv).filter((r) => r.text.trim().length > 0);
 
-    if (lines.length === 0) {
+    if (records.length === 0) {
       return { success, errors };
     }
 
     // 첫 줄이 헤더인지 확인 (한글 '단어' 포함 시 스킵)
     let startIndex = 0;
-    if (lines[0].includes('단어') && lines[0].includes('뜻')) {
+    if (records[0].text.includes('단어') && records[0].text.includes('뜻')) {
       startIndex = 1;
     }
 
-    for (let i = startIndex; i < lines.length; i++) {
-      const line = lines[i];
-      const lineNumber = i + 1;
+    for (let i = startIndex; i < records.length; i++) {
+      const line = records[i].text.trim();
+      const lineNumber = records[i].line;
 
       try {
         const fields = parseCSVLine(line);
@@ -158,10 +220,14 @@ export const shareService = {
           for (const part of exampleParts) {
             const trimmed = part.trim();
             if (trimmed.length === 0) continue;
-            const [example, translation] = trimmed.split('::');
+            // 첫 '::' 만 구분자로 쓰고 나머지는 전부 번역으로 보존한다.
+            // (split('::') 은 본문에 '::' 가 있으면 세 번째 조각부터 통째로 버린다)
+            const separatorIndex = trimmed.indexOf('::');
+            const example = separatorIndex === -1 ? trimmed : trimmed.slice(0, separatorIndex);
+            const translation = separatorIndex === -1 ? '' : trimmed.slice(separatorIndex + 2);
             examples.push({
-              example: (example ?? '').trim(),
-              translation: (translation ?? '').trim() || undefined,
+              example: example.trim(),
+              translation: translation.trim() || undefined,
             });
           }
         }

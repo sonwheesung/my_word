@@ -15,6 +15,7 @@ import { useToast } from '../hooks/useToast';
 import ScreenHeader from '../components/ScreenHeader';
 import SkeletonLoader from '../components/SkeletonLoader';
 import { useTheme } from '../contexts/ThemeContext';
+import { formatLocalDate } from '../utils/date';
 
 interface MyPageScreenProps {
   onBack: () => void;
@@ -89,7 +90,7 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
     for (let i = DAYS_TOTAL - 1; i >= -endOffset; i--) {
       const d = new Date(today);
       d.setDate(today.getDate() - i + endOffset);
-      const dateStr = d.toISOString().split('T')[0];
+      const dateStr = formatLocalDate(d);
       const activity = activityMap.get(dateStr);
       const count = activity ? activity.wordCount + activity.quizCount : 0;
       const isFuture = d > today;

@@ -1,4 +1,5 @@
 import { quizResultStorage, wordStorage, categoryStorage } from '../utils/storage';
+import { formatLocalDate, toLocalDateKey } from '../utils/date';
 
 export interface QuizResult {
   wordId: number;
@@ -60,13 +61,13 @@ function calculateStreak(activities: DailyActivity[]): number {
 
   const activeDates = new Set(activities.map((a) => a.date));
   const today = new Date();
-  const todayStr = today.toISOString().split('T')[0];
+  const todayStr = formatLocalDate(today);
 
   const checkDate = new Date(today);
 
   if (!activeDates.has(todayStr)) {
     checkDate.setDate(checkDate.getDate() - 1);
-    const yesterdayStr = checkDate.toISOString().split('T')[0];
+    const yesterdayStr = formatLocalDate(checkDate);
     if (!activeDates.has(yesterdayStr)) {
       return 0;
     }
@@ -74,7 +75,7 @@ function calculateStreak(activities: DailyActivity[]): number {
 
   let streak = 0;
   while (true) {
-    const dateStr = checkDate.toISOString().split('T')[0];
+    const dateStr = formatLocalDate(checkDate);
     if (activeDates.has(dateStr)) {
       streak++;
       checkDate.setDate(checkDate.getDate() - 1);
@@ -252,14 +253,14 @@ export const quizService = {
     const activityMap = new Map<string, { wordCount: number; quizCount: number }>();
 
     for (const word of allWords) {
-      const date = word.createdAt.split('T')[0];
+      const date = toLocalDateKey(word.createdAt);
       const entry = activityMap.get(date) || { wordCount: 0, quizCount: 0 };
       entry.wordCount++;
       activityMap.set(date, entry);
     }
 
     for (const result of allResults) {
-      const date = result.takenAt.split('T')[0];
+      const date = toLocalDateKey(result.takenAt);
       const entry = activityMap.get(date) || { wordCount: 0, quizCount: 0 };
       entry.quizCount++;
       activityMap.set(date, entry);
