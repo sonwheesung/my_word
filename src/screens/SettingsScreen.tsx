@@ -9,6 +9,7 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
+import { useBootstrap } from '../contexts/BootstrapContext';
 import { THEMES } from '../constants/themes';
 import { APP_VERSION } from '../constants/appConfig';
 import ScreenHeader from '../components/ScreenHeader';
@@ -16,10 +17,12 @@ import ScreenHeader from '../components/ScreenHeader';
 interface SettingsScreenProps {
   onBack: () => void;
   onSupport: () => void;
+  onNotices: () => void;
 }
 
-export default function SettingsScreen({ onBack, onSupport }: SettingsScreenProps) {
+export default function SettingsScreen({ onBack, onSupport, onNotices }: SettingsScreenProps) {
   const { colors, themeId, setThemeId } = useTheme();
+  const { unreadCount } = useBootstrap();
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -85,6 +88,34 @@ export default function SettingsScreen({ onBack, onSupport }: SettingsScreenProp
               );
             })}
           </View>
+        </View>
+
+        {/* 소식 */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>소식</Text>
+          <TouchableOpacity
+            onPress={onNotices}
+            activeOpacity={0.7}
+            style={[styles.linkRow, { backgroundColor: colors.card, borderColor: colors.border }]}
+          >
+            <View style={styles.linkLeft}>
+              <MaterialIcons name="campaign" size={20} color={colors.primary} />
+              <View>
+                <Text style={[styles.linkTitle, { color: colors.text }]}>공지사항</Text>
+                <Text style={[styles.linkSubtitle, { color: colors.textTertiary }]}>
+                  업데이트와 새로운 소식을 확인하세요
+                </Text>
+              </View>
+            </View>
+            <View style={styles.linkRight}>
+              {unreadCount > 0 && (
+                <View style={[styles.countBadge, { backgroundColor: colors.error }]}>
+                  <Text style={styles.countBadgeText}>{unreadCount}</Text>
+                </View>
+              )}
+              <MaterialIcons name="chevron-right" size={22} color={colors.textTertiary} />
+            </View>
+          </TouchableOpacity>
         </View>
 
         {/* 고객 지원 */}
@@ -197,6 +228,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+  },
+  linkRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  countBadge: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  countBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
   },
   linkTitle: {
     fontSize: 15,

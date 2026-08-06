@@ -8,12 +8,12 @@ import {
   Linking,
   Platform,
 } from 'react-native';
-import { STORE_URL } from '../constants/appConfig';
-
 interface UpdateModalProps {
   visible: boolean;
   currentVersion: string;
   latestVersion: string;
+  /** 스토어 링크. 공통 서버가 준 값을 우선하고 없으면 앱 상수로 폴백한 결과가 들어온다. */
+  storeUrl: string;
   onSkip: () => void;
   onClose: () => void;
 }
@@ -22,12 +22,13 @@ export default function UpdateModal({
   visible,
   currentVersion,
   latestVersion,
+  storeUrl,
   onSkip,
   onClose,
 }: UpdateModalProps) {
   const handleUpdate = () => {
-    if (STORE_URL) {
-      Linking.openURL(STORE_URL).catch(() => {
+    if (storeUrl) {
+      Linking.openURL(storeUrl).catch(() => {
         // 링크 열기 실패 시 무시
       });
     }
@@ -71,7 +72,7 @@ export default function UpdateModal({
 
           {/* 버튼 */}
           <View style={styles.buttons}>
-            {Platform.OS !== 'web' && STORE_URL ? (
+            {Platform.OS !== 'web' && storeUrl ? (
               <TouchableOpacity style={styles.updateButton} onPress={handleUpdate}>
                 <Text style={styles.updateButtonText}>업데이트</Text>
               </TouchableOpacity>

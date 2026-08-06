@@ -16,6 +16,7 @@ import { quizService } from '../services/quizService';
 import type { QuizStatistics, MyPageStats } from '../services/quizService';
 import AdBanner from '../components/AdBanner';
 import { useTheme } from '../contexts/ThemeContext';
+import { useBootstrap } from '../contexts/BootstrapContext';
 
 interface HomeScreenProps {
   onNavigateToManageWords: () => void;
@@ -25,6 +26,7 @@ interface HomeScreenProps {
   onMyPage: () => void;
   onManageCategories: () => void;
   onSettings: () => void;
+  onNotices: () => void;
 }
 
 interface HomeSummary {
@@ -57,8 +59,10 @@ export default function HomeScreen({
   onMyPage,
   onManageCategories,
   onSettings,
+  onNotices,
 }: HomeScreenProps) {
   const { colors } = useTheme();
+  const { unreadCount } = useBootstrap();
   const [summary, setSummary] = useState<HomeSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -135,13 +139,27 @@ export default function HomeScreen({
             <Text style={styles.heroGreeting}>반갑습니다!</Text>
             <Text style={styles.heroTitle}>My Word</Text>
           </View>
-          <TouchableOpacity
-            onPress={onSettings}
-            activeOpacity={0.7}
-            style={styles.settingsBtn}
-          >
-            <MaterialIcons name="settings" size={22} color="rgba(255,255,255,0.9)" />
-          </TouchableOpacity>
+          <View style={styles.heroActions}>
+            <TouchableOpacity
+              onPress={onNotices}
+              activeOpacity={0.7}
+              style={styles.settingsBtn}
+              accessibilityLabel={
+                unreadCount > 0 ? `공지사항, 읽지 않음 ${unreadCount}건` : '공지사항'
+              }
+            >
+              <MaterialIcons name="notifications-none" size={22} color="rgba(255,255,255,0.9)" />
+              {unreadCount > 0 && <View style={styles.unreadDot} />}
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={onSettings}
+              activeOpacity={0.7}
+              style={styles.settingsBtn}
+              accessibilityLabel="설정"
+            >
+              <MaterialIcons name="settings" size={22} color="rgba(255,255,255,0.9)" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* 통계 카드 */}
@@ -307,6 +325,10 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     letterSpacing: -0.5,
   },
+  heroActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
   settingsBtn: {
     width: 40,
     height: 40,
@@ -315,6 +337,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 4,
+  },
+  unreadDot: {
+    position: 'absolute',
+    top: 9,
+    right: 9,
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    backgroundColor: '#EF4444',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.9)',
   },
 
   // ── 통계 ──

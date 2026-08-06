@@ -13,10 +13,13 @@ import MyPageScreen from './src/screens/MyPageScreen';
 import ImportWordsScreen from './src/screens/ImportWordsScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import SupportScreen from './src/screens/SupportScreen';
+import NoticeScreen from './src/screens/NoticeScreen';
 import UpdateModal from './src/components/UpdateModal';
+import BlockingGate from './src/components/BlockingGate';
 import { ThemeProvider } from './src/contexts/ThemeContext';
-import { versionService } from './src/services/versionService';
-import type { VersionCheckResult } from './src/services/versionService';
+import { BootstrapProvider, useBootstrap } from './src/contexts/BootstrapContext';
+import { versionService, isBlocking } from './src/services/versionService';
+import type { GateDecision } from './src/services/versionService';
 import type { QuizMode, QuizDirection, QuizAnswerType } from './src/screens/QuizSetupScreen';
 import type { QuizResult } from './src/services/quizService';
 
@@ -52,7 +55,7 @@ class ErrorBoundary extends React.Component<
   }
 }
 
-type Screen = 'home' | 'manageWords' | 'addWord' | 'editWord' | 'manageCategories' | 'quizSetup' | 'quiz' | 'quizResult' | 'statistics' | 'myPage' | 'importWords' | 'settings' | 'support';
+type Screen = 'home' | 'manageWords' | 'addWord' | 'editWord' | 'manageCategories' | 'quizSetup' | 'quiz' | 'quizResult' | 'statistics' | 'myPage' | 'importWords' | 'settings' | 'support' | 'notice';
 
 function AppContent() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('home');
@@ -68,25 +71,33 @@ function AppContent() {
   const [quizResults, setQuizResults] = useState<QuizResult[]>([]);
   const [retryWordIds, setRetryWordIds] = useState<number[] | undefined>(undefined);
 
-  // 버전 업데이트 관련 상태
-  const [updateInfo, setUpdateInfo] = useState<VersionCheckResult | null>(null);
-  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  // 공지 화면에서 돌아갈 곳(홈 또는 설정) — 진입점이 두 개라 따로 기억한다
+  const [noticeFrom, setNoticeFrom] = useState<Screen>('home');
 
-  // 앱 시작 시 버전 체크
+  // 진입 게이트 — 판정 근거는 공통 서버 응답뿐이다
+  const { boot, loaded } = useBootstrap();
+  const [gate, setGate] = useState<GateDecision>({ kind: 'none' });
+  const [updateDismissed, setUpdateDismissed] = useState(false);
+
   useEffect(() => {
-    const checkVersion = async () => {
-      try {
-        const result = await versionService.checkForUpdate();
-        if (result.hasUpdate) {
-          setUpdateInfo(result);
-          setShowUpdateModal(true);
-        }
-      } catch {
-        // 버전 체크 실패 시 무시
-      }
+    // 조회가 끝나기 전이거나 실패했으면(boot === null) 게이트를 적용하지 않는다.
+    // 서버가 죽었다고 사용자가 앱을 못 쓰는 일은 없어야 한다.
+    if (!loaded || !boot) return;
+
+    let alive = true;
+    versionService
+      .resolveGate(boot)
+      .then((decision) => {
+        if (alive) setGate(decision);
+      })
+      .catch(() => {
+        // resolveGate 는 throw 하지 않지만, 예기치 못한 경우에도 앱을 막지 않는다
+      });
+
+    return () => {
+      alive = false;
     };
-    checkVersion();
-  }, []);
+  }, [boot, loaded]);
 
   // 뒤로가기 핸들러: 홈이면 종료 확인, 다른 화면이면 이전 화면으로 이동
   const handleBackNavigation = useCallback(() => {
@@ -108,6 +119,9 @@ function AppContent() {
         // 진입점이 설정 화면뿐이라 항상 설정으로 되돌린다
         setCurrentScreen('settings');
         break;
+      case 'notice':
+        setCurrentScreen(noticeFrom);
+        break;
       case 'quiz':
         setRetryWordIds(undefined);
         setCurrentScreen('quizSetup');
@@ -119,10 +133,14 @@ function AppContent() {
       default:
         break;
     }
-  }, [currentScreen, previousScreen]);
+  }, [currentScreen, previousScreen, noticeFrom]);
 
   useEffect(() => {
     const backAction = () => {
+      // 진입 차단 중에는 뒤로가기를 삼킨다(BlockingGate 도 막지만, 등록 순서에 기대지 않는다)
+      if (isBlocking(gate)) {
+        return true;
+      }
       if (currentScreen === 'home') {
         Alert.alert(
           '앱 종료',
@@ -141,7 +159,12 @@ function AppContent() {
 
     const subscription = BackHandler.addEventListener('hardwareBackPress', backAction);
     return () => subscription.remove();
-  }, [currentScreen, handleBackNavigation]);
+  }, [currentScreen, handleBackNavigation, gate]);
+
+  // 점검 · 강제 업데이트 — 다른 화면 대신 렌더한다(뒤에 아무것도 남기지 않기 위해)
+  if (isBlocking(gate)) {
+    return <BlockingGate decision={gate} />;
+  }
 
   if (currentScreen === 'manageWords') {
     return (
@@ -269,12 +292,20 @@ function AppContent() {
       <SettingsScreen
         onBack={() => setCurrentScreen('home')}
         onSupport={() => setCurrentScreen('support')}
+        onNotices={() => {
+          setNoticeFrom('settings');
+          setCurrentScreen('notice');
+        }}
       />
     );
   }
 
   if (currentScreen === 'support') {
     return <SupportScreen onBack={() => setCurrentScreen('settings')} />;
+  }
+
+  if (currentScreen === 'notice') {
+    return <NoticeScreen onBack={() => setCurrentScreen(noticeFrom)} />;
   }
 
   return (
@@ -290,21 +321,26 @@ function AppContent() {
         onViewStatistics={() => setCurrentScreen('statistics')}
         onMyPage={() => setCurrentScreen('myPage')}
         onSettings={() => setCurrentScreen('settings')}
+        onNotices={() => {
+          setNoticeFrom('home');
+          setCurrentScreen('notice');
+        }}
         onManageCategories={() => {
           setPreviousScreen('home');
           setCurrentScreen('manageCategories');
         }}
       />
-      {updateInfo && (
+      {gate.kind === 'soft-update' && (
         <UpdateModal
-          visible={showUpdateModal}
-          currentVersion={updateInfo.currentVersion}
-          latestVersion={updateInfo.latestVersion}
+          visible={!updateDismissed}
+          currentVersion={gate.currentVersion}
+          latestVersion={gate.latestVersion}
+          storeUrl={gate.storeUrl}
           onSkip={async () => {
-            await versionService.skipVersion(updateInfo.latestVersion);
-            setShowUpdateModal(false);
+            await versionService.skipVersion(gate.latestVersion);
+            setUpdateDismissed(true);
           }}
-          onClose={() => setShowUpdateModal(false)}
+          onClose={() => setUpdateDismissed(true)}
         />
       )}
     </>
@@ -314,13 +350,15 @@ function AppContent() {
 export default function App() {
   return (
     <ThemeProvider>
-      <SafeAreaProvider>
-        <ErrorBoundary>
-          <SafeAreaView style={{ flex: 1 }} edges={['bottom']}>
-            <AppContent />
-          </SafeAreaView>
-        </ErrorBoundary>
-      </SafeAreaProvider>
+      <BootstrapProvider>
+        <SafeAreaProvider>
+          <ErrorBoundary>
+            <SafeAreaView style={{ flex: 1 }} edges={['bottom']}>
+              <AppContent />
+            </SafeAreaView>
+          </ErrorBoundary>
+        </SafeAreaProvider>
+      </BootstrapProvider>
     </ThemeProvider>
   );
 }

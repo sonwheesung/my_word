@@ -38,6 +38,8 @@ const CATEGORIES: {
 // 전송 실패 사유별 안내 — 사용자가 다음에 뭘 하면 되는지가 드러나게 적는다.
 const FAIL_MESSAGE: Record<string, string> = {
   'not-configured': '지금은 문의를 받을 수 없습니다. 잠시 후 다시 시도해주세요',
+  // 서버에 이 앱이 등록되지 않은 상태 — 사용자가 할 수 있는 일은 not-configured 와 같다.
+  'not-found': '지금은 문의를 받을 수 없습니다. 잠시 후 다시 시도해주세요',
   offline: '연결이 원활하지 않습니다. 네트워크 확인 후 다시 시도해주세요',
   'rate-limited': '문의가 많아 잠시 제한되었습니다. 잠시 후 다시 시도해주세요',
   error: '전송에 실패했습니다. 잠시 후 다시 시도해주세요',

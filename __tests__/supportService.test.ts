@@ -1,7 +1,7 @@
 /**
- * 문의 전송 계약 테스트 — 앱이 서버로 정확히 무엇을 보내는지 고정한다.
+ * 문의 전송 계약 테스트 — 앱이 공통 서버로 정확히 무엇을 보내는지 고정한다.
  *
- * 서버(/api/ticket/anon)는 proj allowlist·본문 5자·category 화이트리스트로 검증하므로
+ * 서버(POST /api/v1/tickets)는 app 등록여부·본문 5자·category 화이트리스트로 검증하므로
  * 필드명이나 형태가 틀어지면 조용히 404/400 이 된다. 여기서 요청 본문을 못 박아 드리프트를 막는다.
  * 익명성(작성자 식별자 미전송)도 이 테스트가 지킨다.
  */
@@ -38,11 +38,12 @@ describe('supportService — 요청 계약', () => {
     expect(mockFetch).toHaveBeenCalledTimes(1);
 
     const { url, body, init } = lastRequest();
-    expect(url).toBe(`${SERVER_URL}/api/ticket/anon`);
+    expect(url).toBe(`${SERVER_URL}/api/v1/tickets`);
     expect(init.method).toBe('POST');
     expect((init.headers as Record<string, string>)['content-type']).toBe('application/json');
 
-    expect(body.proj).toBe('myword');
+    // 공통 서버는 프로젝트 축을 `app` 으로 받는다(옛 배구 서버의 `proj` 아님).
+    expect(body.app).toBe('myword');
     expect(body.category).toBe('bug');
     expect(body.content).toBe('단어 저장이 가끔 안 됩니다');
     expect(body.device).toEqual({ platform: expect.any(String), appVersion: APP_VERSION });
@@ -54,7 +55,8 @@ describe('supportService — 요청 계약', () => {
 
     const { body } = lastRequest();
     // 최상위 키는 정확히 이 네 개뿐 — userId/token/deviceId 등이 슬며시 늘어나면 실패한다.
-    expect(Object.keys(body).sort()).toEqual(['category', 'content', 'device', 'proj']);
+    expect(Object.keys(body).sort()).toEqual(['app', 'category', 'content', 'device']);
+    // device 도 마찬가지 — osVersion 처럼 서버가 저장하지도 않는 값이 붙는 것을 막는다.
     expect(Object.keys(body.device as object).sort()).toEqual(['appVersion', 'platform']);
   });
 
@@ -98,8 +100,17 @@ describe('supportService — 실패 처리', () => {
     });
   });
 
+  it('404 는 not-found 로 구분한다 (서버에 앱이 등록되지 않은 상태)', async () => {
+    mockFetch.mockResolvedValue({ ok: false, status: 404 });
+
+    expect(await supportService.sendInquiry('bug', '미등록 앱 확인용 문의')).toEqual({
+      ok: false,
+      reason: 'not-found',
+    });
+  });
+
   it('그 밖의 실패 응답은 error 로 묶는다', async () => {
-    for (const status of [400, 404, 500]) {
+    for (const status of [400, 500, 503]) {
       mockFetch.mockResolvedValue({ ok: false, status });
       expect(await supportService.sendInquiry('bug', '서버 오류 확인용 문의')).toEqual({
         ok: false,

@@ -14,13 +14,13 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_SERVER_URL": "https://volleyball-jet-nine.vercel.app"
+        "EXPO_PUBLIC_SERVER_URL": "https://common-server.vercel.app"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_SERVER_URL": "https://volleyball-jet-nine.vercel.app"
+        "EXPO_PUBLIC_SERVER_URL": "https://common-server.vercel.app"
       }
     }
   },
