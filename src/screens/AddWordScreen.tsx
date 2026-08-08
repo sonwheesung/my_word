@@ -176,12 +176,18 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
     setSearching(true);
 
     try {
-      const result = await dictionaryService.lookup(trimmed);
+      const outcome = await dictionaryService.lookup(trimmed);
 
-      if (!result) {
-        showToast('사전에서 단어를 찾을 수 없습니다', 'error');
+      if (!outcome.ok) {
+        if (outcome.reason === 'same-language') {
+          showToast('단어와 뜻이 같은 언어입니다. 뜻은 직접 입력해주세요', 'info');
+        } else {
+          showToast('사전에서 단어를 찾을 수 없습니다', 'error');
+        }
         return;
       }
+
+      const result = outcome.data;
 
       // 기존 데이터 초기화 후 검색 결과로 덮어쓰기
       setMeanings(result.meanings.length > 0 ? result.meanings : ['']);
@@ -189,7 +195,12 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
       setTags(result.partOfSpeech);
       setMemo('');
 
-      showToast(`뜻 ${result.meanings.length}개, 예문 ${result.examples.length}개를 가져왔습니다`, 'success');
+      // 예문은 영어 표제어만 존재한다. 조용히 비워두면 "가져오기가 실패했나" 싶으므로 밝힌다
+      if (result.examplesUnsupported) {
+        showToast(`뜻 ${result.meanings.length}개를 가져왔습니다 (예문은 영어 단어만 지원합니다)`, 'info');
+      } else {
+        showToast(`뜻 ${result.meanings.length}개, 예문 ${result.examples.length}개를 가져왔습니다`, 'success');
+      }
     } catch (error: any) {
       console.warn('사전 검색 실패:', error);
       showToast(error.message || '사전 검색에 실패했습니다', 'error');

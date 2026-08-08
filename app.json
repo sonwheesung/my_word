@@ -34,7 +34,8 @@
         {
           "androidAppId": "ca-app-pub-2731473780180274~9707608518"
         }
-      ]
+      ],
+      "expo-localization"
     ],
     "scheme": "myword",
     "extra": {

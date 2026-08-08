@@ -14,6 +14,8 @@ export const STORE_URL = Platform.select({
 export const VERSION_SKIP_KEY = '@my_word_skipped_version';
 // 읽은 공지 id 목록 (서버에 읽음을 보내지 않는다 — 익명 유지)
 export const NOTICE_READ_KEY = '@my_word_read_notices';
+// 사용자가 고른 앱 언어. 없으면 기기 언어를 따른다
+export const LANGUAGE_KEY = '@my_word_language';
 
 // --- 공통 서버 ---
 // 공지사항 · 문의하기 · 버전 게이트를 담당하는 서버(Vercel).
