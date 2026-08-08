@@ -23,9 +23,10 @@ import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
 import ScreenHeader from '../components/ScreenHeader';
 import { WordCardSkeleton } from '../components/SkeletonLoader';
-import * as Speech from 'expo-speech';
 import AdBanner from '../components/AdBanner';
 import { useTheme } from '../contexts/ThemeContext';
+import { speak } from '../utils/speech';
+import { normalizeForCompare } from '../utils/text';
 
 interface ManageWordsScreenProps {
   onBack: () => void;
@@ -131,12 +132,15 @@ export default function ManageWordsScreen({
     }
   };
 
-  const speakWord = (text: string) => {
-    Speech.speak(text, {
-      language: 'en-US',
-      rate: 0.85,
-    });
-  };
+  // 예문을 함께 넘긴다 — 한자만 있는 단어(猫)의 일본어/중국어 판별 근거가 된다
+  const speakWord = useCallback(async (word: Word) => {
+    const result = await speak(word.word, (word.examples ?? []).map((e) => e.example));
+    if (result.outcome === 'unsupported') {
+      showToast(`${result.label} 음성이 기기에 설치되어 있지 않습니다`, 'info');
+    } else if (result.outcome === 'error') {
+      showToast('음성 재생에 실패했습니다', 'error');
+    }
+  }, [showToast]);
 
   // 공유 관련 함수
   const toggleSelectMode = useCallback(() => {
@@ -164,11 +168,11 @@ export default function ManageWordsScreen({
   // 검색 필터링 (selectAllWords보다 먼저 선언)
   const filteredWords = useMemo(() => {
     if (!searchQuery.trim()) return words;
-    const query = searchQuery.toLowerCase();
+    const query = normalizeForCompare(searchQuery);
     return words.filter((word) =>
-      word.word.toLowerCase().includes(query) ||
-      word.meanings.some((meaning) => meaning.toLowerCase().includes(query)) ||
-      (word.tags ?? []).some((tag) => tag.toLowerCase().includes(query))
+      normalizeForCompare(word.word).includes(query) ||
+      word.meanings.some((meaning) => normalizeForCompare(meaning).includes(query)) ||
+      (word.tags ?? []).some((tag) => normalizeForCompare(tag).includes(query))
     );
   }, [words, searchQuery]);
 
@@ -423,7 +427,7 @@ export default function ManageWordsScreen({
                     style={styles.speakButton}
                     onPress={(e) => {
                       e.stopPropagation();
-                      speakWord(word.word);
+                      speakWord(word);
                     }}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
@@ -474,7 +478,7 @@ export default function ManageWordsScreen({
                       <Text style={[styles.modalWordText, { color: colors.text }]}>{selectedWord.word}</Text>
                       <TouchableOpacity
                         style={[styles.modalSpeakButton, { backgroundColor: colors.primaryLight }]}
-                        onPress={() => speakWord(selectedWord.word)}
+                        onPress={() => speakWord(selectedWord)}
                       >
                         <MaterialIcons name="volume-up" size={20} color={colors.primary} />
                       </TouchableOpacity>

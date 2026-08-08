@@ -21,6 +21,7 @@ import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
 import ScreenHeader from '../components/ScreenHeader';
 import { useTheme } from '../contexts/ThemeContext';
+import { normalizeForCompare } from '../utils/text';
 
 interface AddWordScreenProps {
   wordId?: number | null;
@@ -149,7 +150,7 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
       setTagInput('');
       return;
     }
-    if (tags.some(t => t.toLowerCase() === trimmed.toLowerCase())) {
+    if (tags.some(t => normalizeForCompare(t) === normalizeForCompare(trimmed))) {
       showToast('이미 추가된 태그입니다', 'error');
       setTagInput('');
       return;
@@ -397,7 +398,10 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
               placeholder="단어를 입력하세요"
               placeholderTextColor={colors.textTertiary}
               value={word}
-              onChangeText={(text) => setWord(text.length > 0 ? text[0].toLowerCase() + text.slice(1) : text)}
+              // 입력값을 가공하지 않는다. 첫 글자를 강제로 소문자로 바꾸면
+              // 독일어 명사(Apfel)나 고유명사가 틀린 철자로 저장되고,
+              // 터키어 İ 는 i + 결합 점으로 글자 수까지 늘어난다
+              onChangeText={setWord}
               autoCapitalize="none"
               autoCorrect={false}
               returnKeyType="search"
@@ -484,10 +488,10 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
                 placeholder="예문"
                 placeholderTextColor={colors.textTertiary}
                 value={example.example}
-                onChangeText={(value) => {
-                  const formatted = value.length > 0 ? value[0].toUpperCase() + value.slice(1) : value;
-                  updateExample(index, 'example', formatted);
-                }}
+                // 첫 글자 강제 대문자화 제거 — 대소문자가 없는 언어에는 무의미하고
+                // 있는 언어에서는 사용자가 의도한 표기를 덮어쓴다.
+                // 대문자 힌트는 아래 autoCapitalize(키보드 설정)로 충분하다
+                onChangeText={(value) => updateExample(index, 'example', value)}
                 autoCapitalize="sentences"
                 autoCorrect={false}
                 multiline

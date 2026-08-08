@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
-import * as Speech from 'expo-speech';
 import type { QuizResult } from '../services/quizService';
 import { useInterstitialAd } from '../hooks/useInterstitialAd';
 import AdBanner from '../components/AdBanner';
 import { useTheme } from '../contexts/ThemeContext';
+import { speak } from '../utils/speech';
+import Toast from '../components/Toast';
+import { useToast } from '../hooks/useToast';
 
 interface QuizResultScreenProps {
   correctCount: number;
@@ -28,6 +30,7 @@ export default function QuizResultScreen({
   const { colors } = useTheme();
   const [showWrongAnswers, setShowWrongAnswers] = useState(false);
   const { showAd } = useInterstitialAd();
+  const { toast, showToast, hideToast } = useToast();
   const percentage = totalCount > 0 ? Math.round((correctCount / totalCount) * 100) : 0;
 
   // 퀴즈 결과 화면 진입 시 전면 광고 표시
@@ -42,18 +45,25 @@ export default function QuizResultScreen({
 
   const wrongResults = results.filter((r) => !r.isCorrect);
 
-  const speakEnglish = (text: string) => {
-    Speech.speak(text, { language: 'en-US', rate: 0.85 });
+  // 이 화면에는 Word 객체가 없어 예문 힌트를 넘길 수 없다.
+  // 한자만 있는 단어는 중국어로 추정된다(단어 목록·퀴즈 화면에서는 예문으로 보정된다)
+  const speakWord = async (text: string) => {
+    const result = await speak(text);
+    if (result.outcome === 'unsupported') {
+      showToast(`${result.label} 음성이 기기에 설치되어 있지 않습니다`, 'info');
+    } else if (result.outcome === 'error') {
+      showToast('음성 재생에 실패했습니다', 'error');
+    }
   };
 
-  // 퀴즈 타입에 따라 영어 텍스트 판별
-  const getEnglishText = (result: QuizResult): string | null => {
+  // 퀴즈 타입에 따라 '학습 대상 언어' 쪽 텍스트 판별 (반대쪽은 사용자가 쓰는 뜻)
+  const getSpeakableText = (result: QuizResult): string | null => {
     if (!result.word || !result.correctAnswer) return null;
-    // word_to_meaning, example_to_meaning: 문제(word)가 영어
+    // word_to_meaning, example_to_meaning: 문제(word)가 학습 대상
     if (result.quizType === 'word_to_meaning' || result.quizType === 'example_to_meaning') {
       return result.word;
     }
-    // meaning_to_word, translation_to_example: 정답(correctAnswer)이 영어
+    // meaning_to_word, translation_to_example: 정답(correctAnswer)이 학습 대상
     if (result.quizType === 'meaning_to_word' || result.quizType === 'translation_to_example') {
       return result.correctAnswer;
     }
@@ -147,15 +157,15 @@ export default function QuizResultScreen({
 
           <ScrollView style={styles.modalContent}>
             {wrongResults.map((result, index) => {
-              const englishText = getEnglishText(result);
+              const speakableText = getSpeakableText(result);
               return (
                 <View key={index} style={[styles.wrongItem, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <View style={styles.wrongIndexArea}>
                     <Text style={styles.wrongIndex}>{index + 1}</Text>
-                    {englishText && (
+                    {speakableText && (
                       <TouchableOpacity
                         style={[styles.wrongSpeakButton, { backgroundColor: colors.primaryLight }]}
-                        onPress={() => speakEnglish(englishText)}
+                        onPress={() => speakWord(speakableText)}
                         hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
                       >
                         <MaterialIcons name="volume-up" size={16} color={colors.primary} />
@@ -182,6 +192,13 @@ export default function QuizResultScreen({
           </ScrollView>
         </View>
       </Modal>
+
+      <Toast
+        message={toast.message}
+        type={toast.type}
+        visible={toast.visible}
+        onHide={hideToast}
+      />
     </View>
   );
 }

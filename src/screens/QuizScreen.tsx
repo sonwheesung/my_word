@@ -11,12 +11,15 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
-import * as Speech from 'expo-speech';
 import { wordService } from '../services/wordService';
 import { quizService } from '../services/quizService';
 import { useInterstitialAd } from '../hooks/useInterstitialAd';
 import type { Word } from '../types/word';
 import { useTheme } from '../contexts/ThemeContext';
+import { speak } from '../utils/speech';
+import { normalizeForCompare } from '../utils/text';
+import Toast from '../components/Toast';
+import { useToast } from '../hooks/useToast';
 
 export type QuizMode = 'random' | 'recent' | 'weak' | 'mixed';
 type QuizAnswerType = 'subjective' | 'multiple_choice';
@@ -68,6 +71,7 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
   const [feedback, setFeedback] = useState<{ isCorrect: boolean; correctAnswer: string } | null>(null);
   const isMultipleChoice = answerType === 'multiple_choice';
   const { showAd } = useInterstitialAd();
+  const { toast, showToast, hideToast } = useToast();
 
   // 퀴즈 시작 전 전면 광고 표시
   useEffect(() => {
@@ -283,9 +287,9 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
     return shuffled;
   };
 
-  const normalizeString = (str: string): string => {
-    return str.trim().toLowerCase();
-  };
+  // 채점은 normalizeForCompare 하나로 통일한다.
+  // 정규화를 빼면 눈에 똑같이 보이는 답이 조합형/완성형 차이로 오답 처리된다
+  const normalizeString = normalizeForCompare;
 
   const checkAnswer = (): boolean => {
     const currentQuestion = questions[currentIndex];
@@ -377,8 +381,14 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
     }, 1500);
   };
 
-  const speakWord = (text: string) => {
-    Speech.speak(text, { language: 'en-US', rate: 0.85 });
+  // 예문을 힌트로 넘겨 한자만 있는 단어의 일본어/중국어 판별을 돕는다
+  const speakWord = async (text: string, word?: Word) => {
+    const result = await speak(text, (word?.examples ?? []).map((e) => e.example));
+    if (result.outcome === 'unsupported') {
+      showToast(`${result.label} 음성이 기기에 설치되어 있지 않습니다`, 'info');
+    } else if (result.outcome === 'error') {
+      showToast('음성 재생에 실패했습니다', 'error');
+    }
   };
 
   const handleExit = () => {
@@ -491,7 +501,7 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
             {canSpeak(currentQuestion.quizType) && (
               <TouchableOpacity
                 style={[styles.speakButton, { backgroundColor: colors.primaryLight }]}
-                onPress={() => speakWord(currentQuestion.question)}
+                onPress={() => speakWord(currentQuestion.question, currentQuestion.word)}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
                 <MaterialIcons name="volume-up" size={22} color={colors.primary} />
@@ -609,6 +619,13 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
           </TouchableOpacity>
         )}
       </ScrollView>
+
+      <Toast
+        message={toast.message}
+        type={toast.type}
+        visible={toast.visible}
+        onHide={hideToast}
+      />
     </View>
   );
 }

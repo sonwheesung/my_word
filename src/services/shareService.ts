@@ -1,4 +1,5 @@
 import { wordService } from './wordService';
+import { normalizeForCompare } from '../utils/text';
 import type { Word, WordExample } from '../types/word';
 
 export interface ParsedWord {
@@ -258,15 +259,17 @@ export const shareService = {
     categoryId: number,
   ): Promise<DuplicateCheckResult> {
     const existingWords = await wordService.getWords(categoryId);
+    // 다른 기기·OS 에서 만든 CSV 는 같은 글자를 NFD 로 담고 있을 수 있다.
+    // 정규화하지 않으면 눈에 같은 단어가 중복으로 걸리지 않고 그대로 또 들어온다
     const existingSet = new Set(
-      existingWords.map((w) => w.word.trim().toLowerCase()),
+      existingWords.map((w) => normalizeForCompare(w.word)),
     );
 
     const newWords: ParsedWord[] = [];
     const duplicateWords: ParsedWord[] = [];
 
     for (const pw of parsed) {
-      if (existingSet.has(pw.word.trim().toLowerCase())) {
+      if (existingSet.has(normalizeForCompare(pw.word))) {
         duplicateWords.push(pw);
       } else {
         newWords.push(pw);

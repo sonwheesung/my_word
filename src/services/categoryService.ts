@@ -1,4 +1,5 @@
 import { categoryStorage, wordStorage } from '../utils/storage';
+import { normalizeForCompare } from '../utils/text';
 import type { Category, CategoryRequest } from '../types/word';
 
 export const categoryService = {
@@ -22,9 +23,8 @@ export const categoryService = {
 
   async createCategory(data: CategoryRequest): Promise<Category> {
     const existing = await categoryStorage.getAll();
-    const duplicate = existing.find(
-      (c) => c.categoryName.trim().toLowerCase() === data.categoryName.trim().toLowerCase(),
-    );
+    const target = normalizeForCompare(data.categoryName);
+    const duplicate = existing.find((c) => normalizeForCompare(c.categoryName) === target);
     if (duplicate) {
       throw new Error('이미 같은 이름의 카테고리가 존재합니다');
     }
@@ -33,10 +33,9 @@ export const categoryService = {
 
   async updateCategory(id: number, data: CategoryRequest): Promise<Category> {
     const existing = await categoryStorage.getAll();
+    const target = normalizeForCompare(data.categoryName);
     const duplicate = existing.find(
-      (c) =>
-        c.categoryId !== id &&
-        c.categoryName.trim().toLowerCase() === data.categoryName.trim().toLowerCase(),
+      (c) => c.categoryId !== id && normalizeForCompare(c.categoryName) === target,
     );
     if (duplicate) {
       throw new Error('이미 같은 이름의 카테고리가 존재합니다');

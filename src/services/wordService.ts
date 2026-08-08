@@ -1,4 +1,5 @@
 import { wordStorage } from '../utils/storage';
+import { normalizeForCompare } from '../utils/text';
 import type { Word, WordRequest } from '../types/word';
 
 export const wordService = {
@@ -14,9 +15,9 @@ export const wordService = {
 
   async checkDuplicate(word: string, categoryId: number, excludeWordId?: number): Promise<Word | null> {
     const words = await wordStorage.getByCategoryId(categoryId);
-    const trimmed = word.trim().toLowerCase();
+    const target = normalizeForCompare(word);
     return words.find(
-      (w) => w.word.trim().toLowerCase() === trimmed && w.wordId !== excludeWordId,
+      (w) => normalizeForCompare(w.word) === target && w.wordId !== excludeWordId,
     ) || null;
   },
 
