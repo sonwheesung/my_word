@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 
 // 현재 앱 버전 (app.json과 동기화)
-export const APP_VERSION = '1.1.0';
+export const APP_VERSION = '1.2.0';
 
 // Google Play Store 링크
 // 공통 서버가 version.androidUrl 을 내려주면 그 값을 우선하고, 없을 때 이 상수로 폴백한다.
