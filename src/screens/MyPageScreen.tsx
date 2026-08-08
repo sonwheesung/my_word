@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
@@ -37,6 +38,7 @@ function getLevel(count: number): number {
 const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
 
 export default function MyPageScreen({ onBack }: MyPageScreenProps) {
+  const { t } = useTranslation();
   const { colors } = useTheme();
   const { toast, showToast, hideToast } = useToast();
   const [loading, setLoading] = useState(true);
@@ -54,7 +56,7 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
       setStats(data);
     } catch (error: any) {
       console.warn('마이페이지 통계 조회 실패:', error);
-      showToast('통계를 불러오는데 실패했습니다', 'error');
+      showToast(t('통계를 불러오는데 실패했습니다'), 'error');
     } finally {
       setLoading(false);
     }
@@ -66,7 +68,7 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
       const data = await quizService.getMyPageStats();
       setStats(data);
     } catch (error: any) {
-      showToast('새로고침에 실패했습니다', 'error');
+      showToast(t('새로고침에 실패했습니다'), 'error');
     } finally {
       setRefreshing(false);
     }
@@ -115,7 +117,7 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <StatusBar style={colors.isDark ? 'light' : 'dark'} />
-        <ScreenHeader title="마이페이지" onBack={onBack} />
+        <ScreenHeader title={t('마이페이지')} onBack={onBack} />
         <View style={{ padding: 16 }}>
           {/* 프로필 스켈레톤 */}
           <View style={[styles.skeletonCard, { backgroundColor: colors.card }]}>
@@ -152,7 +154,7 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar style={colors.isDark ? 'light' : 'dark'} />
-      <ScreenHeader title="마이페이지" onBack={onBack} />
+      <ScreenHeader title={t('마이페이지')} onBack={onBack} />
 
       <ScrollView
         style={styles.scrollView}
@@ -176,7 +178,7 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
               <Text style={[styles.profileName, { color: colors.text }]}>My Word</Text>
               {stats && (
                 <Text style={[styles.profileSub, { color: colors.textSecondary }]}>
-                  총 {stats.totalActiveDays}일 활동
+                  {t('총 {{count}}일 활동', { count: stats.totalActiveDays })}
                 </Text>
               )}
             </View>
@@ -189,19 +191,19 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
             <View style={styles.summaryRow}>
               <View style={styles.summaryItem}>
                 <Text style={[styles.summaryValue, { color: colors.accent }]}>{stats.totalWordCount}</Text>
-                <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>등록 단어</Text>
+                <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>{t('등록 단어')}</Text>
               </View>
               <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />
               <View style={styles.summaryItem}>
                 <Text style={[styles.summaryValue, { color: colors.accent }]}>{stats.totalQuizCount}</Text>
-                <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>퀴즈 횟수</Text>
+                <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>{t('퀴즈 횟수')}</Text>
               </View>
               <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />
               <View style={styles.summaryItem}>
                 <Text style={[styles.summaryValue, styles.streakValue]}>
                   {stats.streakDays}
                 </Text>
-                <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>연속 학습</Text>
+                <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>{t('연속 학습')}</Text>
               </View>
             </View>
           </View>
@@ -209,7 +211,7 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
 
         {/* 잔디 히트맵 */}
         <View style={[styles.card, { backgroundColor: colors.card }]}>
-          <Text style={[styles.cardTitle, { color: colors.text }]}>학습 활동</Text>
+          <Text style={[styles.cardTitle, { color: colors.text }]}>{t('학습 활동')}</Text>
 
           {/* 월 라벨 */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -220,7 +222,7 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
                 <View style={styles.dayLabels}>
                   {DAY_LABELS.map((label, i) => (
                     <Text key={i} style={styles.dayLabel}>
-                      {i % 2 === 1 ? label : ''}
+                      {i % 2 === 1 ? t(label) : ''}
                     </Text>
                   ))}
                 </View>
@@ -251,14 +253,14 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
 
               {/* 범례 */}
               <View style={styles.legendContainer}>
-                <Text style={[styles.legendText, { color: colors.textTertiary }]}>적음</Text>
+                <Text style={[styles.legendText, { color: colors.textTertiary }]}>{t('적음')}</Text>
                 {LEVEL_COLORS.map((color, i) => (
                   <View
                     key={i}
                     style={[styles.legendCell, { backgroundColor: color }]}
                   />
                 ))}
-                <Text style={[styles.legendText, { color: colors.textTertiary }]}>많음</Text>
+                <Text style={[styles.legendText, { color: colors.textTertiary }]}>{t('많음')}</Text>
               </View>
             </View>
           </ScrollView>
@@ -275,14 +277,14 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
             />
             <View style={styles.streakContent}>
               <Text style={styles.streakTitle}>
-                {stats.streakDays}일 연속 학습 중!
+                {t('{{count}}일 연속 학습 중!', { count: stats.streakDays })}
               </Text>
               <Text style={styles.streakDesc}>
                 {stats.streakDays >= 7
-                  ? '대단해요! 꾸준한 학습이 빛을 발하고 있어요'
+                  ? t('대단해요! 꾸준한 학습이 빛을 발하고 있어요')
                   : stats.streakDays >= 3
-                    ? '좋은 흐름이에요! 계속 이어가세요'
-                    : '좋은 시작이에요! 내일도 학습해보세요'}
+                    ? t('좋은 흐름이에요! 계속 이어가세요')
+                    : t('좋은 시작이에요! 내일도 학습해보세요')}
               </Text>
             </View>
           </View>

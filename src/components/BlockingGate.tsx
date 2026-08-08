@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, BackHandler } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -9,7 +10,7 @@ interface BlockingGateProps {
   decision: BlockingDecision;
 }
 
-const FALLBACK_BODY = '더 나은 서비스를 위해 점검 중입니다.\n잠시 후 다시 이용해주세요.';
+const FALLBACK_BODY_KEY = '더 나은 서비스를 위해 점검 중입니다.\n잠시 후 다시 이용해주세요.';
 
 /**
  * 앱 진입을 막는 전체 화면 — 현재는 서버 점검 하나뿐이다.
@@ -22,6 +23,7 @@ const FALLBACK_BODY = '더 나은 서비스를 위해 점검 중입니다.\n잠�
  */
 export default function BlockingGate({ decision }: BlockingGateProps) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
 
   // 하드웨어 백으로 빠져나가지 못하게 막는다. 이 화면이 떠 있는 동안만.
   useEffect(() => {
@@ -29,7 +31,7 @@ export default function BlockingGate({ decision }: BlockingGateProps) {
     return () => subscription.remove();
   }, []);
 
-  const body = decision.body.trim() || FALLBACK_BODY;
+  const body = decision.body.trim() || t(FALLBACK_BODY_KEY);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>

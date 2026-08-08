@@ -1,3 +1,4 @@
+import i18n from '../i18n';
 import { localizePOS } from '../constants/partOfSpeech';
 import { resolveAppLanguage, type AppLanguage } from '../i18n/language';
 
@@ -54,7 +55,7 @@ async function fetchMeanings(
   const response = await fetch(url);
 
   if (!response.ok) {
-    throw new Error('번역 요청에 실패했습니다');
+    throw new Error(i18n.t('번역 요청에 실패했습니다'));
   }
 
   const data = await response.json();

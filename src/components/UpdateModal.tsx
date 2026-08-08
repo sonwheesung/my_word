@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import React from 'react';
 import {
   View,
@@ -26,6 +27,7 @@ export default function UpdateModal({
   onSkip,
   onClose,
 }: UpdateModalProps) {
+  const { t } = useTranslation();
   const handleUpdate = () => {
     if (storeUrl) {
       Linking.openURL(storeUrl).catch(() => {
@@ -48,40 +50,40 @@ export default function UpdateModal({
           <Text style={styles.icon}>🔄</Text>
 
           {/* 제목 */}
-          <Text style={styles.title}>새 버전이 있습니다</Text>
+          <Text style={styles.title}>{t('새 버전이 있습니다')}</Text>
 
           {/* 버전 정보 */}
           <View style={styles.versionInfo}>
             <View style={styles.versionRow}>
-              <Text style={styles.versionLabel}>현재 버전</Text>
+              <Text style={styles.versionLabel}>{t('현재 버전')}</Text>
               <Text style={styles.versionValue}>{currentVersion}</Text>
             </View>
             <View style={styles.versionArrow}>
               <Text style={styles.versionArrowText}>→</Text>
             </View>
             <View style={styles.versionRow}>
-              <Text style={styles.versionLabel}>최신 버전</Text>
+              <Text style={styles.versionLabel}>{t('최신 버전')}</Text>
               <Text style={[styles.versionValue, styles.versionNew]}>{latestVersion}</Text>
             </View>
           </View>
 
           {/* 안내 문구 */}
           <Text style={styles.description}>
-            최신 버전으로 업데이트하면{'\n'}새로운 기능을 사용할 수 있습니다.
+            {t('최신 버전으로 업데이트하면\n새로운 기능을 사용할 수 있습니다.')}
           </Text>
 
           {/* 버튼 */}
           <View style={styles.buttons}>
             {Platform.OS !== 'web' && storeUrl ? (
               <TouchableOpacity style={styles.updateButton} onPress={handleUpdate}>
-                <Text style={styles.updateButtonText}>업데이트</Text>
+                <Text style={styles.updateButtonText}>{t('업데이트')}</Text>
               </TouchableOpacity>
             ) : null}
             <TouchableOpacity style={styles.skipButton} onPress={onSkip}>
-              <Text style={styles.skipButtonText}>이 버전 건너뛰기</Text>
+              <Text style={styles.skipButtonText}>{t('이 버전 건너뛰기')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-              <Text style={styles.closeButtonText}>나중에</Text>
+              <Text style={styles.closeButtonText}>{t('나중에')}</Text>
             </TouchableOpacity>
           </View>
         </View>

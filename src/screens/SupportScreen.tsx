@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import React, { useCallback, useState } from 'react';
 import {
   View,
@@ -46,6 +47,7 @@ const FAIL_MESSAGE: Record<string, string> = {
 };
 
 export default function SupportScreen({ onBack }: SupportScreenProps) {
+  const { t } = useTranslation();
   const { colors } = useTheme();
   const { toast, showToast, hideToast } = useToast();
 
@@ -59,7 +61,7 @@ export default function SupportScreen({ onBack }: SupportScreenProps) {
   const handleSubmit = useCallback(async () => {
     if (sending) return; // 중복 전송 방지
     if (trimmedLength < SUPPORT_CONTENT_MIN) {
-      showToast(`${SUPPORT_CONTENT_MIN}자 이상 입력해주세요`, 'error');
+      showToast(t('{{count}}자 이상 입력해주세요', { count: SUPPORT_CONTENT_MIN }), 'error');
       return;
     }
 
@@ -68,13 +70,13 @@ export default function SupportScreen({ onBack }: SupportScreenProps) {
       const result = await supportService.sendInquiry(category, content);
       if (result.ok) {
         setContent('');
-        showToast('문의가 접수되었습니다. 소중한 의견 감사합니다', 'success');
+        showToast(t('문의가 접수되었습니다. 소중한 의견 감사합니다'), 'success');
       } else {
-        showToast(FAIL_MESSAGE[result.reason] ?? FAIL_MESSAGE.error, 'error');
+        showToast(t(FAIL_MESSAGE[result.reason] ?? FAIL_MESSAGE.error), 'error');
       }
     } catch {
       // supportService 는 throw 하지 않지만, 예기치 못한 경우에도 로딩에 갇히지 않게 막아둔다.
-      showToast(FAIL_MESSAGE.error, 'error');
+      showToast(t(FAIL_MESSAGE.error), 'error');
     } finally {
       setSending(false);
     }
@@ -83,7 +85,7 @@ export default function SupportScreen({ onBack }: SupportScreenProps) {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar style={colors.isDark ? 'light' : 'dark'} />
-      <ScreenHeader title="문의하기" onBack={onBack} />
+      <ScreenHeader title={t('문의하기')} onBack={onBack} />
 
       <KeyboardAvoidingView
         style={styles.flex}
@@ -98,12 +100,11 @@ export default function SupportScreen({ onBack }: SupportScreenProps) {
           <View style={[styles.notice, { backgroundColor: colors.primaryLight }]}>
             <MaterialIcons name="lock-outline" size={18} color={colors.primary} />
             <Text style={[styles.noticeText, { color: colors.textSecondary }]}>
-              익명으로 접수됩니다. 작성자 정보는 보내지 않으며, 앱 버전과 기기 종류만 함께
-              전달됩니다. 개별 답변은 드리지 못하는 점 양해 부탁드립니다.
+              {t('익명으로 접수됩니다. 작성자 정보는 보내지 않으며, 앱 버전과 기기 종류만 함께 전달됩니다. 개별 답변은 드리지 못하는 점 양해 부탁드립니다.')}
             </Text>
           </View>
 
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>분류</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('분류')}</Text>
           <View style={styles.categoryRow}>
             {CATEGORIES.map((item) => {
               const selected = category === item.key;
@@ -133,20 +134,20 @@ export default function SupportScreen({ onBack }: SupportScreenProps) {
                       selected && styles.categoryTextSelected,
                     ]}
                   >
-                    {item.label}
+                    {t(item.label)}
                   </Text>
                 </TouchableOpacity>
               );
             })}
           </View>
 
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>내용</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('내용')}</Text>
           <TextInput
             style={[
               styles.input,
               { backgroundColor: colors.card, borderColor: colors.border, color: colors.text },
             ]}
-            placeholder="불편한 점이나 바라는 점을 자유롭게 적어주세요"
+            placeholder={t('불편한 점이나 바라는 점을 자유롭게 적어주세요')}
             placeholderTextColor={colors.textTertiary}
             value={content}
             onChangeText={setContent}
@@ -174,7 +175,7 @@ export default function SupportScreen({ onBack }: SupportScreenProps) {
             {sending ? (
               <ActivityIndicator size="small" color={colors.textOnPrimary} />
             ) : (
-              <Text style={[styles.submitText, { color: colors.textOnPrimary }]}>보내기</Text>
+              <Text style={[styles.submitText, { color: colors.textOnPrimary }]}>{t('보내기')}</Text>
             )}
           </TouchableOpacity>
         </ScrollView>

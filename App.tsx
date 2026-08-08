@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, BackHandler, Alert } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
+import i18n, { initLanguage } from './src/i18n';
 import HomeScreen from './src/screens/HomeScreen';
 import ManageWordsScreen from './src/screens/ManageWordsScreen';
 import AddWordScreen from './src/screens/AddWordScreen';
@@ -39,8 +41,9 @@ class ErrorBoundary extends React.Component<
     if (this.state.hasError) {
       return (
         <ScrollView style={{ flex: 1, backgroundColor: '#FEE2E2', padding: 40, paddingTop: 80 }}>
+          {/* 클래스 컴포넌트라 훅을 못 쓴다. 인스턴스에서 직접 호출한다 */}
           <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#DC2626', marginBottom: 12 }}>
-            앱 에러 발생
+            {i18n.t('앱 에러 발생')}
           </Text>
           <Text style={{ fontSize: 14, color: '#991B1B' }}>
             {this.state.error?.message}
@@ -58,6 +61,7 @@ class ErrorBoundary extends React.Component<
 type Screen = 'home' | 'manageWords' | 'addWord' | 'editWord' | 'manageCategories' | 'quizSetup' | 'quiz' | 'quizResult' | 'statistics' | 'myPage' | 'importWords' | 'settings' | 'support' | 'notice';
 
 function AppContent() {
+  const { t } = useTranslation();
   const [currentScreen, setCurrentScreen] = useState<Screen>('home');
   const [previousScreen, setPreviousScreen] = useState<Screen>('home');
   const [editingWordId, setEditingWordId] = useState<number | null>(null);
@@ -143,11 +147,11 @@ function AppContent() {
       }
       if (currentScreen === 'home') {
         Alert.alert(
-          '앱 종료',
-          '종료하시겠습니까?',
+          t('앱 종료'),
+          t('종료하시겠습니까?'),
           [
-            { text: '취소', style: 'cancel' },
-            { text: '종료', style: 'destructive', onPress: () => BackHandler.exitApp() },
+            { text: t('취소'), style: 'cancel' },
+            { text: t('종료'), style: 'destructive', onPress: () => BackHandler.exitApp() },
           ],
           { cancelable: true },
         );
@@ -159,7 +163,7 @@ function AppContent() {
 
     const subscription = BackHandler.addEventListener('hardwareBackPress', backAction);
     return () => subscription.remove();
-  }, [currentScreen, handleBackNavigation, gate]);
+  }, [currentScreen, handleBackNavigation, gate, t]);
 
   // 점검 · 강제 업데이트 — 다른 화면 대신 렌더한다(뒤에 아무것도 남기지 않기 위해)
   if (isBlocking(gate)) {
@@ -348,6 +352,17 @@ function AppContent() {
 }
 
 export default function App() {
+  // 저장된 언어 설정을 읽기 전에 그리면 한국어가 잠깐 보였다가 바뀐다.
+  // 저장소 조회는 밀리초 단위라 그동안은 비워 둔다.
+  const [languageReady, setLanguageReady] = useState(false);
+  useEffect(() => {
+    initLanguage().finally(() => setLanguageReady(true));
+  }, []);
+
+  if (!languageReady) {
+    return <View style={{ flex: 1, backgroundColor: '#8CC5A0' }} />;
+  }
+
   return (
     <ThemeProvider>
       <BootstrapProvider>

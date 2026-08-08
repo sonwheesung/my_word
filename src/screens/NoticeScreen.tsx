@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -33,6 +34,7 @@ function formatDate(iso: string): string {
  */
 export default function NoticeScreen({ onBack }: NoticeScreenProps) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const { announcements, readIds, loaded, markAllNoticesRead } = useBootstrap();
 
   // 입장 시점의 안읽음을 고정해 둔다 — 바로 읽음 처리하더라도 이번 방문에서는 NEW 가 유지된다.
@@ -49,7 +51,7 @@ export default function NoticeScreen({ onBack }: NoticeScreenProps) {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar style={colors.isDark ? 'light' : 'dark'} />
-      <ScreenHeader title="공지사항" onBack={onBack} />
+      <ScreenHeader title={t('공지사항')} onBack={onBack} />
 
       {!loaded ? (
         <View style={styles.centered}>
@@ -68,7 +70,7 @@ export default function NoticeScreen({ onBack }: NoticeScreenProps) {
       ) : (
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
           {announcements.map((item) => {
-            const kindLabel = KIND_LABEL[item.kind];
+            const kindLabel = KIND_LABEL[item.kind] ? t(KIND_LABEL[item.kind]) : undefined;
             const date = formatDate(item.startsAt);
             return (
               <View
@@ -79,7 +81,7 @@ export default function NoticeScreen({ onBack }: NoticeScreenProps) {
                   {item.pinned && (
                     <View style={[styles.badge, { backgroundColor: colors.primaryLight }]}>
                       <MaterialIcons name="push-pin" size={12} color={colors.primary} />
-                      <Text style={[styles.badgeText, { color: colors.primary }]}>고정</Text>
+                      <Text style={[styles.badgeText, { color: colors.primary }]}>{t('고정')}</Text>
                     </View>
                   )}
                   {kindLabel && (

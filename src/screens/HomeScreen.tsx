@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -62,6 +63,7 @@ export default function HomeScreen({
   onNotices,
 }: HomeScreenProps) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const { unreadCount } = useBootstrap();
   const [summary, setSummary] = useState<HomeSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -102,10 +104,10 @@ export default function HomeScreen({
   }, [onAddWord, onNavigateToManageWords, onManageCategories, onStartQuiz, onViewStatistics, onMyPage]);
 
   const getStreakMessage = (streak: number): string => {
-    if (streak === 0) return '오늘 첫 학습을 시작해보세요!';
-    if (streak < 3) return `${streak}일 연속 학습 중! 계속 가보자!`;
-    if (streak < 7) return `${streak}일 연속! 좋은 습관이 만들어지고 있어요`;
-    return `${streak}일 연속! 대단해요!`;
+    if (streak === 0) return t('오늘 첫 학습을 시작해보세요!');
+    if (streak < 3) return t('{{count}}일 연속 학습 중! 계속 가보자!', { count: streak });
+    if (streak < 7) return t('{{count}}일 연속! 좋은 습관이 만들어지고 있어요', { count: streak });
+    return t('{{count}}일 연속! 대단해요!', { count: streak });
   };
 
   const renderStatItem = (value: string, label: string, color?: string) => (
@@ -136,7 +138,7 @@ export default function HomeScreen({
         {/* 헤더 */}
         <View style={styles.heroHeader}>
           <View>
-            <Text style={styles.heroGreeting}>반갑습니다!</Text>
+            <Text style={styles.heroGreeting}>{t('반갑습니다!')}</Text>
             <Text style={styles.heroTitle}>My Word</Text>
           </View>
           <View style={styles.heroActions}>
@@ -145,7 +147,7 @@ export default function HomeScreen({
               activeOpacity={0.7}
               style={styles.settingsBtn}
               accessibilityLabel={
-                unreadCount > 0 ? `공지사항, 읽지 않음 ${unreadCount}건` : '공지사항'
+                unreadCount > 0 ? t('공지사항, 읽지 않음 {{count}}건', { count: unreadCount }) : t('공지사항')
               }
             >
               <MaterialIcons name="notifications-none" size={22} color="rgba(255,255,255,0.9)" />
@@ -155,7 +157,7 @@ export default function HomeScreen({
               onPress={onSettings}
               activeOpacity={0.7}
               style={styles.settingsBtn}
-              accessibilityLabel="설정"
+              accessibilityLabel={t('설정')}
             >
               <MaterialIcons name="settings" size={22} color="rgba(255,255,255,0.9)" />
             </TouchableOpacity>
@@ -170,17 +172,17 @@ export default function HomeScreen({
         ) : summary && (summary.totalWords > 0 || summary.totalQuizCount > 0) ? (
           <View style={styles.statsContainer}>
             <View style={styles.statsRow}>
-              {renderStatItem(`${summary.totalWords}`, '등록 단어')}
+              {renderStatItem(`${summary.totalWords}`, t('등록 단어'))}
               <View style={styles.statDivider} />
               {renderStatItem(
                 summary.totalQuizCount > 0 ? `${Math.round(summary.accuracy)}%` : '-',
-                '정답률',
+                t('정답률'),
                 summary.totalQuizCount > 0 ? '#A7F3D0' : '#FFFFFF',
               )}
               <View style={styles.statDivider} />
               {renderStatItem(
-                summary.streakDays > 0 ? `${summary.streakDays}일` : '-',
-                '연속 학습',
+                summary.streakDays > 0 ? t('{{count}}일', { count: summary.streakDays }) : '-',
+                t('연속 학습'),
                 summary.streakDays > 0 ? '#FDE68A' : '#FFFFFF',
               )}
             </View>
@@ -188,7 +190,7 @@ export default function HomeScreen({
         ) : (
           <View style={styles.heroEmpty}>
             <MaterialIcons name="edit-note" size={24} color="rgba(255,255,255,0.85)" style={{ marginRight: 12 }} />
-            <Text style={styles.heroEmptyText}>단어를 추가하고 학습을 시작해보세요!</Text>
+            <Text style={styles.heroEmptyText}>{t('단어를 추가하고 학습을 시작해보세요!')}</Text>
           </View>
         )}
 
@@ -225,9 +227,9 @@ export default function HomeScreen({
               <View style={[styles.iconCircle, { backgroundColor: colors.primaryLight }]}>
                 <MaterialIcons name={item.icon} size={28} color={colors.primary} />
               </View>
-              <Text style={[styles.primaryTitle, { color: colors.text }]}>{item.title}</Text>
+              <Text style={[styles.primaryTitle, { color: colors.text }]}>{t(item.title)}</Text>
               <Text style={[styles.primarySubtitle, { color: colors.textTertiary }]}>
-                {item.subtitle}
+                {t(item.subtitle)}
               </Text>
             </TouchableOpacity>
           ))}
@@ -249,7 +251,7 @@ export default function HomeScreen({
               <View style={[styles.iconCircleSmall, { backgroundColor: colors.primaryLight }]}>
                 <MaterialIcons name={item.icon} size={22} color={colors.primary} />
               </View>
-              <Text style={[styles.secondaryTitle, { color: colors.text }]}>{item.title}</Text>
+              <Text style={[styles.secondaryTitle, { color: colors.text }]}>{t(item.title)}</Text>
             </TouchableOpacity>
           ))}
         </View>

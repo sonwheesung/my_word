@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -27,6 +28,7 @@ export default function QuizResultScreen({
   onRetryWrong,
   onBackToHome,
 }: QuizResultScreenProps) {
+  const { t } = useTranslation();
   const { colors } = useTheme();
   const [showWrongAnswers, setShowWrongAnswers] = useState(false);
   const { showAd } = useInterstitialAd();
@@ -50,9 +52,9 @@ export default function QuizResultScreen({
   const speakWord = async (text: string) => {
     const result = await speak(text);
     if (result.outcome === 'unsupported') {
-      showToast(`${result.label} 음성이 기기에 설치되어 있지 않습니다`, 'info');
+      showToast(t('{{language}} 음성이 기기에 설치되어 있지 않습니다', { language: t(result.label) }), 'info');
     } else if (result.outcome === 'error') {
-      showToast('음성 재생에 실패했습니다', 'error');
+      showToast(t('음성 재생에 실패했습니다'), 'error');
     }
   };
 
@@ -86,28 +88,28 @@ export default function QuizResultScreen({
         </View>
 
         <Text style={[styles.title, { color: colors.text }]}>
-          {isPerfect ? '완벽합니다!' : isGood ? '잘했어요!' : '다시 도전해보세요!'}
+          {isPerfect ? t('완벽합니다!') : isGood ? t('잘했어요!') : t('다시 도전해보세요!')}
         </Text>
 
         <View style={styles.scoreContainer}>
-          <Text style={[styles.scoreLabel, { color: colors.textSecondary }]}>정답률</Text>
+          <Text style={[styles.scoreLabel, { color: colors.textSecondary }]}>{t('정답률')}</Text>
           <Text style={[styles.scoreValue, { color: colors.accent }]}>{percentage}%</Text>
           <Text style={[styles.scoreDetail, { color: colors.textSecondary }]}>
-            {correctCount} / {totalCount} 문제
+            {t('{{correct}} / {{total}} 문제', { correct: correctCount, total: totalCount })}
           </Text>
         </View>
 
         <View style={[styles.statsContainer, { backgroundColor: colors.card }]}>
           <View style={styles.statItem}>
             <Text style={styles.statValue}>{correctCount}</Text>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>정답</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{t('정답')}</Text>
           </View>
           <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
           <View style={styles.statItem}>
             <Text style={[styles.statValue, styles.wrongValue]}>
               {totalCount - correctCount}
             </Text>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>오답</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{t('오답')}</Text>
           </View>
         </View>
 
@@ -118,21 +120,21 @@ export default function QuizResultScreen({
                 style={styles.wrongAnswerButton}
                 onPress={() => setShowWrongAnswers(true)}
               >
-                <Text style={styles.wrongAnswerButtonText}>틀린 정답 확인하기</Text>
+                <Text style={styles.wrongAnswerButtonText}>{t('틀린 정답 확인하기')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.retryWrongButton}
                 onPress={onRetryWrong}
               >
-                <Text style={styles.retryWrongButtonText}>틀린 문제만 다시 풀기</Text>
+                <Text style={styles.retryWrongButtonText}>{t('틀린 문제만 다시 풀기')}</Text>
               </TouchableOpacity>
             </>
           )}
           <TouchableOpacity style={[styles.retryButton, { backgroundColor: colors.accent }]} onPress={onRetry}>
-            <Text style={styles.retryButtonText}>다시 풀기</Text>
+            <Text style={styles.retryButtonText}>{t('다시 풀기')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[styles.homeButton, { backgroundColor: colors.border }]} onPress={onBackToHome}>
-            <Text style={[styles.homeButtonText, { color: colors.textSecondary }]}>홈으로</Text>
+            <Text style={[styles.homeButtonText, { color: colors.textSecondary }]}>{t('홈으로')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -149,9 +151,9 @@ export default function QuizResultScreen({
       >
         <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
           <View style={[styles.modalHeader, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>틀린 문제 확인</Text>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>{t('틀린 문제 확인')}</Text>
             <TouchableOpacity onPress={() => setShowWrongAnswers(false)}>
-              <Text style={[styles.modalCloseText, { color: colors.accent }]}>닫기</Text>
+              <Text style={[styles.modalCloseText, { color: colors.accent }]}>{t('닫기')}</Text>
             </TouchableOpacity>
           </View>
 
@@ -174,15 +176,15 @@ export default function QuizResultScreen({
                   </View>
                   <View style={styles.wrongDetail}>
                     <View style={styles.wrongRow}>
-                      <Text style={[styles.wrongLabel, { color: colors.textSecondary }]}>문제</Text>
+                      <Text style={[styles.wrongLabel, { color: colors.textSecondary }]}>{t('문제')}</Text>
                       <Text style={[styles.wrongWord, { color: colors.text }]}>{result.word}</Text>
                     </View>
                     <View style={styles.wrongRow}>
-                      <Text style={[styles.wrongLabel, { color: colors.textSecondary }]}>정답</Text>
+                      <Text style={[styles.wrongLabel, { color: colors.textSecondary }]}>{t('정답')}</Text>
                       <Text style={styles.correctAnswerText}>{result.correctAnswer}</Text>
                     </View>
                     <View style={styles.wrongRow}>
-                      <Text style={[styles.wrongLabel, { color: colors.textSecondary }]}>내 답</Text>
+                      <Text style={[styles.wrongLabel, { color: colors.textSecondary }]}>{t('내 답')}</Text>
                       <Text style={styles.userAnswerText}>{result.userAnswer}</Text>
                     </View>
                   </View>

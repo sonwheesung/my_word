@@ -1,3 +1,4 @@
+import i18n from '../i18n';
 import { categoryStorage, wordStorage } from '../utils/storage';
 import { normalizeForCompare } from '../utils/text';
 import type { Category, CategoryRequest } from '../types/word';
@@ -16,7 +17,7 @@ export const categoryService = {
 
   async getCategory(id: number): Promise<Category> {
     const category = await categoryStorage.getById(id);
-    if (!category) throw new Error('카테고리를 찾을 수 없습니다');
+    if (!category) throw new Error(i18n.t('카테고리를 찾을 수 없습니다'));
     const words = await wordStorage.getByCategoryId(id);
     return { ...category, wordCount: words.length };
   },
@@ -26,7 +27,7 @@ export const categoryService = {
     const target = normalizeForCompare(data.categoryName);
     const duplicate = existing.find((c) => normalizeForCompare(c.categoryName) === target);
     if (duplicate) {
-      throw new Error('이미 같은 이름의 카테고리가 존재합니다');
+      throw new Error(i18n.t('이미 같은 이름의 카테고리가 존재합니다'));
     }
     return categoryStorage.create(data);
   },
@@ -38,7 +39,7 @@ export const categoryService = {
       (c) => c.categoryId !== id && normalizeForCompare(c.categoryName) === target,
     );
     if (duplicate) {
-      throw new Error('이미 같은 이름의 카테고리가 존재합니다');
+      throw new Error(i18n.t('이미 같은 이름의 카테고리가 존재합니다'));
     }
     return categoryStorage.update(id, data);
   },

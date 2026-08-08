@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -27,6 +28,7 @@ interface CategoryManageScreenProps {
 }
 
 export default function CategoryManageScreen({ onBack }: CategoryManageScreenProps) {
+  const { t } = useTranslation();
   const { colors } = useTheme();
   const { toast, showToast, hideToast } = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
@@ -51,7 +53,7 @@ export default function CategoryManageScreen({ onBack }: CategoryManageScreenPro
       setCategories(data);
     } catch (error: any) {
       console.warn('카테고리 조회 실패:', error);
-      showToast('카테고리를 불러오는데 실패했습니다', 'error');
+      showToast(t('카테고리를 불러오는데 실패했습니다'), 'error');
     } finally {
       setLoading(false);
     }
@@ -82,7 +84,7 @@ export default function CategoryManageScreen({ onBack }: CategoryManageScreenPro
     if (saving) return; // 이중 방어
 
     if (!categoryName.trim()) {
-      showToast('카테고리 이름을 입력해주세요', 'error');
+      showToast(t('카테고리 이름을 입력해주세요'), 'error');
       return;
     }
 
@@ -95,20 +97,20 @@ export default function CategoryManageScreen({ onBack }: CategoryManageScreenPro
           description: description.trim() || undefined,
           displayOrder: editingCategory.displayOrder,
         });
-        showToast('카테고리가 수정되었습니다', 'success');
+        showToast(t('카테고리가 수정되었습니다'), 'success');
       } else {
         // 생성
         await categoryService.createCategory({
           categoryName: categoryName.trim(),
           description: description.trim() || undefined,
         });
-        showToast('카테고리가 생성되었습니다', 'success');
+        showToast(t('카테고리가 생성되었습니다'), 'success');
       }
       closeModal();
       loadCategories();
     } catch (error: any) {
       console.warn('카테고리 저장 실패:', error);
-      showToast(error.message || '카테고리 저장에 실패했습니다', 'error');
+      showToast(error.message || t('카테고리 저장에 실패했습니다'), 'error');
     } finally {
       setSaving(false);
     }
@@ -116,21 +118,21 @@ export default function CategoryManageScreen({ onBack }: CategoryManageScreenPro
 
   const handleDelete = (category: Category) => {
     Alert.alert(
-      '카테고리 삭제',
-      `"${category.categoryName}" 카테고리를 삭제하시겠습니까?\n\n⚠️ 해당 카테고리의 모든 단어도 함께 삭제됩니다.`,
+      t('카테고리 삭제'),
+      t('"{{name}}" 카테고리를 삭제하시겠습니까?\n\n⚠️ 해당 카테고리의 모든 단어도 함께 삭제됩니다.', { name: category.categoryName }),
       [
-        { text: '취소', style: 'cancel' },
+        { text: t('취소'), style: 'cancel' },
         {
-          text: '삭제',
+          text: t('삭제'),
           style: 'destructive',
           onPress: async () => {
             try {
               await categoryService.deleteCategory(category.categoryId);
-              showToast('카테고리가 삭제되었습니다', 'success');
+              showToast(t('카테고리가 삭제되었습니다'), 'success');
               loadCategories();
             } catch (error: any) {
               console.warn('카테고리 삭제 실패:', error);
-              showToast(error.message || '카테고리 삭제에 실패했습니다', 'error');
+              showToast(error.message || t('카테고리 삭제에 실패했습니다'), 'error');
             }
           },
         },
@@ -169,7 +171,7 @@ export default function CategoryManageScreen({ onBack }: CategoryManageScreenPro
       );
     } catch (error: any) {
       console.warn('카테고리 순서 변경 실패:', error);
-      showToast('카테고리 순서 변경에 실패했습니다', 'error');
+      showToast(t('카테고리 순서 변경에 실패했습니다'), 'error');
       loadCategories(); // 실패 시 다시 로드
     }
   };
@@ -178,7 +180,7 @@ export default function CategoryManageScreen({ onBack }: CategoryManageScreenPro
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <StatusBar style={colors.isDark ? 'light' : 'dark'} />
-        <ScreenHeader title="카테고리 관리" onBack={onBack} />
+        <ScreenHeader title={t('카테고리 관리')} onBack={onBack} />
         <View style={[styles.skeletonAddButton, { backgroundColor: colors.border }]}>
           <View style={styles.skeletonBar} />
         </View>
@@ -194,11 +196,11 @@ export default function CategoryManageScreen({ onBack }: CategoryManageScreenPro
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar style={colors.isDark ? 'light' : 'dark'} />
-      <ScreenHeader title="카테고리 관리" onBack={onBack} />
+      <ScreenHeader title={t('카테고리 관리')} onBack={onBack} />
 
       {/* 추가 버튼 */}
       <TouchableOpacity style={[styles.addButton, { backgroundColor: colors.accent }]} onPress={openCreateModal}>
-        <Text style={styles.addButtonText}>+ 카테고리 추가</Text>
+        <Text style={styles.addButtonText}>{t('+ 카테고리 추가')}</Text>
       </TouchableOpacity>
 
       {/* 카테고리 목록 */}
@@ -218,8 +220,8 @@ export default function CategoryManageScreen({ onBack }: CategoryManageScreenPro
         {categories.length === 0 ? (
           <View style={styles.emptyContainer}>
             <MaterialIcons name="folder-open" size={64} color={colors.textTertiary} />
-            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>등록된 카테고리가 없습니다</Text>
-            <Text style={[styles.emptyHint, { color: colors.textTertiary }]}>카테고리를 추가해보세요</Text>
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>{t('등록된 카테고리가 없습니다')}</Text>
+            <Text style={[styles.emptyHint, { color: colors.textTertiary }]}>{t('카테고리를 추가해보세요')}</Text>
           </View>
         ) : (
           categories.map((category, index) => (
@@ -251,7 +253,7 @@ export default function CategoryManageScreen({ onBack }: CategoryManageScreenPro
                 <View style={styles.categoryNameRow}>
                   <Text style={[styles.categoryNameText, { color: colors.text }]}>{category.categoryName}</Text>
                   {category.wordCount != null && (
-                    <Text style={[styles.categoryWordCountBadge, { color: colors.primary, backgroundColor: colors.primaryLight }]}>{category.wordCount}개</Text>
+                    <Text style={[styles.categoryWordCountBadge, { color: colors.primary, backgroundColor: colors.primaryLight }]}>{t('{{count}}개', { count: category.wordCount })}</Text>
                   )}
                 </View>
                 {category.description && (
@@ -265,13 +267,13 @@ export default function CategoryManageScreen({ onBack }: CategoryManageScreenPro
                   style={[styles.editButton, { backgroundColor: colors.primaryLight }]}
                   onPress={() => openEditModal(category)}
                 >
-                  <Text style={[styles.editButtonText, { color: colors.primary }]}>수정</Text>
+                  <Text style={[styles.editButtonText, { color: colors.primary }]}>{t('수정')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.deleteButton}
                   onPress={() => handleDelete(category)}
                 >
-                  <Text style={styles.deleteButtonText}>삭제</Text>
+                  <Text style={styles.deleteButtonText}>{t('삭제')}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -289,14 +291,14 @@ export default function CategoryManageScreen({ onBack }: CategoryManageScreenPro
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
             <Text style={[styles.modalTitle, { color: colors.text }]}>
-              {editingCategory ? '카테고리 수정' : '카테고리 추가'}
+              {editingCategory ? t('카테고리 수정') : t('카테고리 추가')}
             </Text>
 
             <View style={styles.modalForm}>
-              <Text style={[styles.label, { color: colors.textSecondary }]}>카테고리 이름 *</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>{t('카테고리 이름 *')}</Text>
               <TextInput
                 style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
-                placeholder="예: 영어, 일본어, 중국어"
+                placeholder={t('예: 영어, 일본어, 중국어')}
                 placeholderTextColor={colors.textTertiary}
                 value={categoryName}
                 onChangeText={setCategoryName}
@@ -308,11 +310,11 @@ export default function CategoryManageScreen({ onBack }: CategoryManageScreenPro
                 maxLength={20}
               />
 
-              <Text style={[styles.label, { color: colors.textSecondary }]}>설명 (선택)</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>{t('설명 (선택)')}</Text>
               <TextInput
                 ref={descriptionRef}
                 style={[styles.input, styles.textArea, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
-                placeholder="카테고리 설명"
+                placeholder={t('카테고리 설명')}
                 placeholderTextColor={colors.textTertiary}
                 value={description}
                 onChangeText={setDescription}
@@ -330,7 +332,7 @@ export default function CategoryManageScreen({ onBack }: CategoryManageScreenPro
                 onPress={closeModal}
                 disabled={saving}
               >
-                <Text style={[styles.modalCancelButtonText, { color: colors.textSecondary }]}>취소</Text>
+                <Text style={[styles.modalCancelButtonText, { color: colors.textSecondary }]}>{t('취소')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.modalButton, styles.modalSaveButton, { backgroundColor: colors.accent }, saving && styles.modalButtonDisabled]}
@@ -340,7 +342,7 @@ export default function CategoryManageScreen({ onBack }: CategoryManageScreenPro
                 {saving ? (
                   <ActivityIndicator color="#fff" size="small" />
                 ) : (
-                  <Text style={styles.modalSaveButtonText}>저장</Text>
+                  <Text style={styles.modalSaveButtonText}>{t('저장')}</Text>
                 )}
               </TouchableOpacity>
             </View>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -8,11 +8,14 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../contexts/ThemeContext';
 import { useBootstrap } from '../contexts/BootstrapContext';
 import { THEMES } from '../constants/themes';
 import { APP_VERSION } from '../constants/appConfig';
 import ScreenHeader from '../components/ScreenHeader';
+import { changeAppLanguage } from '../i18n';
+import { LANGUAGE_LABEL, SUPPORTED_LANGUAGES, getCurrentLanguage, type AppLanguage } from '../i18n/language';
 
 interface SettingsScreenProps {
   onBack: () => void;
@@ -23,16 +26,47 @@ interface SettingsScreenProps {
 export default function SettingsScreen({ onBack, onSupport, onNotices }: SettingsScreenProps) {
   const { colors, themeId, setThemeId } = useTheme();
   const { unreadCount } = useBootstrap();
+  const { t } = useTranslation();
+  const [language, setLanguage] = useState<AppLanguage>(() => getCurrentLanguage());
+
+  const handleLanguageChange = async (next: AppLanguage) => {
+    if (next === language) return;
+    setLanguage(next);
+    await changeAppLanguage(next);
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar style={colors.isDark ? 'light' : 'dark'} />
-      <ScreenHeader title="설정" onBack={onBack} />
+      <ScreenHeader title={t('설정')} onBack={onBack} />
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        {/* 언어 선택 */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('언어')}</Text>
+          <View style={[styles.infoCard, { backgroundColor: colors.card, borderColor: colors.border, padding: 0 }]}>
+            {SUPPORTED_LANGUAGES.map((code, index) => (
+              <React.Fragment key={code}>
+                {index > 0 && <View style={[styles.infoDivider, { backgroundColor: colors.borderLight, marginVertical: 0 }]} />}
+                <TouchableOpacity
+                  onPress={() => handleLanguageChange(code)}
+                  activeOpacity={0.7}
+                  style={styles.languageRow}
+                >
+                  {/* 각 언어를 그 언어로 적는다 — 자기 언어를 못 찾으면 의미가 없다 */}
+                  <Text style={[styles.linkTitle, { color: colors.text }]}>{LANGUAGE_LABEL[code]}</Text>
+                  {language === code && (
+                    <MaterialIcons name="check" size={20} color={colors.primary} />
+                  )}
+                </TouchableOpacity>
+              </React.Fragment>
+            ))}
+          </View>
+        </View>
+
         {/* 테마 선택 */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>색상 테마</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('색상 테마')}</Text>
           <View style={styles.themeGrid}>
             {THEMES.map((theme) => {
               const isSelected = themeId === theme.id;
@@ -77,7 +111,7 @@ export default function SettingsScreen({ onBack, onSupport, onNotices }: Setting
                       isSelected && { color: theme.colors.primary, fontWeight: 'bold' },
                     ]}
                   >
-                    {theme.name}
+                    {t(theme.name)}
                   </Text>
                   {isSelected && (
                     <View style={[styles.checkBadge, { backgroundColor: theme.colors.primary }]}>
@@ -92,7 +126,7 @@ export default function SettingsScreen({ onBack, onSupport, onNotices }: Setting
 
         {/* 소식 */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>소식</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('소식')}</Text>
           <TouchableOpacity
             onPress={onNotices}
             activeOpacity={0.7}
@@ -101,9 +135,9 @@ export default function SettingsScreen({ onBack, onSupport, onNotices }: Setting
             <View style={styles.linkLeft}>
               <MaterialIcons name="campaign" size={20} color={colors.primary} />
               <View>
-                <Text style={[styles.linkTitle, { color: colors.text }]}>공지사항</Text>
+                <Text style={[styles.linkTitle, { color: colors.text }]}>{t('공지사항')}</Text>
                 <Text style={[styles.linkSubtitle, { color: colors.textTertiary }]}>
-                  업데이트와 새로운 소식을 확인하세요
+                  {t('업데이트와 새로운 소식을 확인하세요')}
                 </Text>
               </View>
             </View>
@@ -120,7 +154,7 @@ export default function SettingsScreen({ onBack, onSupport, onNotices }: Setting
 
         {/* 고객 지원 */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>고객 지원</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('고객 지원')}</Text>
           <TouchableOpacity
             onPress={onSupport}
             activeOpacity={0.7}
@@ -129,9 +163,9 @@ export default function SettingsScreen({ onBack, onSupport, onNotices }: Setting
             <View style={styles.linkLeft}>
               <MaterialIcons name="chat-bubble-outline" size={20} color={colors.primary} />
               <View>
-                <Text style={[styles.linkTitle, { color: colors.text }]}>문의하기</Text>
+                <Text style={[styles.linkTitle, { color: colors.text }]}>{t('문의하기')}</Text>
                 <Text style={[styles.linkSubtitle, { color: colors.textTertiary }]}>
-                  익명으로 의견을 보낼 수 있어요
+                  {t('익명으로 의견을 보낼 수 있어요')}
                 </Text>
               </View>
             </View>
@@ -141,15 +175,15 @@ export default function SettingsScreen({ onBack, onSupport, onNotices }: Setting
 
         {/* 앱 정보 */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>앱 정보</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('앱 정보')}</Text>
           <View style={[styles.infoCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.infoRow}>
-              <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>버전</Text>
+              <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>{t('버전')}</Text>
               <Text style={[styles.infoValue, { color: colors.text }]}>{APP_VERSION}</Text>
             </View>
             <View style={[styles.infoDivider, { backgroundColor: colors.borderLight }]} />
             <View style={styles.infoRow}>
-              <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>패키지</Text>
+              <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>{t('패키지')}</Text>
               <Text style={[styles.infoValue, { color: colors.text }]}>com.myword.front</Text>
             </View>
           </View>
@@ -265,6 +299,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 4,
+  },
+  languageRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
   },
   infoLabel: {
     fontSize: 14,

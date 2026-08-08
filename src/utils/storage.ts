@@ -1,3 +1,4 @@
+import i18n from '../i18n';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import type { Category, CategoryRequest, Word, WordRequest } from '../types/word';
@@ -103,7 +104,7 @@ export const categoryStorage = {
   async update(id: number, data: CategoryRequest): Promise<Category> {
     const categories = await this.getAll();
     const index = categories.findIndex((c) => c.categoryId === id);
-    if (index === -1) throw new Error('카테고리를 찾을 수 없습니다');
+    if (index === -1) throw new Error(i18n.t('카테고리를 찾을 수 없습니다'));
     categories[index] = {
       ...categories[index],
       categoryName: data.categoryName,
@@ -175,7 +176,7 @@ export const wordStorage = {
   async update(id: number, data: WordRequest): Promise<Word> {
     const words = await this.getAll();
     const index = words.findIndex((w) => w.wordId === id);
-    if (index === -1) throw new Error('단어를 찾을 수 없습니다');
+    if (index === -1) throw new Error(i18n.t('단어를 찾을 수 없습니다'));
     words[index] = {
       ...words[index],
       categoryId: data.categoryId,

@@ -1,3 +1,4 @@
+import i18n from '../i18n';
 import { quizResultStorage, wordStorage, categoryStorage } from '../utils/storage';
 import { formatLocalDate, toLocalDateKey } from '../utils/date';
 
@@ -172,7 +173,7 @@ export const quizService = {
       const wordInfo = wordMap.get(wordId);
       result.push({
         wordId,
-        word: wordInfo?.word || '(삭제된 단어)',
+        word: wordInfo?.word || i18n.t('(삭제된 단어)'),
         categoryId: wordInfo?.categoryId || 0,
         totalCount: stats.total,
         correctCount: stats.correct,

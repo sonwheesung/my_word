@@ -1,3 +1,4 @@
+import i18n from '../i18n';
 import { wordStorage } from '../utils/storage';
 import { normalizeForCompare } from '../utils/text';
 import type { Word, WordRequest } from '../types/word';
@@ -9,7 +10,7 @@ export const wordService = {
 
   async getWord(id: number): Promise<Word> {
     const word = await wordStorage.getById(id);
-    if (!word) throw new Error('단어를 찾을 수 없습니다');
+    if (!word) throw new Error(i18n.t('단어를 찾을 수 없습니다'));
     return word;
   },
 

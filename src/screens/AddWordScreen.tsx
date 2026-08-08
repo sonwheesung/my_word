@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -30,6 +31,7 @@ interface AddWordScreenProps {
 }
 
 export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordScreenProps) {
+  const { t } = useTranslation();
   const { colors } = useTheme();
   const { toast, showToast, hideToast } = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
@@ -72,7 +74,7 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
       }
     } catch (error: any) {
       console.warn('카테고리 조회 실패:', error);
-      showToast('카테고리를 불러오는데 실패했습니다', 'error');
+      showToast(t('카테고리를 불러오는데 실패했습니다'), 'error');
     } finally {
       setLoadingCategories(false);
     }
@@ -94,7 +96,7 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
       setMemo(wordData.memo ?? '');
     } catch (error: any) {
       console.warn('단어 조회 실패:', error);
-      showToast('단어를 불러오는데 실패했습니다', 'error');
+      showToast(t('단어를 불러오는데 실패했습니다'), 'error');
     } finally {
       setLoadingWord(false);
     }
@@ -102,7 +104,7 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
 
   const addMeaning = () => {
     if (meanings.length >= 10) {
-      showToast('뜻은 최대 10개까지 추가할 수 있습니다', 'error');
+      showToast(t('뜻은 최대 10개까지 추가할 수 있습니다'), 'error');
       return;
     }
     setMeanings([...meanings, '']);
@@ -123,7 +125,7 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
 
   const addExample = () => {
     if (examples.length >= 5) {
-      showToast('예문은 최대 5개까지 추가할 수 있습니다', 'error');
+      showToast(t('예문은 최대 5개까지 추가할 수 있습니다'), 'error');
       return;
     }
     setExamples([...examples, { example: '', translation: '' }]);
@@ -146,12 +148,12 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
     const trimmed = tagInput.trim();
     if (!trimmed) return;
     if (tags.length >= 10) {
-      showToast('태그는 최대 10개까지 추가할 수 있습니다', 'error');
+      showToast(t('태그는 최대 10개까지 추가할 수 있습니다'), 'error');
       setTagInput('');
       return;
     }
     if (tags.some(t => normalizeForCompare(t) === normalizeForCompare(trimmed))) {
-      showToast('이미 추가된 태그입니다', 'error');
+      showToast(t('이미 추가된 태그입니다'), 'error');
       setTagInput('');
       return;
     }
@@ -168,7 +170,7 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
 
     const trimmed = word.trim();
     if (!trimmed) {
-      showToast('단어를 입력해주세요', 'error');
+      showToast(t('단어를 입력해주세요'), 'error');
       return;
     }
 
@@ -180,9 +182,9 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
 
       if (!outcome.ok) {
         if (outcome.reason === 'same-language') {
-          showToast('단어와 뜻이 같은 언어입니다. 뜻은 직접 입력해주세요', 'info');
+          showToast(t('단어와 뜻이 같은 언어입니다. 뜻은 직접 입력해주세요'), 'info');
         } else {
-          showToast('사전에서 단어를 찾을 수 없습니다', 'error');
+          showToast(t('사전에서 단어를 찾을 수 없습니다'), 'error');
         }
         return;
       }
@@ -197,13 +199,13 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
 
       // 예문은 영어 표제어만 존재한다. 조용히 비워두면 "가져오기가 실패했나" 싶으므로 밝힌다
       if (result.examplesUnsupported) {
-        showToast(`뜻 ${result.meanings.length}개를 가져왔습니다 (예문은 영어 단어만 지원합니다)`, 'info');
+        showToast(t('뜻 {{count}}개를 가져왔습니다 (예문은 영어 단어만 지원합니다)', { count: result.meanings.length }), 'info');
       } else {
-        showToast(`뜻 ${result.meanings.length}개, 예문 ${result.examples.length}개를 가져왔습니다`, 'success');
+        showToast(t('뜻 {{meanings}}개, 예문 {{examples}}개를 가져왔습니다', { meanings: result.meanings.length, examples: result.examples.length }), 'success');
       }
     } catch (error: any) {
       console.warn('사전 검색 실패:', error);
-      showToast(error.message || '사전 검색에 실패했습니다', 'error');
+      showToast(error.message || t('사전 검색에 실패했습니다'), 'error');
     } finally {
       setSearching(false);
     }
@@ -212,18 +214,18 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
   const handleSave = async () => {
     // 유효성 검사
     if (!selectedCategoryId) {
-      showToast('카테고리를 선택해주세요', 'error');
+      showToast(t('카테고리를 선택해주세요'), 'error');
       return;
     }
 
     if (!word.trim()) {
-      showToast('단어를 입력해주세요', 'error');
+      showToast(t('단어를 입력해주세요'), 'error');
       return;
     }
 
     const filteredMeanings = meanings.filter((m) => m.trim());
     if (filteredMeanings.length === 0) {
-      showToast('최소 하나의 뜻을 입력해주세요', 'error');
+      showToast(t('최소 하나의 뜻을 입력해주세요'), 'error');
       return;
     }
 
@@ -236,11 +238,11 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
 
     if (duplicate) {
       Alert.alert(
-        '중복 단어',
-        `"${word.trim()}" 단어가 이미 등록되어 있습니다.\n그래도 저장하시겠습니까?`,
+        t('중복 단어'),
+        t('"{{word}}" 단어가 이미 등록되어 있습니다.\n그래도 저장하시겠습니까?', { word: word.trim() }),
         [
-          { text: '취소', style: 'cancel' },
-          { text: '저장', onPress: () => performSave() },
+          { text: t('취소'), style: 'cancel' },
+          { text: t('저장'), onPress: () => performSave() },
         ],
       );
       return;
@@ -248,10 +250,10 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
 
     // 수정 시 confirm
     if (isEditMode && wordId) {
-      Alert.alert('확인', '단어를 수정하시겠습니까?', [
-        { text: '취소', style: 'cancel' },
+      Alert.alert(t('확인'), t('단어를 수정하시겠습니까?'), [
+        { text: t('취소'), style: 'cancel' },
         {
-          text: '수정',
+          text: t('수정'),
           onPress: () => performSave(),
         },
       ]);
@@ -265,7 +267,7 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
 
     // 카테고리 선택 확인 (타입 가드)
     if (!selectedCategoryId) {
-      showToast('카테고리를 선택해주세요', 'error');
+      showToast(t('카테고리를 선택해주세요'), 'error');
       return;
     }
 
@@ -286,7 +288,7 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
           tags,
           memo: memo.trim(),
         });
-        showToast('단어가 수정되었습니다', 'success');
+        showToast(t('단어가 수정되었습니다'), 'success');
         onWordAdded();
       } else {
         // 추가
@@ -298,12 +300,12 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
           tags,
           memo: memo.trim(),
         });
-        showToast('단어가 추가되었습니다', 'success');
+        showToast(t('단어가 추가되었습니다'), 'success');
         onWordAdded();
       }
     } catch (error: any) {
       console.warn('단어 저장 실패:', error);
-      showToast(error.message || '단어 저장에 실패했습니다', 'error');
+      showToast(error.message || t('단어 저장에 실패했습니다'), 'error');
     } finally {
       setLoading(false);
     }
@@ -316,7 +318,7 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
       <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
         <ActivityIndicator size="large" color={colors.primary} />
         <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
-          {loadingWord ? '단어 로딩 중...' : '카테고리 로딩 중...'}
+          {loadingWord ? t('단어 로딩 중...') : t('카테고리 로딩 중...')}
         </Text>
       </View>
     );
@@ -327,10 +329,10 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
       <View style={[styles.emptyContainer, { backgroundColor: colors.background }]}>
         <StatusBar style={colors.isDark ? 'light' : 'dark'} />
         <MaterialIcons name="folder-open" size={64} color={colors.textTertiary} />
-        <Text style={[styles.emptyTitle, { color: colors.text }]}>카테고리가 없습니다</Text>
-        <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>먼저 카테고리를 생성해주세요</Text>
+        <Text style={[styles.emptyTitle, { color: colors.text }]}>{t('카테고리가 없습니다')}</Text>
+        <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>{t('먼저 카테고리를 생성해주세요')}</Text>
         <TouchableOpacity style={[styles.backButton, { backgroundColor: colors.accent }]} onPress={onBack}>
-          <Text style={styles.backButtonText}>돌아가기</Text>
+          <Text style={styles.backButtonText}>{t('돌아가기')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -339,19 +341,19 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar style={colors.isDark ? 'light' : 'dark'} />
-      <ScreenHeader title={isEditMode ? '단어 수정' : '단어 추가'} onBack={onBack} />
+      <ScreenHeader title={isEditMode ? t('단어 수정') : t('단어 추가')} onBack={onBack} />
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         {/* 카테고리 선택 */}
         <View style={styles.section}>
-          <Text style={[styles.label, { color: colors.textSecondary }]}>카테고리 *</Text>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>{t('카테고리 *')}</Text>
           <TouchableOpacity
             style={[styles.categorySelector, { backgroundColor: colors.card, borderColor: colors.border }]}
             onPress={() => setShowCategoryPicker(true)}
             disabled={loading}
           >
             <Text style={[styles.categorySelectorText, { color: colors.text }]}>
-              {selectedCategory?.categoryName || '카테고리 선택'}
+              {selectedCategory?.categoryName || t('카테고리 선택')}
             </Text>
             <MaterialIcons name="keyboard-arrow-down" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
@@ -368,7 +370,7 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
               onPress={() => setShowCategoryPicker(false)}
             >
               <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
-                <Text style={[styles.modalTitle, { color: colors.text, borderBottomColor: colors.border }]}>카테고리 선택</Text>
+                <Text style={[styles.modalTitle, { color: colors.text, borderBottomColor: colors.border }]}>{t('카테고리 선택')}</Text>
                 <ScrollView style={styles.categoryList}>
                   {categories.map((category) => (
                     <TouchableOpacity
@@ -402,11 +404,11 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
 
         {/* 단어 입력 */}
         <View style={styles.section}>
-          <Text style={[styles.label, { color: colors.textSecondary }]}>단어 *</Text>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>{t('단어 *')}</Text>
           <View style={styles.wordInputRow}>
             <TextInput
               style={[styles.input, styles.wordInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
-              placeholder="단어를 입력하세요"
+              placeholder={t('단어를 입력하세요')}
               placeholderTextColor={colors.textTertiary}
               value={word}
               // 입력값을 가공하지 않는다. 첫 글자를 강제로 소문자로 바꾸면
@@ -429,19 +431,19 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
               {searching ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
-                <Text style={styles.searchButtonText}>검색</Text>
+                <Text style={styles.searchButtonText}>{t('검색')}</Text>
               )}
             </TouchableOpacity>
           </View>
-          <Text style={[styles.wordInputHint, { color: colors.textTertiary }]}>단어 입력 후 검색 버튼을 누르면 뜻과 예문을 자동으로 가져옵니다</Text>
+          <Text style={[styles.wordInputHint, { color: colors.textTertiary }]}>{t('단어 입력 후 검색 버튼을 누르면 뜻과 예문을 자동으로 가져옵니다')}</Text>
         </View>
 
         {/* 뜻 입력 */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>뜻 *</Text>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>{t('뜻 *')}</Text>
             <TouchableOpacity onPress={addMeaning} disabled={loading} style={[styles.addButton, { backgroundColor: colors.accent }]}>
-              <Text style={styles.addButtonText}>+ 추가</Text>
+              <Text style={styles.addButtonText}>{t('+ 추가')}</Text>
             </TouchableOpacity>
           </View>
 
@@ -450,7 +452,7 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
               <TextInput
                 ref={index === 0 ? firstMeaningRef : undefined}
                 style={[styles.input, styles.listItemInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
-                placeholder={`뜻 ${index + 1}`}
+                placeholder={t('뜻 {{n}}', { n: index + 1 })}
                 placeholderTextColor={colors.textTertiary}
                 value={meaning}
                 onChangeText={(value) => updateMeaning(index, value)}
@@ -474,16 +476,16 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
         {/* 예문 입력 */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>예문 (선택)</Text>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>{t('예문 (선택)')}</Text>
             <TouchableOpacity onPress={addExample} disabled={loading} style={[styles.addButton, { backgroundColor: colors.accent }]}>
-              <Text style={styles.addButtonText}>+ 추가</Text>
+              <Text style={styles.addButtonText}>{t('+ 추가')}</Text>
             </TouchableOpacity>
           </View>
 
           {examples.map((example, index) => (
             <View key={index} style={[styles.exampleItem, { backgroundColor: colors.surface }]}>
               <View style={styles.exampleHeader}>
-                <Text style={[styles.exampleNumber, { color: colors.textSecondary }]}>예문 {index + 1}</Text>
+                <Text style={[styles.exampleNumber, { color: colors.textSecondary }]}>{t('예문 {{n}}', { n: index + 1 })}</Text>
                 {examples.length > 1 && (
                   <TouchableOpacity
                     onPress={() => removeExample(index)}
@@ -496,7 +498,7 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
               </View>
               <TextInput
                 style={[styles.input, styles.exampleInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
-                placeholder="예문"
+                placeholder={t('예문')}
                 placeholderTextColor={colors.textTertiary}
                 value={example.example}
                 // 첫 글자 강제 대문자화 제거 — 대소문자가 없는 언어에는 무의미하고
@@ -511,7 +513,7 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
               />
               <TextInput
                 style={[styles.input, styles.exampleInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
-                placeholder="번역 (선택)"
+                placeholder={t('번역 (선택)')}
                 placeholderTextColor={colors.textTertiary}
                 value={example.translation}
                 onChangeText={(value) => updateExample(index, 'translation', value)}
@@ -526,7 +528,7 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
 
         {/* 태그 입력 */}
         <View style={styles.section}>
-          <Text style={[styles.label, { color: colors.textSecondary }]}>태그 (선택)</Text>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>{t('태그 (선택)')}</Text>
           {tags.length > 0 && (
             <View style={styles.tagChipsContainer}>
               {tags.map((tag, index) => (
@@ -546,7 +548,7 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
           <View style={styles.tagInputRow}>
             <TextInput
               style={[styles.input, styles.tagInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
-              placeholder="태그 입력 (예: 동사, 비즈니스)"
+              placeholder={t('태그 입력 (예: 동사, 비즈니스)')}
               placeholderTextColor={colors.textTertiary}
               value={tagInput}
               onChangeText={setTagInput}
@@ -566,17 +568,17 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
                 (!tagInput.trim() || loading) && styles.tagAddButtonDisabled,
               ]}
             >
-              <Text style={styles.tagAddButtonText}>추가</Text>
+              <Text style={styles.tagAddButtonText}>{t('추가')}</Text>
             </TouchableOpacity>
           </View>
         </View>
 
         {/* 메모 */}
         <View style={styles.section}>
-          <Text style={[styles.label, { color: colors.textSecondary }]}>메모 (선택)</Text>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>{t('메모 (선택)')}</Text>
           <TextInput
             style={[styles.input, styles.memoInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
-            placeholder="헷갈리는 점, 외우는 팁 등을 메모하세요"
+            placeholder={t('헷갈리는 점, 외우는 팁 등을 메모하세요')}
             placeholderTextColor={colors.textTertiary}
             value={memo}
             onChangeText={setMemo}
@@ -597,7 +599,7 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.saveButtonText}>저장</Text>
+            <Text style={styles.saveButtonText}>{t('저장')}</Text>
           )}
         </TouchableOpacity>
       </ScrollView>

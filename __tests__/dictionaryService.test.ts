@@ -5,6 +5,9 @@ import * as language from '../src/i18n/language';
 // 이 파일이 쓰는 것은 resolveAppLanguage 하나뿐이므로 모듈 전체를 대체한다.
 jest.mock('../src/i18n/language', () => ({
   resolveAppLanguage: jest.fn(),
+  // i18n 초기화가 함께 끌려오므로 그쪽이 쓰는 것도 채워 둔다
+  resolveDeviceLanguage: () => 'ko',
+  setStoredLanguage: jest.fn(),
   SUPPORTED_LANGUAGES: ['ko', 'en'],
   FALLBACK_LANGUAGE: 'en',
 }));

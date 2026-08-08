@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -31,6 +32,7 @@ interface ImportWordsScreenProps {
 const MAX_IMPORT_COUNT = 200;
 
 export default function ImportWordsScreen({ onBack, onImportComplete }: ImportWordsScreenProps) {
+  const { t } = useTranslation();
   const { colors } = useTheme();
   const { toast, showToast, hideToast } = useToast();
 
@@ -62,7 +64,7 @@ export default function ImportWordsScreen({ onBack, onImportComplete }: ImportWo
         setSelectedCategoryId(data[0].categoryId);
       }
     } catch (error: any) {
-      showToast('카테고리를 불러오는데 실패했습니다', 'error');
+      showToast(t('카테고리를 불러오는데 실패했습니다'), 'error');
     } finally {
       setLoadingCategories(false);
     }
@@ -73,22 +75,22 @@ export default function ImportWordsScreen({ onBack, onImportComplete }: ImportWo
       const text = await Clipboard.getStringAsync();
       if (text && text.trim().length > 0) {
         setCsvInput(text);
-        showToast('클립보드에서 붙여넣었습니다', 'success');
+        showToast(t('클립보드에서 붙여넣었습니다'), 'success');
       } else {
-        showToast('클립보드가 비어있습니다', 'info');
+        showToast(t('클립보드가 비어있습니다'), 'info');
       }
     } catch (error: any) {
-      showToast('클립보드 읽기에 실패했습니다', 'error');
+      showToast(t('클립보드 읽기에 실패했습니다'), 'error');
     }
   }, [showToast]);
 
   const handlePreview = useCallback(async () => {
     if (!csvInput.trim()) {
-      showToast('CSV 데이터를 입력해주세요', 'error');
+      showToast(t('CSV 데이터를 입력해주세요'), 'error');
       return;
     }
     if (!selectedCategoryId) {
-      showToast('카테고리를 선택해주세요', 'error');
+      showToast(t('카테고리를 선택해주세요'), 'error');
       return;
     }
 
@@ -97,13 +99,13 @@ export default function ImportWordsScreen({ onBack, onImportComplete }: ImportWo
       const result = shareService.parseCSV(csvInput);
 
       if (result.success.length === 0) {
-        showToast('유효한 단어가 없습니다. 형식을 확인해주세요', 'error');
+        showToast(t('유효한 단어가 없습니다. 형식을 확인해주세요'), 'error');
         setIsParsing(false);
         return;
       }
 
       if (result.success.length > MAX_IMPORT_COUNT) {
-        showToast(`최대 ${MAX_IMPORT_COUNT}개까지 가져올 수 있습니다`, 'error');
+        showToast(t('최대 {{count}}개까지 가져올 수 있습니다', { count: MAX_IMPORT_COUNT }), 'error');
         setIsParsing(false);
         return;
       }
@@ -114,7 +116,7 @@ export default function ImportWordsScreen({ onBack, onImportComplete }: ImportWo
       setDuplicateResult(dupResult);
       setShowPreview(true);
     } catch (error: any) {
-      showToast('파싱 중 오류가 발생했습니다', 'error');
+      showToast(t('파싱 중 오류가 발생했습니다'), 'error');
     } finally {
       setIsParsing(false);
     }
@@ -128,7 +130,7 @@ export default function ImportWordsScreen({ onBack, onImportComplete }: ImportWo
       : [...duplicateResult.newWords, ...duplicateResult.duplicateWords];
 
     if (wordsToSave.length === 0) {
-      showToast('저장할 단어가 없습니다', 'info');
+      showToast(t('저장할 단어가 없습니다'), 'info');
       return;
     }
 
@@ -154,9 +156,9 @@ export default function ImportWordsScreen({ onBack, onImportComplete }: ImportWo
       }
 
       if (failCount > 0) {
-        showToast(`${savedCount}개 저장, ${failCount}개 실패`, 'info');
+        showToast(t('{{saved}}개 저장, {{failed}}개 실패', { saved: savedCount, failed: failCount }), 'info');
       } else {
-        showToast(`${savedCount}개 단어를 저장했습니다`, 'success');
+        showToast(t('{{count}}개 단어를 저장했습니다', { count: savedCount }), 'success');
       }
 
       setShowPreview(false);
@@ -169,7 +171,7 @@ export default function ImportWordsScreen({ onBack, onImportComplete }: ImportWo
         onImportComplete();
       }, 800);
     } catch (error: any) {
-      showToast('저장 중 오류가 발생했습니다', 'error');
+      showToast(t('저장 중 오류가 발생했습니다'), 'error');
     } finally {
       setIsSaving(false);
     }
@@ -185,7 +187,7 @@ export default function ImportWordsScreen({ onBack, onImportComplete }: ImportWo
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar style={colors.isDark ? 'light' : 'dark'} />
-      <ScreenHeader title="단어 받기" onBack={onBack} />
+      <ScreenHeader title={t('단어 받기')} onBack={onBack} />
 
       <ScrollView
         style={styles.scrollView}
@@ -194,18 +196,18 @@ export default function ImportWordsScreen({ onBack, onImportComplete }: ImportWo
       >
         {/* 카테고리 선택 */}
         <View style={styles.section}>
-          <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>저장할 카테고리</Text>
+          <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>{t('저장할 카테고리')}</Text>
           {loadingCategories ? (
             <ActivityIndicator color={colors.primary} />
           ) : categories.length === 0 ? (
-            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>카테고리가 없습니다. 먼저 카테고리를 생성해주세요.</Text>
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>{t('카테고리가 없습니다. 먼저 카테고리를 생성해주세요.')}</Text>
           ) : (
             <TouchableOpacity
               style={[styles.categorySelector, { backgroundColor: colors.card, borderColor: colors.border }]}
               onPress={() => setShowCategoryPicker(true)}
             >
               <Text style={[styles.categorySelectorText, { color: colors.text }]}>
-                {selectedCategory?.categoryName ?? '카테고리 선택'}
+                {selectedCategory?.categoryName ?? t('카테고리 선택')}
               </Text>
               <MaterialIcons name="keyboard-arrow-down" size={20} color={colors.textSecondary} />
             </TouchableOpacity>
@@ -215,15 +217,15 @@ export default function ImportWordsScreen({ onBack, onImportComplete }: ImportWo
         {/* CSV 입력 */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>CSV 데이터</Text>
+            <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>{t('CSV 데이터')}</Text>
             <TouchableOpacity style={[styles.pasteButton, { backgroundColor: colors.primaryLight }]} onPress={handlePaste}>
-              <Text style={[styles.pasteButtonText, { color: colors.primary }]}>붙여넣기</Text>
+              <Text style={[styles.pasteButtonText, { color: colors.primary }]}>{t('붙여넣기')}</Text>
             </TouchableOpacity>
           </View>
           <TextInput
             style={[styles.csvInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
             placeholder={
-              '단어,뜻1|뜻2,예문::번역,태그,메모\napple,사과,This is an apple::이것은 사과입니다,과일,빨간 과일'
+              t('단어,뜻1|뜻2,예문::번역,태그,메모\napple,사과,This is an apple::이것은 사과입니다,과일,빨간 과일')
             }
             value={csvInput}
             onChangeText={setCsvInput}
@@ -235,7 +237,7 @@ export default function ImportWordsScreen({ onBack, onImportComplete }: ImportWo
             placeholderTextColor={colors.textTertiary}
           />
           <Text style={[styles.formatHint, { color: colors.textTertiary }]}>
-            형식: 단어,뜻1|뜻2,예문1::번역1|예문2::번역2,태그1|태그2,메모
+            {t('형식: 단어,뜻1|뜻2,예문1::번역1|예문2::번역2,태그1|태그2,메모')}
           </Text>
         </View>
 
@@ -248,12 +250,12 @@ export default function ImportWordsScreen({ onBack, onImportComplete }: ImportWo
             <View style={[styles.checkbox, !skipDuplicates && styles.checkboxChecked]}>
               {!skipDuplicates && <MaterialIcons name="check" size={16} color="#FFFFFF" />}
             </View>
-            <Text style={[styles.checkboxLabel, { color: colors.text }]}>중복된 단어도 함께 받기</Text>
+            <Text style={[styles.checkboxLabel, { color: colors.text }]}>{t('중복된 단어도 함께 받기')}</Text>
           </TouchableOpacity>
           <Text style={[styles.checkboxHint, { color: colors.textTertiary }]}>
             {skipDuplicates
-              ? '이미 등록된 단어는 건너뜁니다'
-              : '이미 등록된 단어도 새로 추가합니다'}
+              ? t('이미 등록된 단어는 건너뜁니다')
+              : t('이미 등록된 단어도 새로 추가합니다')}
           </Text>
         </View>
 
@@ -266,7 +268,7 @@ export default function ImportWordsScreen({ onBack, onImportComplete }: ImportWo
           {isParsing ? (
             <ActivityIndicator color="#FFFFFF" size="small" />
           ) : (
-            <Text style={styles.previewButtonText}>미리보기</Text>
+            <Text style={styles.previewButtonText}>{t('미리보기')}</Text>
           )}
         </TouchableOpacity>
       </ScrollView>
@@ -284,7 +286,7 @@ export default function ImportWordsScreen({ onBack, onImportComplete }: ImportWo
           onPress={() => setShowCategoryPicker(false)}
         >
           <View style={[styles.modalContent, { backgroundColor: colors.card }]} onStartShouldSetResponder={() => true}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>카테고리 선택</Text>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>{t('카테고리 선택')}</Text>
             <ScrollView style={styles.modalList}>
               {categories.map((cat) => (
                 <TouchableOpacity
@@ -308,7 +310,7 @@ export default function ImportWordsScreen({ onBack, onImportComplete }: ImportWo
                   >
                     {cat.categoryName}
                   </Text>
-                  <Text style={[styles.modalItemCount, { color: colors.textTertiary }]}>{cat.wordCount ?? 0}개</Text>
+                  <Text style={[styles.modalItemCount, { color: colors.textTertiary }]}>{t('{{count}}개', { count: cat.wordCount ?? 0 })}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -316,7 +318,7 @@ export default function ImportWordsScreen({ onBack, onImportComplete }: ImportWo
               style={[styles.modalCloseButton, { backgroundColor: colors.border }]}
               onPress={() => setShowCategoryPicker(false)}
             >
-              <Text style={[styles.modalCloseButtonText, { color: colors.textSecondary }]}>닫기</Text>
+              <Text style={[styles.modalCloseButtonText, { color: colors.textSecondary }]}>{t('닫기')}</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -331,34 +333,34 @@ export default function ImportWordsScreen({ onBack, onImportComplete }: ImportWo
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.previewModalContent, { backgroundColor: colors.card }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>미리보기</Text>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>{t('미리보기')}</Text>
 
             {/* 요약 */}
             <View style={[styles.previewSummary, { backgroundColor: colors.surface }]}>
               <View style={styles.previewSummaryRow}>
-                <Text style={[styles.previewSummaryLabel, { color: colors.textSecondary }]}>신규 단어</Text>
+                <Text style={[styles.previewSummaryLabel, { color: colors.textSecondary }]}>{t('신규 단어')}</Text>
                 <Text style={[styles.previewSummaryValue, { color: '#10B981' }]}>
-                  {previewNewCount}개
+                  {t('{{count}}개', { count: previewNewCount })}
                 </Text>
               </View>
               <View style={styles.previewSummaryRow}>
-                <Text style={[styles.previewSummaryLabel, { color: colors.textSecondary }]}>중복 단어</Text>
+                <Text style={[styles.previewSummaryLabel, { color: colors.textSecondary }]}>{t('중복 단어')}</Text>
                 <Text style={[styles.previewSummaryValue, { color: '#F59E0B' }]}>
-                  {previewDupCount}개
-                  {skipDuplicates ? ' (건너뜀)' : ' (포함)'}
+                  {t('{{count}}개', { count: previewDupCount })}
+                  {skipDuplicates ? t(' (건너뜀)') : t(' (포함)')}
                 </Text>
               </View>
               {previewErrorCount > 0 && (
                 <View style={styles.previewSummaryRow}>
-                  <Text style={[styles.previewSummaryLabel, { color: colors.textSecondary }]}>오류</Text>
+                  <Text style={[styles.previewSummaryLabel, { color: colors.textSecondary }]}>{t('오류')}</Text>
                   <Text style={[styles.previewSummaryValue, { color: '#EF4444' }]}>
-                    {previewErrorCount}건
+                    {t('{{count}}건', { count: previewErrorCount })}
                   </Text>
                 </View>
               )}
               <View style={[styles.previewSummaryRow, styles.previewSummaryTotal, { borderTopColor: colors.border }]}>
-                <Text style={[styles.previewSummaryTotalLabel, { color: colors.text }]}>저장 예정</Text>
-                <Text style={[styles.previewSummaryTotalValue, { color: colors.primary }]}>{totalToSave}개</Text>
+                <Text style={[styles.previewSummaryTotalLabel, { color: colors.text }]}>{t('저장 예정')}</Text>
+                <Text style={[styles.previewSummaryTotalValue, { color: colors.primary }]}>{t('{{count}}개', { count: totalToSave })}</Text>
               </View>
             </View>
 
@@ -367,7 +369,7 @@ export default function ImportWordsScreen({ onBack, onImportComplete }: ImportWo
               {duplicateResult?.newWords.map((pw, idx) => (
                 <View key={`new-${idx}`} style={[styles.previewItem, { borderBottomColor: colors.borderLight }]}>
                   <View style={[styles.previewBadge, { backgroundColor: '#D1FAE5' }]}>
-                    <Text style={[styles.previewBadgeText, { color: '#059669' }]}>신규</Text>
+                    <Text style={[styles.previewBadgeText, { color: '#059669' }]}>{t('신규')}</Text>
                   </View>
                   <View style={styles.previewItemContent}>
                     <Text style={[styles.previewWord, { color: colors.text }]}>{pw.word}</Text>
@@ -381,7 +383,7 @@ export default function ImportWordsScreen({ onBack, onImportComplete }: ImportWo
                 duplicateResult?.duplicateWords.map((pw, idx) => (
                   <View key={`dup-${idx}`} style={[styles.previewItem, { borderBottomColor: colors.borderLight }]}>
                     <View style={[styles.previewBadge, { backgroundColor: '#FEF3C7' }]}>
-                      <Text style={[styles.previewBadgeText, { color: '#D97706' }]}>중복</Text>
+                      <Text style={[styles.previewBadgeText, { color: '#D97706' }]}>{t('중복')}</Text>
                     </View>
                     <View style={styles.previewItemContent}>
                       <Text style={[styles.previewWord, { color: colors.text }]}>{pw.word}</Text>
@@ -394,18 +396,18 @@ export default function ImportWordsScreen({ onBack, onImportComplete }: ImportWo
               {skipDuplicates && previewDupCount > 0 && (
                 <View style={styles.previewSkippedInfo}>
                   <Text style={styles.previewSkippedText}>
-                    중복 단어 {previewDupCount}개는 건너뜁니다
+                    {t('중복 단어 {{count}}개는 건너뜁니다', { count: previewDupCount })}
                   </Text>
                 </View>
               )}
               {parseResult?.errors.map((err, idx) => (
                 <View key={`err-${idx}`} style={[styles.previewItem, { borderBottomColor: colors.borderLight }]}>
                   <View style={[styles.previewBadge, { backgroundColor: '#FEE2E2' }]}>
-                    <Text style={[styles.previewBadgeText, { color: '#DC2626' }]}>오류</Text>
+                    <Text style={[styles.previewBadgeText, { color: '#DC2626' }]}>{t('오류')}</Text>
                   </View>
                   <View style={styles.previewItemContent}>
                     <Text style={styles.previewErrorText} numberOfLines={1}>
-                      {err.line}행: {err.reason}
+                      {t('{{line}}행: {{reason}}', { line: err.line, reason: err.reason })}
                     </Text>
                   </View>
                 </View>
@@ -419,7 +421,7 @@ export default function ImportWordsScreen({ onBack, onImportComplete }: ImportWo
                 onPress={() => setShowPreview(false)}
                 disabled={isSaving}
               >
-                <Text style={[styles.previewCancelButtonText, { color: colors.textSecondary }]}>취소</Text>
+                <Text style={[styles.previewCancelButtonText, { color: colors.textSecondary }]}>{t('취소')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[
@@ -434,7 +436,7 @@ export default function ImportWordsScreen({ onBack, onImportComplete }: ImportWo
                   <ActivityIndicator color="#FFFFFF" size="small" />
                 ) : (
                   <Text style={styles.previewSaveButtonText}>
-                    {totalToSave}개 저장
+                    {t('{{count}}개 저장', { count: totalToSave })}
                   </Text>
                 )}
               </TouchableOpacity>

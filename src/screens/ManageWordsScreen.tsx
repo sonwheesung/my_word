@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
@@ -43,6 +44,7 @@ export default function ManageWordsScreen({
   onManageCategories,
   onImportWords,
 }: ManageWordsScreenProps) {
+  const { t } = useTranslation();
   const { colors } = useTheme();
   const { toast, showToast, hideToast } = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
@@ -78,7 +80,7 @@ export default function ManageWordsScreen({
       }
     } catch (error: any) {
       console.warn('카테고리 조회 실패:', error);
-      showToast('카테고리를 불러오는데 실패했습니다', 'error');
+      showToast(t('카테고리를 불러오는데 실패했습니다'), 'error');
     } finally {
       setLoading(false);
     }
@@ -91,29 +93,29 @@ export default function ManageWordsScreen({
       setWords(data);
     } catch (error: any) {
       console.warn('단어 조회 실패:', error);
-      showToast('단어를 불러오는데 실패했습니다', 'error');
+      showToast(t('단어를 불러오는데 실패했습니다'), 'error');
     } finally {
       setLoadingWords(false);
     }
   };
 
   const handleDeleteWord = (wordId: number, word: string) => {
-    Alert.alert('단어 삭제', `"${word}"을(를) 삭제하시겠습니까?`, [
-      { text: '취소', style: 'cancel' },
+    Alert.alert(t('단어 삭제'), t('"{{word}}"을(를) 삭제하시겠습니까?', { word }), [
+      { text: t('취소'), style: 'cancel' },
       {
-        text: '삭제',
+        text: t('삭제'),
         style: 'destructive',
         onPress: async () => {
           try {
             await wordService.deleteWord(wordId);
-            showToast('단어가 삭제되었습니다', 'success');
+            showToast(t('단어가 삭제되었습니다'), 'success');
             if (selectedCategoryId) {
               loadWords(selectedCategoryId);
             }
             loadCategories();
           } catch (error: any) {
             console.warn('단어 삭제 실패:', error);
-            showToast(error.message || '단어 삭제에 실패했습니다', 'error');
+            showToast(error.message || t('단어 삭제에 실패했습니다'), 'error');
           }
         },
       },
@@ -136,9 +138,9 @@ export default function ManageWordsScreen({
   const speakWord = useCallback(async (word: Word) => {
     const result = await speak(word.word, (word.examples ?? []).map((e) => e.example));
     if (result.outcome === 'unsupported') {
-      showToast(`${result.label} 음성이 기기에 설치되어 있지 않습니다`, 'info');
+      showToast(t('{{language}} 음성이 기기에 설치되어 있지 않습니다', { language: t(result.label) }), 'info');
     } else if (result.outcome === 'error') {
-      showToast('음성 재생에 실패했습니다', 'error');
+      showToast(t('음성 재생에 실패했습니다'), 'error');
     }
   }, [showToast]);
 
@@ -186,32 +188,32 @@ export default function ManageWordsScreen({
 
   const handleShareAll = useCallback(async () => {
     if (words.length === 0) {
-      showToast('공유할 단어가 없습니다', 'info');
+      showToast(t('공유할 단어가 없습니다'), 'info');
       return;
     }
     const csv = shareService.exportWordsToCSV(words);
     await Clipboard.setStringAsync(csv);
-    showToast(`${words.length}개 단어가 클립보드에 복사되었습니다`, 'success');
+    showToast(t('{{count}}개 단어가 클립보드에 복사되었습니다', { count: words.length }), 'success');
   }, [words, showToast]);
 
   const handleShareSelected = useCallback(async () => {
     if (selectedWordIds.size === 0) {
-      showToast('공유할 단어를 선택해주세요', 'info');
+      showToast(t('공유할 단어를 선택해주세요'), 'info');
       return;
     }
     const selectedWords = words.filter((w) => selectedWordIds.has(w.wordId));
     const csv = shareService.exportWordsToCSV(selectedWords);
     await Clipboard.setStringAsync(csv);
-    showToast(`${selectedWords.length}개 단어가 클립보드에 복사되었습니다`, 'success');
+    showToast(t('{{count}}개 단어가 클립보드에 복사되었습니다', { count: selectedWords.length }), 'success');
     setIsSelectMode(false);
     setSelectedWordIds(new Set());
   }, [words, selectedWordIds, showToast]);
 
   const showShareOptions = useCallback(() => {
-    Alert.alert('단어 공유', '공유 방식을 선택하세요', [
-      { text: '전체 공유', onPress: handleShareAll },
-      { text: '선택 공유', onPress: () => setIsSelectMode(true) },
-      { text: '취소', style: 'cancel' },
+    Alert.alert(t('단어 공유'), t('공유 방식을 선택하세요'), [
+      { text: t('전체 공유'), onPress: handleShareAll },
+      { text: t('선택 공유'), onPress: () => setIsSelectMode(true) },
+      { text: t('취소'), style: 'cancel' },
     ]);
   }, [handleShareAll]);
 
@@ -220,9 +222,9 @@ export default function ManageWordsScreen({
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <StatusBar style="dark" />
         <ScreenHeader
-          title="단어장"
+          title={t('단어장')}
           onBack={onBack}
-          rightButton={{ text: '관리', onPress: onManageCategories }}
+          rightButton={{ text: t('관리'), onPress: onManageCategories }}
         />
         <View style={styles.contentContainer}>
           <View style={[styles.categoryList, { backgroundColor: colors.card, borderRightColor: colors.border }]}>
@@ -249,13 +251,13 @@ export default function ManageWordsScreen({
       <View style={[styles.emptyContainer, { backgroundColor: colors.background }]}>
         <StatusBar style="dark" />
         <MaterialIcons name="folder-open" size={64} color={colors.textTertiary} />
-        <Text style={[styles.emptyTitle, { color: colors.text }]}>카테고리가 없습니다</Text>
-        <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>먼저 카테고리를 생성해주세요</Text>
+        <Text style={[styles.emptyTitle, { color: colors.text }]}>{t('카테고리가 없습니다')}</Text>
+        <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>{t('먼저 카테고리를 생성해주세요')}</Text>
         <TouchableOpacity style={[styles.primaryButton, { backgroundColor: colors.accent }]} onPress={onManageCategories}>
-          <Text style={[styles.primaryButtonText, { color: colors.card }]}>카테고리 관리</Text>
+          <Text style={[styles.primaryButtonText, { color: colors.card }]}>{t('카테고리 관리')}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.secondaryButton, { backgroundColor: colors.border }]} onPress={onBack}>
-          <Text style={styles.secondaryButtonText}>돌아가기</Text>
+          <Text style={styles.secondaryButtonText}>{t('돌아가기')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -265,12 +267,12 @@ export default function ManageWordsScreen({
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar style="dark" />
       <ScreenHeader
-        title={isSelectMode ? `${selectedWordIds.size}개 선택` : '단어장'}
+        title={isSelectMode ? t('{{count}}개 선택', { count: selectedWordIds.size }) : t('단어장')}
         onBack={isSelectMode ? toggleSelectMode : onBack}
         rightButton={
           isSelectMode
-            ? { text: '공유', onPress: handleShareSelected }
-            : { text: '관리', onPress: onManageCategories }
+            ? { text: t('공유'), onPress: handleShareSelected }
+            : { text: t('관리'), onPress: onManageCategories }
         }
       />
 
@@ -278,10 +280,10 @@ export default function ManageWordsScreen({
       {!isSelectMode && (
         <View style={[styles.actionBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
           <TouchableOpacity style={[styles.actionButton, { backgroundColor: colors.primaryLight }]} onPress={showShareOptions}>
-            <Text style={[styles.actionButtonText, { color: colors.primary }]}>공유</Text>
+            <Text style={[styles.actionButtonText, { color: colors.primary }]}>{t('공유')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[styles.actionButton, { backgroundColor: colors.primaryLight }]} onPress={onImportWords}>
-            <Text style={[styles.actionButtonText, { color: colors.primary }]}>받기</Text>
+            <Text style={[styles.actionButtonText, { color: colors.primary }]}>{t('받기')}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -298,10 +300,10 @@ export default function ManageWordsScreen({
                 <MaterialIcons name="check" size={14} color="#FFFFFF" />
               )}
             </View>
-            <Text style={[styles.selectAllText, { color: colors.primary }]}>전체 선택</Text>
+            <Text style={[styles.selectAllText, { color: colors.primary }]}>{t('전체 선택')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.cancelSelectButton} onPress={toggleSelectMode}>
-            <Text style={[styles.cancelSelectText, { color: colors.textSecondary }]}>취소</Text>
+            <Text style={[styles.cancelSelectText, { color: colors.textSecondary }]}>{t('취소')}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -350,7 +352,7 @@ export default function ManageWordsScreen({
           <View style={styles.searchContainer}>
             <TextInput
               style={[styles.searchInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
-              placeholder="단어 또는 뜻 검색..."
+              placeholder={t('단어 또는 뜻 검색...')}
               value={searchQuery}
               onChangeText={setSearchQuery}
               placeholderTextColor={colors.textTertiary}
@@ -383,12 +385,12 @@ export default function ManageWordsScreen({
         ) : words.length === 0 ? (
           <View style={styles.emptyWordsContainer}>
             <MaterialIcons name="edit-note" size={48} color={colors.textTertiary} />
-            <Text style={[styles.emptyWordsText, { color: colors.textSecondary }]}>등록된 단어가 없습니다</Text>
+            <Text style={[styles.emptyWordsText, { color: colors.textSecondary }]}>{t('등록된 단어가 없습니다')}</Text>
           </View>
         ) : filteredWords.length === 0 ? (
           <View style={styles.emptyWordsContainer}>
             <MaterialIcons name="search-off" size={48} color={colors.textTertiary} />
-            <Text style={[styles.emptyWordsText, { color: colors.textSecondary }]}>검색 결과가 없습니다</Text>
+            <Text style={[styles.emptyWordsText, { color: colors.textSecondary }]}>{t('검색 결과가 없습니다')}</Text>
           </View>
         ) : (
           filteredWords.map((word) => (
@@ -487,7 +489,7 @@ export default function ManageWordsScreen({
 
                   {/* 뜻 */}
                   <View style={styles.modalSection}>
-                    <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>뜻</Text>
+                    <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>{t('뜻')}</Text>
                     {selectedWord.meanings.map((meaning, index) => (
                       <Text key={index} style={styles.modalMeaningText}>
                         {index + 1}. {meaning}
@@ -498,7 +500,7 @@ export default function ManageWordsScreen({
                   {/* 예문 */}
                   {selectedWord.examples && selectedWord.examples.length > 0 && (
                     <View style={styles.modalSection}>
-                      <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>예문</Text>
+                      <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>{t('예문')}</Text>
                       {selectedWord.examples.map((example, index) => (
                         <View key={index} style={styles.modalExampleItem}>
                           <Text style={[styles.modalExampleText, { color: colors.text }]}>{example.example}</Text>
@@ -515,7 +517,7 @@ export default function ManageWordsScreen({
                   {/* 태그 */}
                   {selectedWord.tags && selectedWord.tags.length > 0 && (
                     <View style={styles.modalSection}>
-                      <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>태그</Text>
+                      <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>{t('태그')}</Text>
                       <View style={styles.modalTagsContainer}>
                         {selectedWord.tags.map((tag, index) => (
                           <View key={index} style={[styles.modalTagChip, { backgroundColor: colors.primaryLight }]}>
@@ -529,7 +531,7 @@ export default function ManageWordsScreen({
                   {/* 메모 */}
                   {selectedWord.memo && selectedWord.memo.trim() !== '' && (
                     <View style={styles.modalSection}>
-                      <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>메모</Text>
+                      <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>{t('메모')}</Text>
                       <View style={styles.modalMemoContainer}>
                         <Text style={styles.modalMemoText}>{selectedWord.memo}</Text>
                       </View>
@@ -546,7 +548,7 @@ export default function ManageWordsScreen({
                       onEditWord(selectedWord.wordId);
                     }}
                   >
-                    <Text style={styles.modalEditButtonText}>수정</Text>
+                    <Text style={styles.modalEditButtonText}>{t('수정')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.modalDeleteButton}
@@ -555,13 +557,13 @@ export default function ManageWordsScreen({
                       handleDeleteWord(selectedWord.wordId, selectedWord.word);
                     }}
                   >
-                    <Text style={styles.modalDeleteButtonText}>삭제</Text>
+                    <Text style={styles.modalDeleteButtonText}>{t('삭제')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.modalCloseButton, { backgroundColor: colors.border }]}
                     onPress={() => setSelectedWord(null)}
                   >
-                    <Text style={styles.modalCloseButtonText}>닫기</Text>
+                    <Text style={styles.modalCloseButtonText}>{t('닫기')}</Text>
                   </TouchableOpacity>
                 </View>
               </>

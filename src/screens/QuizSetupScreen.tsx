@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -46,6 +47,7 @@ const QUIZ_ANSWER_TYPES: Array<{ value: QuizAnswerType; label: string; descripti
 const WORD_COUNTS = [5, 10, 15, 20, 30];
 
 export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreenProps) {
+  const { t } = useTranslation();
   const { colors } = useTheme();
   const { toast, showToast, hideToast } = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
@@ -78,7 +80,7 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
       }
     } catch (error: any) {
       console.warn('카테고리 조회 실패:', error);
-      showToast('카테고리를 불러오는데 실패했습니다', 'error');
+      showToast(t('카테고리를 불러오는데 실패했습니다'), 'error');
     } finally {
       setLoading(false);
     }
@@ -95,22 +97,22 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
     if (catWordCount > 0 && selectedWordCount > catWordCount) {
       const closest = WORD_COUNTS.filter((c) => c <= catWordCount).pop();
       setSelectedWordCount(closest ?? catWordCount);
-      showToast(`단어가 ${catWordCount}개뿐이어서 문제 수를 조정했습니다`, 'info');
+      showToast(t('단어가 {{count}}개뿐이어서 문제 수를 조정했습니다', { count: catWordCount }), 'info');
     }
   };
 
   const handleStartQuiz = () => {
     if (isStarting) return;
     if (!selectedCategoryId) {
-      showToast('카테고리를 선택해주세요', 'error');
+      showToast(t('카테고리를 선택해주세요'), 'error');
       return;
     }
     if (availableWordCount === 0) {
-      showToast('선택한 카테고리에 단어가 없습니다', 'error');
+      showToast(t('선택한 카테고리에 단어가 없습니다'), 'error');
       return;
     }
     if (selectedWordCount > availableWordCount) {
-      showToast(`단어가 ${availableWordCount}개뿐입니다. 문제 수를 줄여주세요`, 'error');
+      showToast(t('단어가 {{count}}개뿐입니다. 문제 수를 줄여주세요', { count: availableWordCount }), 'error');
       return;
     }
     setIsStarting(true);
@@ -121,7 +123,7 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
     return (
       <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
         <ActivityIndicator size="large" color={colors.accent} />
-        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>로딩 중...</Text>
+        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>{t('로딩 중...')}</Text>
       </View>
     );
   }
@@ -131,10 +133,10 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
       <View style={[styles.emptyContainer, { backgroundColor: colors.background }]}>
         <StatusBar style={colors.isDark ? 'light' : 'dark'} />
         <MaterialIcons name="folder-open" size={64} color={colors.textTertiary} />
-        <Text style={[styles.emptyTitle, { color: colors.text }]}>카테고리가 없습니다</Text>
-        <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>먼저 카테고리를 생성해주세요</Text>
+        <Text style={[styles.emptyTitle, { color: colors.text }]}>{t('카테고리가 없습니다')}</Text>
+        <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>{t('먼저 카테고리를 생성해주세요')}</Text>
         <TouchableOpacity style={[styles.backButton, { backgroundColor: colors.accent }]} onPress={onBack}>
-          <Text style={styles.backButtonText}>돌아가기</Text>
+          <Text style={styles.backButtonText}>{t('돌아가기')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -143,23 +145,23 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar style={colors.isDark ? 'light' : 'dark'} />
-      <ScreenHeader title="퀴즈 설정" onBack={onBack} />
+      <ScreenHeader title={t('퀴즈 설정')} onBack={onBack} />
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {/* 카테고리 선택 */}
         <View style={styles.section}>
-          <Text style={[styles.label, { color: colors.text }]}>카테고리</Text>
+          <Text style={[styles.label, { color: colors.text }]}>{t('카테고리')}</Text>
           <TouchableOpacity
             style={[styles.selector, { backgroundColor: colors.card, borderColor: colors.border }]}
             onPress={() => setShowCategoryPicker(true)}
           >
             <View style={styles.selectorLeft}>
               <Text style={[styles.selectorText, { color: colors.text }]}>
-                {selectedCategory?.categoryName || '카테고리 선택'}
+                {selectedCategory?.categoryName || t('카테고리 선택')}
               </Text>
               {selectedCategory && (
                 <Text style={[styles.selectorWordCount, { color: colors.textSecondary }]}>
-                  {availableWordCount}개 단어
+                  {t('{{count}}개 단어', { count: availableWordCount })}
                 </Text>
               )}
             </View>
@@ -169,7 +171,7 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
 
         {/* 모드 선택 */}
         <View style={styles.section}>
-          <Text style={[styles.label, { color: colors.text }]}>퀴즈 모드</Text>
+          <Text style={[styles.label, { color: colors.text }]}>{t('퀴즈 모드')}</Text>
           {QUIZ_MODES.map((mode) => (
             <TouchableOpacity
               key={mode.value}
@@ -188,9 +190,9 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
                     selectedMode === mode.value && { color: colors.accent },
                   ]}
                 >
-                  {mode.label}
+                  {t(mode.label)}
                 </Text>
-                <Text style={[styles.modeOptionDescription, { color: colors.textSecondary }]}>{mode.description}</Text>
+                <Text style={[styles.modeOptionDescription, { color: colors.textSecondary }]}>{t(mode.description)}</Text>
               </View>
               <View
                 style={[
@@ -207,7 +209,7 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
         {/* 출제 방향 선택 (여러 형태 모드 제외) */}
         {selectedMode !== 'mixed' && (
           <View style={styles.section}>
-            <Text style={[styles.label, { color: colors.text }]}>출제 방향</Text>
+            <Text style={[styles.label, { color: colors.text }]}>{t('출제 방향')}</Text>
             {QUIZ_DIRECTIONS.map((dir) => (
               <TouchableOpacity
                 key={dir.value}
@@ -226,9 +228,9 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
                       selectedDirection === dir.value && { color: colors.accent },
                     ]}
                   >
-                    {dir.label}
+                    {t(dir.label)}
                   </Text>
-                  <Text style={[styles.modeOptionDescription, { color: colors.textSecondary }]}>{dir.description}</Text>
+                  <Text style={[styles.modeOptionDescription, { color: colors.textSecondary }]}>{t(dir.description)}</Text>
                 </View>
                 <View
                   style={[
@@ -245,7 +247,7 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
 
         {/* 답변 방식 선택 */}
         <View style={styles.section}>
-          <Text style={[styles.label, { color: colors.text }]}>답변 방식</Text>
+          <Text style={[styles.label, { color: colors.text }]}>{t('답변 방식')}</Text>
           {QUIZ_ANSWER_TYPES.map((at) => (
             <TouchableOpacity
               key={at.value}
@@ -264,9 +266,9 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
                     selectedAnswerType === at.value && { color: colors.accent },
                   ]}
                 >
-                  {at.label}
+                  {t(at.label)}
                 </Text>
-                <Text style={[styles.modeOptionDescription, { color: colors.textSecondary }]}>{at.description}</Text>
+                <Text style={[styles.modeOptionDescription, { color: colors.textSecondary }]}>{t(at.description)}</Text>
               </View>
               <View
                 style={[
@@ -283,9 +285,9 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
         {/* 단어 수 선택 */}
         <View style={styles.section}>
           <View style={styles.labelRow}>
-            <Text style={[styles.label, { marginBottom: 0, color: colors.text }]}>문제 수</Text>
+            <Text style={[styles.label, { marginBottom: 0, color: colors.text }]}>{t('문제 수')}</Text>
             {availableWordCount > 0 && (
-              <Text style={[styles.labelHint, { color: colors.accent }]}>최대 {availableWordCount}개</Text>
+              <Text style={[styles.labelHint, { color: colors.accent }]}>{t('최대 {{count}}개', { count: availableWordCount })}</Text>
             )}
           </View>
           <View style={styles.wordCountButtons}>
@@ -305,7 +307,7 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
                     selectedWordCount === availableWordCount && styles.wordCountButtonTextSelected,
                   ]}
                 >
-                  전체 ({availableWordCount})
+                  {t('전체 ({{count}})', { count: availableWordCount })}
                 </Text>
               </TouchableOpacity>
             )}
@@ -339,7 +341,7 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
           </View>
           {availableWordCount > 0 && availableWordCount < 5 && (
             <Text style={styles.wordCountWarning}>
-              단어가 {availableWordCount}개뿐입니다. 단어를 더 추가해보세요!
+              {t('단어가 {{count}}개뿐입니다. 단어를 더 추가해보세요!', { count: availableWordCount })}
             </Text>
           )}
         </View>
@@ -349,7 +351,7 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
           onPress={handleStartQuiz}
           disabled={isStarting}
         >
-          <Text style={styles.startButtonText}>퀴즈 시작</Text>
+          <Text style={styles.startButtonText}>{t('퀴즈 시작')}</Text>
         </TouchableOpacity>
       </ScrollView>
 
@@ -366,7 +368,7 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
           onPress={() => setShowCategoryPicker(false)}
         >
           <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
-            <Text style={[styles.modalTitle, { color: colors.text, borderBottomColor: colors.border }]}>카테고리 선택</Text>
+            <Text style={[styles.modalTitle, { color: colors.text, borderBottomColor: colors.border }]}>{t('카테고리 선택')}</Text>
             <ScrollView style={styles.categoryList}>
               {categories.map((category) => (
                 <TouchableOpacity
@@ -395,7 +397,7 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
                         selectedCategoryId === category.categoryId && { color: colors.accent },
                       ]}
                     >
-                      {category.wordCount ?? 0}개
+                      {t('{{count}}개', { count: category.wordCount ?? 0 })}
                     </Text>
                   </View>
                 </TouchableOpacity>

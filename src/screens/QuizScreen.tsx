@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -58,6 +59,7 @@ interface QuizScreenProps {
 }
 
 export default function QuizScreen({ categoryId, mode, wordCount, direction, answerType, retryWordIds, onComplete, onExit }: QuizScreenProps) {
+  const { t } = useTranslation();
   const { colors } = useTheme();
   const [loading, setLoading] = useState(true);
   const [allWords, setAllWords] = useState<Word[]>([]); // 보기 생성용 전체 단어
@@ -92,7 +94,7 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
       setAllWords(words);
 
       if (words.length === 0) {
-        Alert.alert('알림', '등록된 단어가 없습니다');
+        Alert.alert(t('알림'), t('등록된 단어가 없습니다'));
         onExit();
         return;
       }
@@ -103,7 +105,7 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
       if (retryWordIds && retryWordIds.length > 0) {
         selectedWords = words.filter(w => retryWordIds.includes(w.wordId));
         if (selectedWords.length === 0) {
-          Alert.alert('알림', '해당 단어를 찾을 수 없습니다');
+          Alert.alert(t('알림'), t('해당 단어를 찾을 수 없습니다'));
           onExit();
           return;
         }
@@ -135,7 +137,7 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
       );
 
       if (selectedWords.length === 0) {
-        Alert.alert('알림', '유효한 단어가 없습니다.\n뜻이 입력된 단어를 추가해주세요.');
+        Alert.alert(t('알림'), t('유효한 단어가 없습니다.\n뜻이 입력된 단어를 추가해주세요.'));
         onExit();
         return;
       }
@@ -179,7 +181,7 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
       setQuestions(quizQuestions);
     } catch (error: any) {
       console.warn('퀴즈 로딩 실패:', error);
-      Alert.alert('오류', error.message || '퀴즈를 불러오는데 실패했습니다');
+      Alert.alert(t('오류'), error.message || t('퀴즈를 불러오는데 실패했습니다'));
       onExit();
     } finally {
       setLoading(false);
@@ -261,7 +263,7 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
     const wrongAnswers = shuffled.slice(0, 3);
 
     // 보기가 3개 미만이면 더미 추가
-    const DUMMY_MEANINGS = ['기억나지 않음', '해당 없음', '모르겠음'];
+    const DUMMY_MEANINGS = [t('기억나지 않음'), t('해당 없음'), t('모르겠음')];
     const DUMMY_WORDS = ['unknown', 'none', 'skip'];
     while (wrongAnswers.length < 3) {
       const dummies = isAnswerMeaning ? DUMMY_MEANINGS : DUMMY_WORDS;
@@ -322,7 +324,7 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
     if (isSubmitting) return;
 
     if (!userAnswer.trim()) {
-      Alert.alert('알림', '답을 입력해주세요');
+      Alert.alert(t('알림'), t('답을 입력해주세요'));
       return;
     }
 
@@ -385,19 +387,19 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
   const speakWord = async (text: string, word?: Word) => {
     const result = await speak(text, (word?.examples ?? []).map((e) => e.example));
     if (result.outcome === 'unsupported') {
-      showToast(`${result.label} 음성이 기기에 설치되어 있지 않습니다`, 'info');
+      showToast(t('{{language}} 음성이 기기에 설치되어 있지 않습니다', { language: t(result.label) }), 'info');
     } else if (result.outcome === 'error') {
-      showToast('음성 재생에 실패했습니다', 'error');
+      showToast(t('음성 재생에 실패했습니다'), 'error');
     }
   };
 
   const handleExit = () => {
     Alert.alert(
-      '퀴즈 종료',
-      '퀴즈를 종료하시겠습니까?\n진행 중인 결과는 저장되지 않습니다.',
+      t('퀴즈 종료'),
+      t('퀴즈를 종료하시겠습니까?\n진행 중인 결과는 저장되지 않습니다.'),
       [
-        { text: '취소', style: 'cancel' },
-        { text: '종료', style: 'destructive', onPress: onExit },
+        { text: t('취소'), style: 'cancel' },
+        { text: t('종료'), style: 'destructive', onPress: onExit },
       ]
     );
   };
@@ -408,13 +410,13 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
     const trimmed = answer.trim();
     // 3글자 이하 정답은 첫 글자 노출하면 정답이 드러나므로 글자 수만 표시
     if (trimmed.length <= 3) {
-      return `힌트: ${trimmed.length}자`;
+      return t('힌트: {{count}}자', { count: trimmed.length });
     }
     const words = trimmed.split(/\s+/);
     if (words.length > 2) {
-      return `${trimmed.charAt(0)}... (${words.length}단어, ${trimmed.length}자)`;
+      return t('{{first}}... ({{words}}단어, {{chars}}자)', { first: trimmed.charAt(0), words: words.length, chars: trimmed.length });
     }
-    return `${trimmed.charAt(0)}... (${trimmed.length}자)`;
+    return t('{{first}}... ({{chars}}자)', { first: trimmed.charAt(0), chars: trimmed.length });
   };
 
   // 질문이 영어(단어/예문)인 퀴즈 타입에서만 발음 버튼 표시
@@ -425,15 +427,15 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
   const getQuizTypeLabel = (quizType: QuizType): string => {
     switch (quizType) {
       case 'word_to_meaning':
-        return '단어의 뜻을 입력하세요';
+        return t('단어의 뜻을 입력하세요');
       case 'meaning_to_word':
-        return '뜻에 해당하는 단어를 입력하세요';
+        return t('뜻에 해당하는 단어를 입력하세요');
       case 'example_to_meaning':
-        return '예문의 뜻을 입력하세요';
+        return t('예문의 뜻을 입력하세요');
       case 'translation_to_example':
-        return '번역에 해당하는 예문을 입력하세요';
+        return t('번역에 해당하는 예문을 입력하세요');
       default:
-        return '답을 입력하세요';
+        return t('답을 입력하세요');
     }
   };
 
@@ -441,7 +443,7 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
     return (
       <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
         <ActivityIndicator size="large" color={colors.accent} />
-        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>퀴즈 준비 중...</Text>
+        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>{t('퀴즈 준비 중...')}</Text>
       </View>
     );
   }
@@ -451,10 +453,10 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
       <View style={[styles.emptyContainer, { backgroundColor: colors.background }]}>
         <StatusBar style={colors.isDark ? 'light' : 'dark'} />
         <MaterialIcons name="edit-note" size={64} color={colors.textTertiary} />
-        <Text style={[styles.emptyTitle, { color: colors.text }]}>퀴즈를 시작할 수 없습니다</Text>
-        <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>등록된 단어가 없습니다</Text>
+        <Text style={[styles.emptyTitle, { color: colors.text }]}>{t('퀴즈를 시작할 수 없습니다')}</Text>
+        <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>{t('등록된 단어가 없습니다')}</Text>
         <TouchableOpacity style={[styles.emptyBackButton, { backgroundColor: colors.border }]} onPress={onExit}>
-          <Text style={[styles.emptyBackButtonText, { color: colors.textSecondary }]}>돌아가기</Text>
+          <Text style={[styles.emptyBackButtonText, { color: colors.textSecondary }]}>{t('돌아가기')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -476,7 +478,7 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
           <TouchableOpacity onPress={handleExit} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <MaterialIcons name="close" size={18} color={colors.textSecondary} />
-              <Text style={[styles.exitText, { color: colors.textSecondary }]}>나가기</Text>
+              <Text style={[styles.exitText, { color: colors.textSecondary }]}>{t('나가기')}</Text>
             </View>
           </TouchableOpacity>
           <Text style={[styles.progressText, { color: colors.accent }]}>{progress}</Text>
@@ -515,7 +517,7 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
           <TouchableOpacity style={styles.hintButton} onPress={() => setShowHint(true)}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <MaterialIcons name="lightbulb-outline" size={18} color="#8B5CF6" />
-              <Text style={styles.hintButtonText}> 힌트 보기</Text>
+              <Text style={styles.hintButtonText}> {t('힌트 보기')}</Text>
             </View>
           </TouchableOpacity>
         ) : (
@@ -563,10 +565,10 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
           </View>
         ) : (
           <View style={styles.answerSection}>
-            <Text style={[styles.answerLabel, { color: colors.textSecondary }]}>답</Text>
+            <Text style={[styles.answerLabel, { color: colors.textSecondary }]}>{t('답')}</Text>
             <TextInput
               style={[styles.answerInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
-              placeholder={isKoreanAnswer ? '뜻을 입력하세요' : '단어를 입력하세요'}
+              placeholder={isKoreanAnswer ? t('뜻을 입력하세요') : t('단어를 입력하세요')}
               value={userAnswer}
               onChangeText={setUserAnswer}
               autoFocus
@@ -592,11 +594,11 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
               styles.feedbackText,
               feedback.isCorrect ? styles.feedbackTextCorrect : styles.feedbackTextWrong,
             ]}>
-              {feedback.isCorrect ? '정답!' : '오답'}
+              {feedback.isCorrect ? t('정답!') : t('오답')}
             </Text>
             {!feedback.isCorrect && (
               <Text style={styles.feedbackCorrectAnswer}>
-                정답: {feedback.correctAnswer}
+                {t('정답: {{answer}}', { answer: feedback.correctAnswer })}
               </Text>
             )}
           </View>
@@ -613,7 +615,7 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
               <ActivityIndicator color="#fff" />
             ) : (
               <Text style={styles.submitButtonText}>
-                {currentIndex + 1 < questions.length ? '다음' : '완료'}
+                {currentIndex + 1 < questions.length ? t('다음') : t('완료')}
               </Text>
             )}
           </TouchableOpacity>
