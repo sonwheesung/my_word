@@ -118,11 +118,13 @@ export default function HomeScreen({
   );
 
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: colors.background }]}
-      showsVerticalScrollIndicator={false}
-    >
-      <StatusBar style="light" />
+    /*
+     * ⚠ 배너를 ScrollView **밖**에 둔다. 안에 두면 콘텐츠의 맨 끝에 붙어 같이 스크롤되고,
+     *   화면 하단(네비게이션 바 위)에 보이지 않는다. `ManageWordsScreen` 과 같은 구조다.
+     */
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+        <StatusBar style="light" />
 
       {/* 히어로 섹션 - 그라데이션 */}
       <LinearGradient
@@ -257,9 +259,11 @@ export default function HomeScreen({
         </View>
       </View>
 
-      {/* 하단 광고 */}
+      </ScrollView>
+
+      {/* 하단 광고 — 스크롤과 무관하게 화면 아래에 고정된다 */}
       <AdBanner />
-    </ScrollView>
+    </View>
   );
 }
 

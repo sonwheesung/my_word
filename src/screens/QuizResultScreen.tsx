@@ -138,9 +138,11 @@ export default function QuizResultScreen({
           </TouchableOpacity>
         </View>
 
-        {/* 하단 배너 광고 */}
-        <AdBanner />
       </ScrollView>
+
+      {/* 하단 배너 광고 — ScrollView **밖**에 둔다. 안에 두면 콘텐츠 끝에 붙어 함께
+          스크롤되고 화면 하단에 고정되지 않는다(HomeScreen 과 같은 이유) */}
+      <AdBanner />
 
       {/* 틀린 정답 확인 모달 */}
       <Modal
