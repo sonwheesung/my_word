@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Word - 이용약관</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.8;
+            color: #333;
+            background: #f9fafb;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #fff;
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        h1 {
+            font-size: 28px;
+            color: #6366F1;
+            margin-bottom: 8px;
+        }
+        .app-name {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 32px;
+        }
+        h2 {
+            font-size: 20px;
+            color: #1a1a1a;
+            margin-top: 32px;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        p, li {
+            font-size: 15px;
+            color: #374151;
+            margin-bottom: 8px;
+        }
+        ul {
+            padding-left: 24px;
+            margin-bottom: 16px;
+        }
+        code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 14px;
+            background: #f3f4f6;
+            border-radius: 4px;
+            padding: 1px 5px;
+        }
+        .notice {
+            background: #f9fafb;
+            border-left: 3px solid #6366F1;
+            border-radius: 6px;
+            padding: 14px 18px;
+            margin: 12px 0 16px;
+        }
+        .notice p:last-child { margin-bottom: 0; }
+        .biz {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin-top: 16px;
+        }
+        .biz ul { margin-bottom: 0; }
+        .biz li { margin-bottom: 4px; }
+        .date {
+            font-size: 13px;
+            color: #9ca3af;
+            margin-top: 40px;
+            text-align: center;
+        }
+        /* --- 언어 토글 ---
+           JS가 없으면 data-lang / data-js 속성이 붙지 않으므로
+           한국어 블록이 그대로 보이고 영어 블록만 숨겨진다. */
+        .langbar {
+            display: none;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        html[data-js] .langbar { display: flex; }
+        .lang-btn {
+            font-family: inherit;
+            font-size: 13px;
+            line-height: 1.4;
+            padding: 6px 14px;
+            border: 1px solid #e5e7eb;
+            background: #fff;
+            color: #6b7280;
+            border-radius: 999px;
+            cursor: pointer;
+        }
+        .lang-btn:hover { border-color: #c7d2fe; color: #4f46e5; }
+        .lang-btn.is-active { background: #6366F1; border-color: #6366F1; color: #fff; }
+        .lang-en { display: none; }
+        html[data-lang="en"] .lang-ko { display: none; }
+        html[data-lang="en"] .lang-en { display: block; }
+    </style>
+    <script>
+    /* 첫 페인트 전에 표시 언어를 결정한다 (깜빡임 방지).
+       우선순위: ?lang= 쿼리스트링 > localStorage > navigator.language */
+    (function () {
+        var KEY = 'myword.legal.lang';
+        var root = document.documentElement;
+        var lang = null;
+        try {
+            var m = /[?&]lang=(ko|en)/i.exec(window.location.search);
+            if (m) {
+                lang = m[1].toLowerCase();
+                try { window.localStorage.setItem(KEY, lang); } catch (e) {}
+            }
+        } catch (e) {}
+        if (!lang) {
+            try {
+                var s = window.localStorage.getItem(KEY);
+                if (s === 'ko' || s === 'en') lang = s;
+            } catch (e) {}
+        }
+        if (!lang) {
+            var nav = ((navigator.language || navigator.userLanguage || '') + '').toLowerCase();
+            lang = nav.indexOf('ko') === 0 ? 'ko' : 'en';
+        }
+        root.setAttribute('data-js', '1');
+        root.setAttribute('data-lang', lang);
+        root.lang = lang;
+    })();
+    </script>
+</head>
+<body>
+    <div class="container">
+        <div class="langbar" role="group" aria-label="Language / 언어">
+            <button type="button" class="lang-btn" data-set-lang="ko" lang="ko">한국어</button>
+            <button type="button" class="lang-btn" data-set-lang="en" lang="en">English</button>
+        </div>
+
+        <!-- ===================== 한국어 ===================== -->
+        <div class="lang lang-ko" lang="ko">
+        <h1>이용약관</h1>
+        <p class="app-name">My Word (패키지명: com.myword.front)</p>
+
+        <h2>제1조 (목적)</h2>
+        <p>본 약관은 위성게임즈(이하 "회사")가 제공하는 모바일 애플리케이션 My Word(이하 "앱")의 이용에 관하여, 회사와 이용자 사이의 권리·의무 및 책임 사항을 정하는 것을 목적으로 합니다.</p>
+
+        <h2>제2조 (정의)</h2>
+        <ul>
+            <li>"앱"이란 회사가 제공하는 단어 저장·학습용 애플리케이션 My Word를 말합니다.</li>
+            <li>"이용자"란 본 약관에 따라 앱을 설치하여 이용하는 자를 말합니다.</li>
+            <li>"학습 데이터"란 이용자가 앱에 입력·생성한 단어, 뜻, 예문, 태그, 메모, 카테고리, 퀴즈 결과 및 앱 설정을 말합니다.</li>
+            <li>"유료 상품"이란 앱 안에서 Google Play 인앱 결제를 통해 판매되는 상품을 말하며, 현재는 "평생 광고 제거"(상품 ID: <code>remove_ads</code>) 1종입니다.</li>
+            <li>"오픈마켓 사업자"란 앱과 유료 상품이 유통·결제되는 마켓의 운영자, 즉 Google LLC(Google Play)를 말합니다.</li>
+        </ul>
+
+        <h2>제3조 (약관의 효력 및 변경)</h2>
+        <p>본 약관은 앱 내 링크 또는 본 페이지를 통해 게시함으로써 효력이 발생합니다. 이용자가 앱을 설치·이용하는 경우 본 약관에 동의한 것으로 봅니다.</p>
+        <p>회사는 관련 법령을 위반하지 않는 범위에서 본 약관을 변경할 수 있습니다. 약관을 변경하는 경우 회사는 변경 내용과 시행일을 본 페이지에 게시하며, 이용자에게 불리한 변경의 경우 시행일로부터 최소 7일 전에 게시합니다. 변경된 약관의 시행일 이후에도 앱을 계속 이용하는 경우 변경에 동의한 것으로 봅니다. 동의하지 않는 경우 이용자는 앱 이용을 중단하고 앱을 삭제할 수 있습니다.</p>
+
+        <h2>제4조 (서비스의 내용)</h2>
+        <p>앱은 다음 기능을 제공합니다.</p>
+        <ul>
+            <li>단어·뜻·예문·태그·메모의 등록 및 관리, 카테고리 분류</li>
+            <li>저장한 단어를 이용한 퀴즈 및 학습 통계</li>
+            <li>단어 검색 시 외부 사전·번역 API(Google Translate API, Free Dictionary API) 조회</li>
+            <li>CSV 파일을 통한 단어 내보내기 및 가져오기</li>
+            <li>설정 화면의 문의하기(익명 접수)</li>
+            <li>Google AdMob을 통한 광고 노출 및 유료 상품 구매를 통한 광고 제거</li>
+        </ul>
+        <p>앱은 별도의 회원가입이나 계정 생성 없이 이용할 수 있으며, 회사는 이용자의 이름·이메일·전화번호 등 이용자를 식별할 수 있는 정보를 수집하지 않습니다. 앱 UI는 한국어와 영어를 지원합니다.</p>
+
+        <h2>제5조 (유료 상품 - 평생 광고 제거)</h2>
+        <ul>
+            <li>상품명: 평생 광고 제거</li>
+            <li>상품 ID: <code>remove_ads</code></li>
+            <li>유형: Google Play <strong>관리형 상품(비소비성)</strong></li>
+            <li>가격: 구매 화면 및 Google Play에 표시되는 금액(부가세 포함)을 따릅니다. 실제 결제 금액과 통화는 이용자의 국가·환율에 따라 다를 수 있습니다.</li>
+            <li>제공 내용: 앱 내 배너 광고 및 전면 광고가 표시되지 않습니다.</li>
+            <li>이용 기간: 한 번 결제하면 영구히 적용됩니다.</li>
+        </ul>
+        <div class="notice">
+            <p><strong>본 상품은 구독이 아닙니다.</strong> 자동 갱신, 만료, 정기 결제가 없으며, 별도의 해지 절차도 없습니다.</p>
+        </div>
+        <p>구매 내역은 이용자의 Google 계정에 귀속됩니다. 앱을 삭제한 뒤 다시 설치하거나 같은 Google 계정으로 다른 기기에서 이용하는 경우, 설정 화면의 "구매 복원"을 통해 광고 제거 상태를 다시 적용할 수 있습니다.</p>
+        <p>광고 제거는 앱 내 광고에만 적용됩니다. 앱의 학습 기능은 유료 상품 구매 여부와 관계없이 동일하게 제공되며, 구매하지 않아도 모든 학습 기능을 이용할 수 있습니다.</p>
+
+        <h2>제6조 (대금의 결제)</h2>
+        <div class="notice">
+            <p><strong>유료 상품의 결제는 전적으로 Google Play가 처리합니다.</strong> 회사는 이용자의 카드번호·계좌번호 등 결제수단 정보를 일절 입력받지 않으며, 이를 열람하거나 보관하지도 않습니다.</p>
+            <p>회사는 <strong>구매 토큰을 포함한 어떠한 결제 정보도 회사 서버로 전송하거나 저장하지 않습니다.</strong> 앱은 Google Play에 구매 이력을 조회하여 광고 제거 적용 여부만 확인하고, 그 결과를 기기 내부에 캐시로만 보관합니다.</p>
+        </div>
+        <p>결제 수단의 등록·변경, 영수증 발급, 결제 내역 확인은 Google Play에서 처리하며, 이에 관하여는 <a href="https://play.google.com/intl/ko/about/play-terms/" target="_blank">Google Play 서비스 약관</a>이 함께 적용됩니다.</p>
+        <p>결제 과정에서 통신 장애, Google Play 계정 문제 등으로 결제가 정상적으로 완료되지 않을 수 있습니다. 결제는 완료되었으나 광고가 계속 표시되는 경우, 설정 화면의 "구매 복원"을 실행하거나 앱을 재시작해 주시고, 그래도 해결되지 않으면 제15조의 연락처로 문의해 주시기 바랍니다.</p>
+
+        <h2>제7조 (청약철회 및 환불)</h2>
+        <p>유료 상품의 결제와 환불은 Google Play를 통해 이루어집니다. 따라서 환불은 <a href="https://support.google.com/googleplay/answer/2479637" target="_blank">Google Play 환불 정책</a> 및 절차에 따르며, 이용자는 Google Play 고객센터 또는 Google Play 스토어의 주문 내역을 통해 환불을 요청할 수 있습니다.</p>
+        <p><strong>회사는 결제 정보를 보유하지 않으므로 개별 환불을 직접 처리할 수 없습니다.</strong> 환불의 승인 여부와 처리 기간은 Google의 정책과 판단에 따릅니다.</p>
+        <p>환불이 완료되면 해당 구매는 Google Play의 구매 이력에서 제외되며, 이후 앱을 재실행하면 광고 제거 혜택이 해제되고 광고가 다시 표시됩니다.</p>
+        <p>「전자상거래 등에서의 소비자보호에 관한 법률」 등 관련 법령이 이용자에게 본 조보다 유리한 청약철회권을 보장하는 경우 해당 법령이 우선합니다.</p>
+
+        <h2>제8조 (미성년자의 결제)</h2>
+        <p>유료 상품의 결제는 Google Play 계정을 통해 이루어지며, 미성년자의 결제에 대해서는 Google Play의 보호 장치(구매 승인 요청, Family Link를 통한 보호자 승인, 비밀번호·생체 인증 요구 등)가 적용됩니다.</p>
+        <p>미성년자가 법정대리인의 동의 없이 결제한 경우, 관련 법령에 따라 법정대리인 또는 미성년자 본인이 결제를 취소할 수 있습니다. 이 경우에도 실제 취소·환불 처리는 제7조에 따라 Google Play를 통해 진행됩니다.</p>
+        <p>보호자께서는 Google Play 스토어의 구매 승인 설정을 이용해 미성년자의 결제를 사전에 통제하실 것을 권장합니다.</p>
+
+        <h2>제9조 (이용자의 의무)</h2>
+        <p>이용자는 앱을 이용하면서 다음 행위를 하여서는 안 됩니다.</p>
+        <ul>
+            <li>앱을 역분석·변조하거나 비정상적인 방법으로 유료 상품의 혜택을 취득하는 행위</li>
+            <li>앱이 이용하는 외부 API에 자동화된 방법으로 과도한 요청을 발생시키는 행위</li>
+            <li>타인의 저작권 등 권리를 침해하는 자료를 앱에 입력·보관하거나 이를 배포하는 행위</li>
+            <li>기타 관련 법령이나 본 약관을 위반하는 행위</li>
+        </ul>
+        <p>이용자가 앱에 입력한 학습 데이터의 내용에 대한 책임은 이용자에게 있습니다. 회사는 해당 데이터를 열람할 수 없으며, 이는 데이터가 이용자 기기 내부에만 저장되기 때문입니다.</p>
+        <p>문의하기는 익명으로 접수되므로, 이용자는 문의 본문에 이름·연락처 등 개인을 알아볼 수 있는 정보를 입력하지 않아야 합니다.</p>
+
+        <h2>제10조 (서비스의 변경 및 중단)</h2>
+        <p>회사는 서비스의 개선을 위하여 앱의 기능 일부를 변경하거나 추가·삭제할 수 있습니다.</p>
+        <p>회사는 다음 각 호의 사유가 있는 경우 서비스의 전부 또는 일부를 중단할 수 있습니다.</p>
+        <ul>
+            <li>앱이 이용하는 외부 서비스(Google Translate API, Free Dictionary API, Google AdMob, Google Play 등)의 정책 변경, 중단 또는 장애가 있는 경우</li>
+            <li>천재지변, 통신 장애 등 불가항력적 사유가 있는 경우</li>
+            <li>회사가 사업을 종료하거나 앱의 제공을 중단하는 경우</li>
+        </ul>
+        <p>서비스를 종료하는 경우 회사는 본 페이지 또는 Google Play 스토어 등을 통해 사전에 공지합니다. 앱의 핵심 기능인 단어 저장·퀴즈는 기기 내부에서 동작하므로, 서비스가 종료되더라도 이미 설치된 앱과 기기에 저장된 학습 데이터는 그대로 남습니다. 다만 외부 API를 이용하는 단어 검색, 문의하기 등 일부 기능은 동작하지 않을 수 있으며, 이 경우에도 회사는 이미 지급된 유료 상품 대금을 별도로 반환하지 않습니다. 서비스 종료 전 제11조를 참고하여 CSV 내보내기로 데이터를 보관하시기 바랍니다.</p>
+
+        <h2>제11조 (데이터의 보관 및 소실)</h2>
+        <div class="notice">
+            <p>🔴 <strong>학습 데이터는 이용자의 기기 내부(AsyncStorage)에만 저장되며, 회사는 서버 백업을 제공하지 않습니다.</strong></p>
+            <p>따라서 <strong>앱을 삭제하거나 기기를 초기화·분실·교체하는 경우, 저장된 단어와 학습 기록은 모두 사라지며 복구할 수 없습니다.</strong> 회사는 해당 데이터를 보유하고 있지 않으므로 어떠한 방법으로도 복원해 드릴 수 없습니다.</p>
+        </div>
+        <p>기기 저장 공간 부족, 운영체제의 앱 데이터 정리, 앱 데이터 삭제 기능 사용 등에 의해서도 데이터가 소실될 수 있습니다.</p>
+        <p><strong>데이터 보호는 이용자의 CSV 내보내기를 통해서만 가능합니다.</strong> 앱의 단어 관리 화면에서 저장된 단어를 CSV 파일로 내보내 기기 외부(클라우드 드라이브, 메일 등)에 보관하시고, 필요할 때 CSV 가져오기로 복원하실 수 있습니다. 기기 교체나 앱 삭제 전에는 반드시 CSV 내보내기를 먼저 실행하시기 바랍니다.</p>
+        <p>유료 상품의 구매 내역은 학습 데이터와 달리 Google 계정에 귀속되므로, 앱을 삭제하더라도 제5조에 따라 "구매 복원"으로 다시 적용할 수 있습니다.</p>
+
+        <h2>제12조 (광고)</h2>
+        <p>회사는 앱 운영을 위해 Google AdMob을 통한 광고를 게재합니다. 광고의 내용과 노출 방식은 Google AdMob이 결정하며, 회사는 개별 광고의 내용을 사전에 선별하지 않습니다.</p>
+        <p>이용자와 광고주 사이에 이루어진 거래에 대하여 회사는 어떠한 책임도 부담하지 않습니다.</p>
+        <p>제5조의 유료 상품을 구매한 경우 앱은 광고를 불러오지 않습니다.</p>
+
+        <h2>제13조 (개인정보의 보호)</h2>
+        <p>회사는 이용자의 개인정보를 관련 법령에 따라 보호합니다. 앱이 어떤 정보를 어떻게 처리하는지는 <a href="./privacy-policy.html">개인정보처리방침</a>에서 확인하실 수 있습니다.</p>
+
+        <h2>제14조 (면책)</h2>
+        <p>회사는 다음 사항에 대하여 책임을 지지 않습니다. 다만 회사의 고의 또는 중대한 과실이 있는 경우에는 그러하지 아니합니다.</p>
+        <ul>
+            <li>제11조에 따른 학습 데이터의 소실. 회사는 서버 백업을 제공하지 않으며 데이터를 보유하지 않습니다.</li>
+            <li>Google Translate API, Free Dictionary API 등 외부 사전·번역 서비스가 제공하는 검색 결과의 정확성·완전성. 해당 결과는 학습 참고용이며, 회사는 번역·뜻풀이의 정확성을 보증하지 않습니다.</li>
+            <li>외부 서비스의 장애·정책 변경·중단으로 인한 기능 제한</li>
+            <li>이용자의 기기 환경, 운영체제 설정, 통신 상태에 기인한 문제</li>
+            <li>이용자가 앱에 입력한 데이터의 내용에서 비롯된 분쟁</li>
+            <li>Google Play의 결제·환불 처리 과정에서 발생한 문제. 다만 회사는 이용자의 문의에 대하여 필요한 안내에 협조합니다.</li>
+        </ul>
+        <p>앱은 학습을 보조하는 도구이며, 회사는 앱 이용을 통한 특정한 학습 성과를 보증하지 않습니다.</p>
+
+        <h2>제15조 (준거법 및 관할)</h2>
+        <p>본 약관은 대한민국 법령에 따라 규율되고 해석됩니다.</p>
+        <p>회사와 이용자 사이에 분쟁이 발생한 경우 양 당사자는 원만한 해결을 위해 성실히 협의합니다. 협의로 해결되지 않는 경우 「민사소송법」에 따른 관할 법원에 소를 제기할 수 있습니다.</p>
+        <p>문의는 아래 연락처로 보내주시기 바랍니다.</p>
+        <ul>
+            <li>이메일: support@vivace-games.com</li>
+        </ul>
+
+        <h2>사업자 정보</h2>
+        <div class="biz">
+            <ul>
+                <li>상호: 위성게임즈 (Vivace Games)</li>
+                <li>대표자: 손회성</li>
+                <li>주소: (44421) 울산광역시 중구 성안5길 22, 2층 204호(성안동)</li>
+                <li>사업자등록번호: 749-25-02260</li>
+                <li>통신판매업 신고번호: 제2026-울산중구-0170호 (신고기관: 울산광역시 중구)</li>
+                <li>이메일: support@vivace-games.com</li>
+                <li>웹사이트: <a href="https://vivace-games.com/" target="_blank">https://vivace-games.com/</a></li>
+            </ul>
+        </div>
+
+        <!-- TODO(출시): 시행일을 실제 Play 출시일로 교체할 것. 제3조가 "불리한 변경은 7일 전 게시"를 스스로 규정하고 있다 -->
+        <p class="date">시행일: 2026년 8월 17일</p>
+        </div>
+        <!-- =================== 한국어 끝 =================== -->
+
+        <!-- ===================== English ===================== -->
+        <div class="lang lang-en" lang="en">
+        <h1>Terms of Service</h1>
+        <p class="app-name">My Word (package name: com.myword.front)</p>
+
+        <div class="notice">
+            <p><strong>This English text is a translation provided for the convenience of users.</strong> These Terms of Service were originally written in Korean and, as set out in Article 15, are governed by the laws of the Republic of Korea. In the event of any discrepancy or difference of interpretation between the Korean and English versions, <strong>the Korean version shall prevail</strong>.</p>
+        </div>
+
+        <h2>Article 1 (Purpose)</h2>
+        <p>The purpose of these Terms is to set out the rights, obligations, and responsibilities between 위성게임즈 (Vivace Games) (the "Company") and users with respect to the use of the mobile application My Word (the "App") provided by the Company.</p>
+
+        <h2>Article 2 (Definitions)</h2>
+        <ul>
+            <li>"App" means My Word, the vocabulary saving and learning application provided by the Company.</li>
+            <li>"User" means a person who installs and uses the App in accordance with these Terms.</li>
+            <li>"Learning data" means the words, meanings, example sentences, tags, memos, categories, quiz results, and app settings that a User enters into or creates in the App.</li>
+            <li>"Paid product" means a product sold within the App through Google Play in-app purchase; at present there is one such product, "Lifetime Ad Removal" (product ID: <code>remove_ads</code>).</li>
+            <li>"Open market operator" means the operator of the market through which the App and paid products are distributed and paid for, namely Google LLC (Google Play).</li>
+        </ul>
+
+        <h2>Article 3 (Effect and Amendment of the Terms)</h2>
+        <p>These Terms take effect upon being posted through a link within the App or on this page. Where a User installs and uses the App, the User is deemed to have agreed to these Terms.</p>
+        <p>The Company may amend these Terms to the extent that doing so does not violate applicable laws. Where the Company amends the Terms, it shall post the details of the amendment and its effective date on this page, and in the case of an amendment unfavorable to Users, shall post it at least 7 days before the effective date. Where a User continues to use the App after the effective date of the amended Terms, the User is deemed to have agreed to the amendment. If the User does not agree, the User may stop using the App and delete it.</p>
+
+        <h2>Article 4 (Content of the Service)</h2>
+        <p>The App provides the following features.</p>
+        <ul>
+            <li>Registration and management of words, meanings, example sentences, tags, and memos, and classification into categories</li>
+            <li>Quizzes and learning statistics based on saved words</li>
+            <li>Lookups to external dictionary and translation APIs (Google Translate API, Free Dictionary API) when searching for words</li>
+            <li>Export and import of words via CSV files</li>
+            <li>Contact Us on the Settings screen (anonymous submission)</li>
+            <li>Display of advertisements through Google AdMob, and removal of advertisements through purchase of the paid product</li>
+        </ul>
+        <p>The App can be used without any separate sign-up or account creation, and the Company does not collect information that can identify a User, such as name, email address, or phone number. The App UI supports Korean and English.</p>
+
+        <h2>Article 5 (Paid Product - Lifetime Ad Removal)</h2>
+        <ul>
+            <li>Product name: Lifetime Ad Removal</li>
+            <li>Product ID: <code>remove_ads</code></li>
+            <li>Type: Google Play <strong>managed product (non-consumable)</strong></li>
+            <li>Price: The amount displayed on the purchase screen and on Google Play (VAT included) applies. The actual amount charged and the currency may differ depending on the User's country and exchange rates.</li>
+            <li>What is provided: Banner advertisements and interstitial advertisements are not displayed in the App.</li>
+            <li>Term of use: Applies permanently once purchased.</li>
+        </ul>
+        <div class="notice">
+            <p><strong>This product is not a subscription.</strong> There is no automatic renewal, expiration, or recurring payment, and there is no separate cancellation procedure.</p>
+        </div>
+        <p>Purchase records belong to the User's Google account. Where the User deletes and reinstalls the App, or uses it on another device with the same Google account, the ad-free state can be re-applied through "Restore Purchases" on the Settings screen.</p>
+        <p>Ad removal applies only to advertisements within the App. The learning features of the App are provided identically regardless of whether the paid product has been purchased, and all learning features are available without purchase.</p>
+
+        <h2>Article 6 (Payment)</h2>
+        <div class="notice">
+            <p><strong>Payment for paid products is handled entirely by Google Play.</strong> The Company does not accept any payment method information such as the User's card number or bank account number, and neither views nor retains such information.</p>
+            <p>The Company <strong>does not transmit or store any payment information, including the purchase token, on the Company's servers.</strong> The App only queries the purchase history from Google Play to confirm whether ad removal applies, and keeps that result only as a cache inside the device.</p>
+        </div>
+        <p>Registration and change of payment methods, issuance of receipts, and review of payment history are handled by Google Play, and the <a href="https://play.google.com/intl/ko/about/play-terms/" target="_blank">Google Play Terms of Service</a> apply together in this regard.</p>
+        <p>During the payment process, payment may fail to complete normally due to communication failures, Google Play account issues, and the like. If payment has been completed but advertisements continue to be displayed, please run "Restore Purchases" on the Settings screen or restart the App; if the issue is still not resolved, please contact us using the contact details in Article 15.</p>
+
+        <h2>Article 7 (Withdrawal of Subscription and Refunds)</h2>
+        <p>Payment for and refund of paid products are made through Google Play. Refunds are therefore subject to the <a href="https://support.google.com/googleplay/answer/2479637" target="_blank">Google Play refund policy</a> and its procedures, and Users may request a refund through Google Play customer support or through the order history in the Google Play Store.</p>
+        <p><strong>Because the Company does not hold payment information, it cannot process individual refunds directly.</strong> Whether a refund is approved and how long it takes to process are subject to Google's policies and determination.</p>
+        <p>Once a refund is completed, the purchase is excluded from the Google Play purchase history, and when the App is subsequently restarted, the ad removal benefit is released and advertisements are displayed again.</p>
+        <p>Where applicable laws, such as the Act on the Consumer Protection in Electronic Commerce, etc., guarantee a User a right of withdrawal more favorable than this Article, those laws shall prevail.</p>
+
+        <h2>Article 8 (Payments by Minors)</h2>
+        <p>Payment for paid products is made through a Google Play account, and Google Play's safeguards (purchase approval requests, guardian approval via Family Link, requirement of a password or biometric authentication, etc.) apply to payments by minors.</p>
+        <p>Where a minor makes a payment without the consent of their legal representative, the legal representative or the minor may cancel the payment in accordance with applicable laws. Even in that case, the actual cancellation and refund are processed through Google Play in accordance with Article 7.</p>
+        <p>We recommend that guardians control minors' payments in advance using the purchase approval settings in the Google Play Store.</p>
+
+        <h2>Article 9 (Obligations of the User)</h2>
+        <p>In using the App, the User shall not engage in any of the following acts.</p>
+        <ul>
+            <li>Reverse engineering or modifying the App, or obtaining the benefits of a paid product by abnormal means</li>
+            <li>Generating excessive requests to the external APIs used by the App through automated means</li>
+            <li>Entering into or storing in the App, or distributing, materials that infringe the copyrights or other rights of third parties</li>
+            <li>Any other act that violates applicable laws or these Terms</li>
+        </ul>
+        <p>The User is responsible for the content of the learning data entered into the App. The Company cannot view such data, because the data is stored only inside the User's device.</p>
+        <p>Because inquiries are received anonymously, the User must not enter information that can identify an individual, such as a name or contact details, in the body of an inquiry.</p>
+
+        <h2>Article 10 (Change and Suspension of the Service)</h2>
+        <p>The Company may change, add, or remove some features of the App in order to improve the Service.</p>
+        <p>The Company may suspend all or part of the Service in any of the following cases.</p>
+        <ul>
+            <li>Where there is a policy change, discontinuation, or failure of an external service used by the App (Google Translate API, Free Dictionary API, Google AdMob, Google Play, etc.)</li>
+            <li>Where there is a force majeure event such as a natural disaster or a communications failure</li>
+            <li>Where the Company terminates its business or discontinues provision of the App</li>
+        </ul>
+        <p>Where the Service is terminated, the Company will give prior notice through this page, the Google Play Store, or similar means. Because the core features of the App, namely word storage and quizzes, operate inside the device, the already-installed App and the learning data stored on the device remain as they are even if the Service is terminated. However, some features that use external APIs, such as word search and Contact Us, may not work, and even in that case the Company will not separately refund the price already paid for a paid product. Before the Service is terminated, please refer to Article 11 and keep your data by using CSV export.</p>
+
+        <h2>Article 11 (Storage and Loss of Data)</h2>
+        <div class="notice">
+            <p>🔴 <strong>Learning data is stored only inside the User's device (AsyncStorage), and the Company does not provide server backups.</strong></p>
+            <p>Accordingly, <strong>if the App is deleted or the device is reset, lost, or replaced, all saved words and learning records will be lost and cannot be recovered.</strong> Because the Company does not hold such data, it cannot restore it by any means.</p>
+        </div>
+        <p>Data may also be lost due to insufficient device storage, the operating system clearing app data, use of the app data deletion function, and the like.</p>
+        <p><strong>Protection of data is possible only through the User's own CSV export.</strong> On the word management screen of the App, you can export saved words to a CSV file and keep it outside the device (a cloud drive, email, etc.), and restore it with CSV import when needed. Be sure to run CSV export first before replacing your device or deleting the App.</p>
+        <p>Unlike learning data, purchase records for paid products belong to the Google account, so even if the App is deleted they can be re-applied through "Restore Purchases" in accordance with Article 5.</p>
+
+        <h2>Article 12 (Advertising)</h2>
+        <p>The Company places advertisements through Google AdMob in order to operate the App. The content of advertisements and the manner in which they are displayed are determined by Google AdMob, and the Company does not screen the content of individual advertisements in advance.</p>
+        <p>The Company bears no responsibility whatsoever for transactions made between a User and an advertiser.</p>
+        <p>Where the paid product under Article 5 has been purchased, the App does not load advertisements.</p>
+
+        <h2>Article 13 (Protection of Personal Information)</h2>
+        <p>The Company protects Users' personal information in accordance with applicable laws. You can find what information the App processes and how it does so in the <a href="./privacy-policy.html?lang=en">Privacy Policy</a>.</p>
+
+        <h2>Article 14 (Disclaimer)</h2>
+        <p>The Company is not responsible for the following matters. This shall not apply, however, where there is willful misconduct or gross negligence on the part of the Company.</p>
+        <ul>
+            <li>Loss of learning data under Article 11. The Company does not provide server backups and does not hold the data.</li>
+            <li>The accuracy or completeness of search results provided by external dictionary and translation services such as the Google Translate API and the Free Dictionary API. Such results are for learning reference only, and the Company does not guarantee the accuracy of translations or definitions.</li>
+            <li>Feature limitations arising from failures, policy changes, or discontinuation of external services</li>
+            <li>Problems attributable to the User's device environment, operating system settings, or network conditions</li>
+            <li>Disputes arising from the content of data entered into the App by the User</li>
+            <li>Problems arising in the course of Google Play's payment or refund processing. The Company will, however, cooperate in providing the necessary guidance in response to User inquiries.</li>
+        </ul>
+        <p>The App is a tool that assists learning, and the Company does not guarantee any particular learning outcome from use of the App.</p>
+
+        <h2>Article 15 (Governing Law and Jurisdiction)</h2>
+        <p>These Terms are governed by and construed in accordance with the laws of the Republic of Korea.</p>
+        <p>Where a dispute arises between the Company and a User, both parties shall consult in good faith for an amicable resolution. Where the matter is not resolved through consultation, either party may file a suit with the competent court under the Civil Procedure Act.</p>
+        <div class="notice">
+            <p>Translation note: These Terms were originally drawn up in Korean, and the Korean version is the official text. In the event of any discrepancy or difference of interpretation between the Korean and English versions, <strong>the Korean version shall prevail</strong>.</p>
+        </div>
+        <p>Please send inquiries to the contact below.</p>
+        <ul>
+            <li>Email: support@vivace-games.com</li>
+        </ul>
+
+        <h2>Business Information</h2>
+        <div class="biz">
+            <ul>
+                <li>Business name (상호): 위성게임즈 (Vivace Games)</li>
+                <li>Representative (대표자): 손회성 (Son Hoe-seong)</li>
+                <li>Address (주소): (44421) 울산광역시 중구 성안5길 22, 2층 204호(성안동) — 2F #204, 22 Seongan 5-gil, Jung-gu, Ulsan 44421, Republic of Korea</li>
+                <li>Business registration number (사업자등록번호): 749-25-02260</li>
+                <li>Mail-order sales registration number (통신판매업 신고번호): 제2026-울산중구-0170호 (filing authority: 울산광역시 중구 / Jung-gu, Ulsan)</li>
+                <li>Email: support@vivace-games.com</li>
+                <li>Website: <a href="https://vivace-games.com/" target="_blank">https://vivace-games.com/</a></li>
+            </ul>
+        </div>
+
+        <!-- TODO(출시): 시행일을 실제 Play 출시일로 교체할 것. 제3조가 "불리한 변경은 7일 전 게시"를 스스로 규정하고 있다 -->
+        <p class="date">Effective date: August 17, 2026</p>
+        </div>
+        <!-- =================== English 끝 =================== -->
+    </div>
+
+    <script>
+    (function () {
+        var KEY = 'myword.legal.lang';
+        var TITLES = { ko: 'My Word - 이용약관', en: 'My Word - Terms of Service' };
+        var root = document.documentElement;
+        var buttons = document.querySelectorAll('.lang-btn');
+
+        function apply(lang) {
+            if (lang !== 'en') lang = 'ko';
+            root.setAttribute('data-lang', lang);
+            root.lang = lang;
+            if (TITLES[lang]) document.title = TITLES[lang];
+            for (var i = 0; i < buttons.length; i++) {
+                var active = buttons[i].getAttribute('data-set-lang') === lang;
+                buttons[i].className = active ? 'lang-btn is-active' : 'lang-btn';
+                buttons[i].setAttribute('aria-pressed', active ? 'true' : 'false');
+            }
+        }
+
+        function choose(lang) {
+            try { window.localStorage.setItem(KEY, lang); } catch (e) {}
+            apply(lang);
+        }
+
+        for (var i = 0; i < buttons.length; i++) {
+            (function (btn) {
+                btn.addEventListener('click', function () {
+                    choose(btn.getAttribute('data-set-lang'));
+                });
+            })(buttons[i]);
+        }
+
+        apply(root.getAttribute('data-lang'));
+    })();
+    </script>
+</body>
+</html>

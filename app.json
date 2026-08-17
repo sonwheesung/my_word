@@ -2,7 +2,7 @@
   "expo": {
     "name": "My Word",
     "slug": "my-word-front",
-    "version": "1.2.0",
+    "version": "1.3.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "icon": "./assets/icon.png",
@@ -35,7 +35,8 @@
           "androidAppId": "ca-app-pub-2731473780180274~9707608518"
         }
       ],
-      "expo-localization"
+      "expo-localization",
+      "expo-iap"
     ],
     "scheme": "myword",
     "extra": {

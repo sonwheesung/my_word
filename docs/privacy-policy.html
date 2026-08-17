@@ -39,6 +39,12 @@
             padding-bottom: 8px;
             border-bottom: 1px solid #e5e7eb;
         }
+        h3 {
+            font-size: 16px;
+            color: #374151;
+            margin-top: 24px;
+            margin-bottom: 8px;
+        }
         p, li {
             font-size: 15px;
             color: #374151;
@@ -48,22 +54,108 @@
             padding-left: 24px;
             margin-bottom: 16px;
         }
+        code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 14px;
+            background: #f3f4f6;
+            border-radius: 4px;
+            padding: 1px 5px;
+        }
+        .notice {
+            background: #f9fafb;
+            border-left: 3px solid #6366F1;
+            border-radius: 6px;
+            padding: 14px 18px;
+            margin: 12px 0 16px;
+        }
+        .notice p:last-child { margin-bottom: 0; }
+        .biz {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin-top: 16px;
+        }
+        .biz ul { margin-bottom: 0; }
+        .biz li { margin-bottom: 4px; }
         .date {
             font-size: 13px;
             color: #9ca3af;
             margin-top: 40px;
             text-align: center;
         }
+        /* --- 언어 토글 ---
+           JS가 없으면 data-lang / data-js 속성이 붙지 않으므로
+           한국어 블록이 그대로 보이고 영어 블록만 숨겨진다. */
+        .langbar {
+            display: none;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        html[data-js] .langbar { display: flex; }
+        .lang-btn {
+            font-family: inherit;
+            font-size: 13px;
+            line-height: 1.4;
+            padding: 6px 14px;
+            border: 1px solid #e5e7eb;
+            background: #fff;
+            color: #6b7280;
+            border-radius: 999px;
+            cursor: pointer;
+        }
+        .lang-btn:hover { border-color: #c7d2fe; color: #4f46e5; }
+        .lang-btn.is-active { background: #6366F1; border-color: #6366F1; color: #fff; }
+        .lang-en { display: none; }
+        html[data-lang="en"] .lang-ko { display: none; }
+        html[data-lang="en"] .lang-en { display: block; }
     </style>
+    <script>
+    /* 첫 페인트 전에 표시 언어를 결정한다 (깜빡임 방지).
+       우선순위: ?lang= 쿼리스트링 > localStorage > navigator.language */
+    (function () {
+        var KEY = 'myword.legal.lang';
+        var root = document.documentElement;
+        var lang = null;
+        try {
+            var m = /[?&]lang=(ko|en)/i.exec(window.location.search);
+            if (m) {
+                lang = m[1].toLowerCase();
+                try { window.localStorage.setItem(KEY, lang); } catch (e) {}
+            }
+        } catch (e) {}
+        if (!lang) {
+            try {
+                var s = window.localStorage.getItem(KEY);
+                if (s === 'ko' || s === 'en') lang = s;
+            } catch (e) {}
+        }
+        if (!lang) {
+            var nav = ((navigator.language || navigator.userLanguage || '') + '').toLowerCase();
+            lang = nav.indexOf('ko') === 0 ? 'ko' : 'en';
+        }
+        root.setAttribute('data-js', '1');
+        root.setAttribute('data-lang', lang);
+        root.lang = lang;
+    })();
+    </script>
 </head>
 <body>
     <div class="container">
+        <div class="langbar" role="group" aria-label="Language / 언어">
+            <button type="button" class="lang-btn" data-set-lang="ko" lang="ko">한국어</button>
+            <button type="button" class="lang-btn" data-set-lang="en" lang="en">English</button>
+        </div>
+
+        <!-- ===================== 한국어 ===================== -->
+        <div class="lang lang-ko" lang="ko">
         <h1>개인정보처리방침</h1>
         <p class="app-name">My Word (패키지명: com.myword.front)</p>
 
         <h2>1. 개인정보의 수집 및 이용 목적</h2>
         <p>My Word(이하 "앱")는 사용자의 단어 학습을 돕기 위한 목적으로 개발된 애플리케이션입니다. 본 앱은 별도의 회원가입 없이 사용 가능하며, 계정을 만들거나 이름·이메일·전화번호 등 사용자를 식별할 수 있는 정보를 수집하지 않습니다.</p>
-        <p>학습 데이터는 기기 안에만 저장됩니다. 다만 사용자가 <strong>직접 실행한 경우에 한해</strong> 아래 두 기능에서만 외부로 데이터가 전송됩니다: 단어 검색(제5항), 문의하기(제6항).</p>
+        <p>학습 데이터는 기기 안에만 저장됩니다. 다만 사용자가 <strong>직접 실행한 경우에 한해</strong> 아래 두 기능에서 외부로 데이터가 전송됩니다: 단어 검색(제5항), 문의하기(제6항). 이와 별개로 앱을 실행할 때마다 공지사항과 최신 버전을 확인하기 위한 조회 요청이 발생하며, 그 내용은 제6항에 적었습니다.</p>
+        <p>또한 본 앱은 유료 상품(평생 광고 제거)의 인앱 결제를 제공하며, 이 경우에도 결제 정보는 Google Play가 처리할 뿐 본 앱이 수집하거나 저장하지 않습니다. 자세한 내용은 제7항을 참고해 주세요.</p>
 
         <h2>2. 기기에만 저장되는 데이터</h2>
         <p>본 앱은 다음과 같은 데이터를 기기 내부(로컬)에만 저장합니다:</p>
@@ -80,6 +172,7 @@
 
         <h2>4. 광고 서비스</h2>
         <p>본 앱은 Google AdMob을 통해 광고를 제공합니다. AdMob은 광고 제공을 위해 기기의 광고 식별자(GAID)를 수집할 수 있습니다. 이에 대한 자세한 사항은 <a href="https://policies.google.com/privacy" target="_blank">Google 개인정보처리방침</a>을 참고해 주세요.</p>
+        <p>제7항의 유료 상품(평생 광고 제거)을 구매한 경우 본 앱은 광고를 불러오지 않으며, 그에 따라 광고 목적의 광고 식별자 수집도 발생하지 않습니다.</p>
 
         <h2>5. 외부 API 사용</h2>
         <p>단어 검색 기능 사용 시 다음 외부 API에 검색어가 전송될 수 있습니다:</p>
@@ -89,7 +182,14 @@
         </ul>
         <p>해당 API에는 검색한 단어만 전송되며, 사용자를 식별할 수 있는 정보는 포함되지 않습니다.</p>
 
-        <h2>6. 문의하기 기능</h2>
+        <h2>6. 문의하기 · 공지사항 · 버전 확인</h2>
+        <p>아래 세 기능은 같은 서버(이하 "문의 접수 서버")를 이용합니다.</p>
+
+        <h3>6-1. 공지사항 및 버전 확인</h3>
+        <p>앱을 실행할 때마다 새 공지사항과 최신 버전이 있는지 확인하는 <strong>조회 요청</strong>이 한 번 발생합니다. 이때 서버로 보내는 것은 <strong>앱 버전과 기기 종류(Android / iOS)뿐</strong>이며, 학습 데이터나 사용자를 식별할 수 있는 정보는 포함되지 않습니다. 공지를 읽었는지 여부도 서버로 보내지 않고 기기 안에만 기록합니다.</p>
+        <p>다만 모든 인터넷 요청이 그렇듯 서버 접근 기록에 IP 주소가 남을 수 있습니다. 이 기록은 서비스 운영·장애 대응 목적으로만 이용합니다.</p>
+
+        <h3>6-2. 문의하기</h3>
         <p>설정 화면의 "문의하기"로 의견을 보내는 경우에 한해, 다음 정보가 문의 접수 서버로 전송·저장됩니다:</p>
         <ul>
             <li>문의 분류 (오류 / 건의 / 질문 / 기타)</li>
@@ -101,22 +201,179 @@
         <p>보관 기간: 접수일로부터 1년. 기간이 지난 문의는 파기합니다.</p>
         <p>처리위탁 및 보관 위치: 문의 접수 서버는 Vercel Inc.(호스팅)과 Supabase Inc.(데이터베이스)를 이용하며, 데이터베이스는 대한민국(서울) 리전에 저장됩니다. 서비스 제공 과정에서 국외에 소재한 서버를 경유할 수 있습니다.</p>
 
-        <h2>7. 데이터 보관 및 삭제</h2>
-        <p>기기에 저장된 데이터(제2항)는 앱을 삭제하면 함께 삭제됩니다. 앱 내에서 개별 단어, 카테고리 등을 직접 삭제할 수도 있습니다. 문의 내역의 보관·파기는 제6항을 따릅니다.</p>
+        <h2>7. 인앱 결제(평생 광고 제거)</h2>
+        <p>본 앱은 광고를 제거하는 유료 상품(상품 ID: <code>remove_ads</code>, 관리형 상품)을 판매합니다. 이는 한 번 결제하면 영구히 적용되는 상품이며 구독이 아닙니다.</p>
+        <div class="notice">
+            <p><strong>결제는 Google Play가 전부 처리합니다.</strong> 본 앱은 카드번호·계좌번호 등 결제수단 정보를 입력받지 않으며, 이를 열람하거나 저장하지도 않습니다.</p>
+            <p><strong>본 앱은 구매 토큰을 포함한 어떠한 결제 관련 정보도 자체 서버로 전송하거나 저장하지 않습니다.</strong> 서버를 통한 영수증 검증을 수행하지 않습니다.</p>
+        </div>
+        <p>광고 제거 적용 여부는 앱이 Google Play에 구매 이력을 조회하여 확인하며, 그 결과(구매 여부를 나타내는 값)는 기기 내부(<code>@my_word_ad_free</code>)에만 캐시로 저장됩니다. 이 값에는 결제 금액, 결제 수단, 주문 번호 등이 포함되지 않습니다.</p>
+        <p>구매·결제·환불 과정에서 Google이 처리하는 정보에 관하여는 <a href="https://policies.google.com/privacy" target="_blank">Google 개인정보처리방침</a>과 <a href="https://play.google.com/intl/ko/about/play-terms/" target="_blank">Google Play 서비스 약관</a>을 참고해 주세요.</p>
 
-        <h2>8. 아동의 개인정보 보호</h2>
-        <p>본 앱은 13세 미만 아동의 개인정보를 의도적으로 수집하지 않습니다.</p>
+        <h2>8. 데이터 보관 및 삭제</h2>
+        <p>기기에 저장된 데이터(제2항)는 앱을 삭제하면 함께 삭제됩니다. 앱 내에서 개별 단어, 카테고리 등을 직접 삭제할 수도 있습니다. 기기에만 저장되는 구조이므로 앱 삭제·기기 초기화 시 학습 데이터는 복구할 수 없으며, 필요한 경우 앱의 CSV 내보내기 기능으로 미리 보관하실 수 있습니다(자세한 내용은 <a href="./terms-of-service.html">이용약관</a> 제11조).</p>
+        <p>문의 내역의 보관·파기는 제6항을 따릅니다. 구매 이력은 Google Play(이용자의 Google 계정)에 보관되며, 본 앱은 이를 보유하지 않습니다.</p>
 
-        <h2>9. 개인정보처리방침 변경</h2>
+        <h2>9. 아동의 개인정보 보호</h2>
+        <p>본 앱은 13세 미만 아동의 개인정보를 의도적으로 수집하지 않습니다. 미성년자의 인앱 결제에 대해서는 Google Play의 구매 승인 등 보호 절차가 적용됩니다.</p>
+
+        <h2>10. 개인정보처리방침 변경</h2>
         <p>본 방침은 변경될 수 있으며, 변경 시 앱 업데이트 또는 본 페이지를 통해 공지합니다.</p>
 
-        <h2>10. 문의</h2>
+        <h2>11. 문의</h2>
         <p>개인정보 관련 문의사항이 있으시면 아래로 연락해 주세요:</p>
         <ul>
-            <li>이메일: shs00925@naver.com</li>
+            <li>이메일: support@vivace-games.com</li>
         </ul>
+        <div class="biz">
+            <ul>
+                <li>상호: 위성게임즈 (Vivace Games)</li>
+                <li>대표자: 손회성</li>
+                <li>주소: (44421) 울산광역시 중구 성안5길 22, 2층 204호(성안동)</li>
+                <li>사업자등록번호: 749-25-02260</li>
+                <li>통신판매업 신고번호: 제2026-울산중구-0170호 (신고기관: 울산광역시 중구)</li>
+                <li>웹사이트: <a href="https://vivace-games.com/" target="_blank">https://vivace-games.com/</a></li>
+            </ul>
+        </div>
 
-        <p class="date">최초 시행일: 2026년 4월 10일<br>개정 시행일: 2026년 8월 6일 (문의하기 기능 신설에 따른 제1·6항 변경)</p>
+        <!-- TODO(출시): 개정 시행일을 실제 Play 출시일로 교체할 것. 이용약관 시행일과 같은 날로 맞춘다 -->
+        <p class="date">최초 시행일: 2026년 4월 10일<br>개정 시행일: 2026년 8월 17일 (인앱 결제 도입에 따른 제1·4항 변경 및 제7항 신설, 제8·9항 보완, 문의 이메일 변경, 사업자 정보 추가)</p>
+        </div>
+        <!-- =================== 한국어 끝 =================== -->
+
+        <!-- ===================== English ===================== -->
+        <div class="lang lang-en" lang="en">
+        <h1>Privacy Policy</h1>
+        <p class="app-name">My Word (package name: com.myword.front)</p>
+
+        <div class="notice">
+            <p><strong>This English text is a translation provided for the convenience of users.</strong> This Privacy Policy was originally written in Korean and is governed by the laws of the Republic of Korea. In the event of any discrepancy or difference of interpretation between the Korean and English versions, <strong>the Korean version shall prevail</strong>.</p>
+        </div>
+
+        <h2>1. Purpose of Collection and Use of Personal Information</h2>
+        <p>My Word (the "App") is an application developed to help users learn vocabulary. The App can be used without any sign-up; it does not create accounts and does not collect information that can identify a user, such as name, email address, or phone number.</p>
+        <p>Learning data is stored only on your device. However, <strong>only where you yourself initiate them</strong>, the following two features transmit data externally: word search (Section 5) and Contact Us (Section 6). Separately, each time the App is launched, a lookup request is made in order to check for notices and the latest version; this is described in Section 6.</p>
+        <p>In addition, the App offers an in-app purchase of a paid product (Lifetime Ad Removal). Even in that case, payment information is handled solely by Google Play and is neither collected nor stored by the App. Please refer to Section 7 for details.</p>
+
+        <h2>2. Data Stored Only on the Device</h2>
+        <p>The App stores the following data only inside the device (locally):</p>
+        <ul>
+            <li>Words, meanings, example sentences, tags, and memos entered by the user</li>
+            <li>Category information</li>
+            <li>Quiz results and learning statistics</li>
+            <li>App settings (theme, etc.)</li>
+        </ul>
+        <p>All of the above data is stored only in the device's AsyncStorage (local storage) and is not transmitted to any external server.</p>
+
+        <h2>3. Provision of Personal Information to Third Parties</h2>
+        <p>The App does not provide users' personal information to third parties.</p>
+
+        <h2>4. Advertising Services</h2>
+        <p>The App serves advertisements through Google AdMob. AdMob may collect the device's advertising identifier (GAID) in order to serve advertisements. For details, please refer to the <a href="https://policies.google.com/privacy" target="_blank">Google Privacy Policy</a>.</p>
+        <p>If you have purchased the paid product described in Section 7 (Lifetime Ad Removal), the App does not load advertisements, and accordingly no collection of the advertising identifier for advertising purposes occurs.</p>
+
+        <h2>5. Use of External APIs</h2>
+        <p>When you use the word search feature, your search term may be transmitted to the following external APIs:</p>
+        <ul>
+            <li>Google Translate API (translation)</li>
+            <li>Free Dictionary API (dictionary lookup)</li>
+        </ul>
+        <p>Only the searched word is transmitted to these APIs; no information that can identify the user is included.</p>
+
+        <h2>6. Contact Us · Notices · Version Check</h2>
+        <p>The following three features use the same server (the "inquiry server").</p>
+
+        <h3>6-1. Notices and Version Check</h3>
+        <p>Each time the App is launched, one <strong>lookup request</strong> is made to check whether a new notice or a newer version exists. What is sent to the server at that time is <strong>only the app version and the device type (Android / iOS)</strong>; no learning data and no information that can identify the user is included. Whether you have read a notice is also not sent to the server and is recorded only on the device.</p>
+        <p>However, as is the case with every internet request, your IP address may remain in the server access logs. These logs are used only for the purposes of operating the service and responding to incidents.</p>
+
+        <h3>6-2. Contact Us</h3>
+        <p>Only where you send feedback through "Contact Us" on the Settings screen, the following information is transmitted to and stored on the inquiry server:</p>
+        <ul>
+            <li>Inquiry category (Bug / Suggestion / Question / Other)</li>
+            <li>The inquiry text written by the user</li>
+            <li>App version and device type (Android / iOS)</li>
+        </ul>
+        <p><strong>Inquiries are received anonymously.</strong> Because no account information or unique device identifier is sent together with them, the author cannot be identified, and for the same reason we are unable to provide individual replies. Inquiry content is used only for the purpose of improving the App.</p>
+        <p>Since the structure makes it impossible to know who the author is, once an inquiry has been sent we cannot process requests to access, correct, or delete that inquiry. With this in mind, please do not write information that can identify an individual, such as a name or contact details, in the body of your inquiry.</p>
+        <p>Retention period: one year from the date of receipt. Inquiries older than that period are destroyed.</p>
+        <p>Entrustment of processing and storage location: The inquiry server uses Vercel Inc. (hosting) and Supabase Inc. (database), and the database is stored in the Republic of Korea (Seoul) region. Data may pass through servers located outside Korea in the course of providing the service.</p>
+
+        <h2>7. In-App Purchase (Lifetime Ad Removal)</h2>
+        <p>The App sells a paid product that removes advertisements (product ID: <code>remove_ads</code>, a managed product). It applies permanently once purchased and is not a subscription.</p>
+        <div class="notice">
+            <p><strong>Payment is handled entirely by Google Play.</strong> The App does not accept payment method information such as card numbers or bank account numbers, and neither views nor stores such information.</p>
+            <p><strong>The App does not transmit or store any payment-related information, including the purchase token, on its own server.</strong> No server-side receipt validation is performed.</p>
+        </div>
+        <p>Whether ad removal applies is confirmed by the App querying the purchase history from Google Play, and the result (a value indicating whether the product has been purchased) is cached only inside the device (<code>@my_word_ad_free</code>). This value does not include the payment amount, payment method, order number, or similar information.</p>
+        <p>Regarding the information Google processes in the course of purchase, payment, and refund, please refer to the <a href="https://policies.google.com/privacy" target="_blank">Google Privacy Policy</a> and the <a href="https://play.google.com/intl/ko/about/play-terms/" target="_blank">Google Play Terms of Service</a>.</p>
+
+        <h2>8. Data Retention and Deletion</h2>
+        <p>Data stored on the device (Section 2) is deleted together with the App when the App is uninstalled. You can also delete individual words, categories, and so on directly within the App. Because the data is stored only on the device, learning data cannot be recovered if the App is deleted or the device is reset; if necessary, you can keep a copy in advance using the App's CSV export feature (for details, see Article 11 of the <a href="./terms-of-service.html?lang=en">Terms of Service</a>).</p>
+        <p>Retention and destruction of inquiry records follow Section 6. Purchase history is kept by Google Play (in the user's Google account), and the App does not hold it.</p>
+
+        <h2>9. Protection of Children's Personal Information</h2>
+        <p>The App does not intentionally collect personal information from children under the age of 13. For in-app purchases by minors, Google Play's protective procedures, such as purchase approval, apply.</p>
+
+        <h2>10. Changes to This Privacy Policy</h2>
+        <p>This Policy may be changed, and any change will be announced through an app update or through this page.</p>
+
+        <h2>11. Contact</h2>
+        <p>If you have any questions regarding personal information, please contact us at:</p>
+        <ul>
+            <li>Email: support@vivace-games.com</li>
+        </ul>
+        <div class="biz">
+            <ul>
+                <li>Business name (상호): 위성게임즈 (Vivace Games)</li>
+                <li>Representative (대표자): 손회성 (Son Hoe-seong)</li>
+                <li>Address (주소): (44421) 울산광역시 중구 성안5길 22, 2층 204호(성안동) — 2F #204, 22 Seongan 5-gil, Jung-gu, Ulsan 44421, Republic of Korea</li>
+                <li>Business registration number (사업자등록번호): 749-25-02260</li>
+                <li>Mail-order sales registration number (통신판매업 신고번호): 제2026-울산중구-0170호 (filing authority: 울산광역시 중구 / Jung-gu, Ulsan)</li>
+                <li>Website: <a href="https://vivace-games.com/" target="_blank">https://vivace-games.com/</a></li>
+            </ul>
+        </div>
+
+        <!-- TODO(출시): 개정 시행일을 실제 Play 출시일로 교체할 것. 이용약관 시행일과 같은 날로 맞춘다 -->
+        <p class="date">Initial effective date: April 10, 2026<br>Amended effective date: August 17, 2026 (amendment of Sections 1 and 4 and addition of Section 7 following the introduction of in-app purchases, supplementation of Sections 8 and 9, change of the inquiry email address, addition of business information)</p>
+        </div>
+        <!-- =================== English 끝 =================== -->
     </div>
+
+    <script>
+    (function () {
+        var KEY = 'myword.legal.lang';
+        var TITLES = { ko: 'My Word - 개인정보처리방침', en: 'My Word - Privacy Policy' };
+        var root = document.documentElement;
+        var buttons = document.querySelectorAll('.lang-btn');
+
+        function apply(lang) {
+            if (lang !== 'en') lang = 'ko';
+            root.setAttribute('data-lang', lang);
+            root.lang = lang;
+            if (TITLES[lang]) document.title = TITLES[lang];
+            for (var i = 0; i < buttons.length; i++) {
+                var active = buttons[i].getAttribute('data-set-lang') === lang;
+                buttons[i].className = active ? 'lang-btn is-active' : 'lang-btn';
+                buttons[i].setAttribute('aria-pressed', active ? 'true' : 'false');
+            }
+        }
+
+        function choose(lang) {
+            try { window.localStorage.setItem(KEY, lang); } catch (e) {}
+            apply(lang);
+        }
+
+        for (var i = 0; i < buttons.length; i++) {
+            (function (btn) {
+                btn.addEventListener('click', function () {
+                    choose(btn.getAttribute('data-set-lang'));
+                });
+            })(buttons[i]);
+        }
+
+        apply(root.getAttribute('data-lang'));
+    })();
+    </script>
 </body>
 </html>

@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, StyleSheet, Platform } from 'react-native';
 
+import { usePurchase } from '../contexts/PurchaseContext';
+
 let BannerAd: any = null;
 let BannerAdSize: any = null;
 let TestIds: any = null;
@@ -19,7 +21,10 @@ try {
 const { ADMOB_BANNER_ID } = require('../constants/adConfig');
 
 export default function AdBanner() {
-  if (Platform.OS === 'web' || !adsAvailable || !BannerAd) {
+  // 평생 광고 제거를 산 사람에게는 아무것도 그리지 않는다
+  const { adFree } = usePurchase();
+
+  if (adFree || Platform.OS === 'web' || !adsAvailable || !BannerAd) {
     return null;
   }
 

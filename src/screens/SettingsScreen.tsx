@@ -5,12 +5,16 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../contexts/ThemeContext';
 import { useBootstrap } from '../contexts/BootstrapContext';
+import { usePurchase } from '../contexts/PurchaseContext';
+import { useToast } from '../hooks/useToast';
+import Toast from '../components/Toast';
 import { THEMES } from '../constants/themes';
 import { APP_VERSION } from '../constants/appConfig';
 import ScreenHeader from '../components/ScreenHeader';
@@ -28,11 +32,47 @@ export default function SettingsScreen({ onBack, onSupport, onNotices }: Setting
   const { unreadCount } = useBootstrap();
   const { t } = useTranslation();
   const [language, setLanguage] = useState<AppLanguage>(() => getCurrentLanguage());
+  const { adFree, ready, price, busy, buy, restore } = usePurchase();
+  const { toast, showToast, hideToast } = useToast();
 
   const handleLanguageChange = async (next: AppLanguage) => {
     if (next === language) return;
     setLanguage(next);
     await changeAppLanguage(next);
+  };
+
+  /*
+   * ⚠ 성공 문구를 여기서 띄우지 않는다. 결제창을 닫는 것과 결제가 끝나는 것은 다른 사건이고,
+   *   실제 지급은 PurchaseContext 의 구매 리스너가 한다. 여기서는 실패만 알린다.
+   */
+  const handleBuy = async () => {
+    if (busy) return;
+    const result = await buy();
+    if (result.ok) return;
+    if (result.reason === 'cancelled') return; // 사용자가 스스로 닫은 것은 알릴 일이 아니다
+    if (result.reason === 'already-owned') {
+      showToast(t('이미 구매한 상품이에요. 구매 복원을 눌러 주세요'), 'info');
+      return;
+    }
+    if (result.reason === 'unavailable') {
+      showToast(t('지금은 스토어에 연결할 수 없어요'), 'error');
+      return;
+    }
+    showToast(t('구매를 마치지 못했어요. 잠시 후 다시 시도해 주세요'), 'error');
+  };
+
+  const handleRestore = async () => {
+    if (busy) return;
+    const result = await restore();
+    if (result.ok) {
+      showToast(t('광고 제거를 복원했어요'), 'success');
+      return;
+    }
+    if (result.reason === 'unavailable') {
+      showToast(t('복원할 구매 내역이 없어요'), 'info');
+      return;
+    }
+    showToast(t('복원하지 못했어요. 잠시 후 다시 시도해 주세요'), 'error');
   };
 
   return (
@@ -173,6 +213,79 @@ export default function SettingsScreen({ onBack, onSupport, onNotices }: Setting
           </TouchableOpacity>
         </View>
 
+        {/* 광고 */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('광고')}</Text>
+          {adFree ? (
+            <View
+              style={[styles.linkRow, { backgroundColor: colors.card, borderColor: colors.border }]}
+            >
+              <View style={styles.linkLeft}>
+                <MaterialIcons name="check-circle" size={20} color={colors.primary} />
+                <View>
+                  <Text style={[styles.linkTitle, { color: colors.text }]}>
+                    {t('광고가 제거되었어요')}
+                  </Text>
+                  <Text style={[styles.linkSubtitle, { color: colors.textTertiary }]}>
+                    {t('구매해 주셔서 고맙습니다')}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          ) : (
+            <>
+              <TouchableOpacity
+                onPress={handleBuy}
+                activeOpacity={0.7}
+                disabled={busy || !ready}
+                style={[
+                  styles.linkRow,
+                  {
+                    backgroundColor: colors.card,
+                    borderColor: colors.border,
+                    opacity: busy || !ready ? 0.5 : 1,
+                  },
+                ]}
+              >
+                <View style={styles.linkLeft}>
+                  <MaterialIcons name="block" size={20} color={colors.primary} />
+                  <View>
+                    <Text style={[styles.linkTitle, { color: colors.text }]}>
+                      {t('광고 제거')}
+                    </Text>
+                    <Text style={[styles.linkSubtitle, { color: colors.textTertiary }]}>
+                      {t('한 번만 결제하면 평생 광고가 없어요')}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.linkRight}>
+                  {busy ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : (
+                    <>
+                      {price !== null && (
+                        <Text style={[styles.priceText, { color: colors.primary }]}>{price}</Text>
+                      )}
+                      <MaterialIcons name="chevron-right" size={22} color={colors.textTertiary} />
+                    </>
+                  )}
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleRestore}
+                activeOpacity={0.7}
+                disabled={busy || !ready}
+                style={[styles.restoreRow, { opacity: busy || !ready ? 0.5 : 1 }]}
+              >
+                <Text style={[styles.restoreText, { color: colors.textSecondary }]}>
+                  {t('구매 복원')}
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
+
         {/* 앱 정보 */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('앱 정보')}</Text>
@@ -189,6 +302,13 @@ export default function SettingsScreen({ onBack, onSupport, onNotices }: Setting
           </View>
         </View>
       </ScrollView>
+
+      <Toast
+        message={toast.message}
+        type={toast.type}
+        visible={toast.visible}
+        onHide={hideToast}
+      />
     </View>
   );
 }
@@ -267,6 +387,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+  },
+  priceText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  restoreRow: {
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  restoreText: {
+    fontSize: 13,
+    textDecorationLine: 'underline',
   },
   countBadge: {
     minWidth: 20,

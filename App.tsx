@@ -20,6 +20,7 @@ import UpdateModal from './src/components/UpdateModal';
 import BlockingGate from './src/components/BlockingGate';
 import { ThemeProvider } from './src/contexts/ThemeContext';
 import { BootstrapProvider, useBootstrap } from './src/contexts/BootstrapContext';
+import { PurchaseProvider } from './src/contexts/PurchaseContext';
 import { versionService, isBlocking } from './src/services/versionService';
 import type { GateDecision } from './src/services/versionService';
 import type { QuizMode, QuizDirection, QuizAnswerType } from './src/screens/QuizSetupScreen';
@@ -368,9 +369,12 @@ export default function App() {
       <BootstrapProvider>
         <SafeAreaProvider>
           <ErrorBoundary>
-            <SafeAreaView style={{ flex: 1 }} edges={['bottom']}>
-              <AppContent />
-            </SafeAreaView>
+            {/* 광고 노출 여부를 정하므로 화면보다 위에 둔다. 실패해도 children 은 그대로 그린다 */}
+            <PurchaseProvider>
+              <SafeAreaView style={{ flex: 1 }} edges={['bottom']}>
+                <AppContent />
+              </SafeAreaView>
+            </PurchaseProvider>
           </ErrorBoundary>
         </SafeAreaProvider>
       </BootstrapProvider>

@@ -363,5 +363,17 @@
   "앱 종료": "Exit App",
   "종료하시겠습니까?": "Do you want to exit?",
   "종료": "Exit",
-  "앱 에러 발생": "An error occurred"
+  "앱 에러 발생": "An error occurred",
+  "광고": "Ads",
+  "광고 제거": "Remove Ads",
+  "한 번만 결제하면 평생 광고가 없어요": "One purchase, no ads ever again",
+  "광고가 제거되었어요": "Ads are removed",
+  "구매해 주셔서 고맙습니다": "Thank you for your purchase",
+  "구매 복원": "Restore purchase",
+  "광고 제거를 복원했어요": "Ad removal restored",
+  "복원할 구매 내역이 없어요": "No purchase found to restore",
+  "복원하지 못했어요. 잠시 후 다시 시도해 주세요": "Could not restore. Please try again shortly",
+  "이미 구매한 상품이에요. 구매 복원을 눌러 주세요": "You already own this. Tap Restore purchase",
+  "지금은 스토어에 연결할 수 없어요": "Cannot reach the store right now",
+  "구매를 마치지 못했어요. 잠시 후 다시 시도해 주세요": "Could not complete the purchase. Please try again shortly"
 }
