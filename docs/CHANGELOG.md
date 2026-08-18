@@ -2,7 +2,7 @@
 
 모든 주요 변경사항을 기록합니다.
 
-## [Unreleased]
+## [1.3.1] - 2026-08-18
 
 ### 앱 안에서 법적 고지 문서를 볼 수 있게 한다
 
@@ -27,6 +27,13 @@
 - **추가**: `docs/index.html` — 그동안 GitHub Pages 루트가 404 였다
 - **변경**: `SettingsScreen` 의 `languageRow`·`legalRow` 를 `cardRow` 하나로 합침(중복 제거)
 - **추가**: 번역 키 5개 (`en.json`)
+- **변경**: 버전 1.3.1 (`app.json` · `appConfig.APP_VERSION` 동시 갱신)
+
+**왜 SRS 와 묶지 않고 따로 내는가**: Play User Data 정책이
+`All apps must post a privacy policy link in the designated field within Play Console,
+and a privacy policy link or text within the app itself` 라고 정한다. 민감 권한 앱이나
+아동 대상 앱에만 해당하는 조건이 아니라 **모든 앱에 적용**된다. 1.3.0 은 이미 위반
+상태이므로 다음 기능 릴리즈를 기다리지 않는다.
 
 **검증**: `tsc --noEmit` 0 에러 · 테스트 140개 통과 · 웹에서 한국어/영어 설정 화면과
 문서 3종 확인, 링크가 `?lang=en` 을 달고 열리는 것 확인, 콘솔 에러 0건.

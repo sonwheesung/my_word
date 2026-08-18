@@ -24,6 +24,10 @@ const ROOT = path.join(__dirname, '..');
 const NODE_MODULES = path.join(ROOT, 'node_modules');
 const OUT = path.join(ROOT, 'docs', 'open-source-licenses.html');
 
+/* 앱 버전의 진실은 app.json 이다. package.json 의 version 은 0.0.1 로 방치돼 있어
+   그것을 쓰면 "My Word 0.0.1 기준" 이라는 거짓 문구가 찍힌다. */
+const APP_VERSION = require(path.join(ROOT, 'app.json')).expo.version;
+
 /** LICENSE 전문이 담겨 있을 법한 파일 이름 (우선순위 순) */
 const LICENSE_FILENAMES = [
   'LICENSE', 'LICENSE.md', 'LICENSE.txt', 'LICENCE', 'LICENCE.md', 'LICENCE.txt',
@@ -336,8 +340,8 @@ ${summaryRows}
 ${packageBlocks}
 
         <p class="date">
-            <span class="lang lang-ko">My Word ${require(path.join(ROOT, 'package.json')).version} 기준</span>
-            <span class="lang lang-en">As of My Word ${require(path.join(ROOT, 'package.json')).version}</span>
+            <span class="lang lang-ko">My Word ${APP_VERSION} 기준</span>
+            <span class="lang lang-en">As of My Word ${APP_VERSION}</span>
         </p>
     </div>
 
