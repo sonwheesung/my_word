@@ -36,6 +36,14 @@ export const SERVER_URL = (process.env.EXPO_PUBLIC_SERVER_URL ?? '').replace(/\/
 // 서버 `apps` 테이블에 이 코드가 등록·활성 상태여야 한다(아니면 404).
 export const APP_CODE = 'myword';
 
+// --- 법적 고지 문서 ---
+// GitHub Pages(`docs/`)로 게시된다. 푸시하면 즉시 반영된다.
+// ⚠ 처리방침 URL 은 Play Console 에도 등록돼 있다. 주소를 바꾸면 콘솔도 함께 바꿔야 한다.
+const LEGAL_BASE_URL = 'https://sonwheesung.github.io/my_word';
+export const PRIVACY_POLICY_URL = `${LEGAL_BASE_URL}/privacy-policy.html`;
+export const TERMS_OF_SERVICE_URL = `${LEGAL_BASE_URL}/terms-of-service.html`;
+export const OPEN_SOURCE_LICENSES_URL = `${LEGAL_BASE_URL}/open-source-licenses.html`;
+
 // 문의 본문 상한 (서버는 2000자에서 자르므로 그보다 크게 두지 않는다)
 export const SUPPORT_CONTENT_MAX = 2000;
 // 서버가 요구하는 최소 길이

@@ -375,5 +375,10 @@
   "복원하지 못했어요. 잠시 후 다시 시도해 주세요": "Could not restore. Please try again shortly",
   "이미 구매한 상품이에요. 구매 복원을 눌러 주세요": "You already own this. Tap Restore purchase",
   "지금은 스토어에 연결할 수 없어요": "Cannot reach the store right now",
-  "구매를 마치지 못했어요. 잠시 후 다시 시도해 주세요": "Could not complete the purchase. Please try again shortly"
+  "구매를 마치지 못했어요. 잠시 후 다시 시도해 주세요": "Could not complete the purchase. Please try again shortly",
+  "법적 고지": "Legal",
+  "개인정보처리방침": "Privacy Policy",
+  "이용약관": "Terms of Service",
+  "오픈소스 라이선스": "Open Source Licenses",
+  "문서를 열지 못했어요. 잠시 후 다시 시도해 주세요": "Couldn't open the document. Please try again in a moment"
 }

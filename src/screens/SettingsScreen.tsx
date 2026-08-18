@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -16,7 +17,12 @@ import { usePurchase } from '../contexts/PurchaseContext';
 import { useToast } from '../hooks/useToast';
 import Toast from '../components/Toast';
 import { THEMES } from '../constants/themes';
-import { APP_VERSION } from '../constants/appConfig';
+import {
+  APP_VERSION,
+  PRIVACY_POLICY_URL,
+  TERMS_OF_SERVICE_URL,
+  OPEN_SOURCE_LICENSES_URL,
+} from '../constants/appConfig';
 import ScreenHeader from '../components/ScreenHeader';
 import { changeAppLanguage } from '../i18n';
 import { LANGUAGE_LABEL, SUPPORTED_LANGUAGES, getCurrentLanguage, type AppLanguage } from '../i18n/language';
@@ -26,6 +32,18 @@ interface SettingsScreenProps {
   onSupport: () => void;
   onNotices: () => void;
 }
+
+/**
+ * 설정 화면에 노출할 법적 고지 문서. 배열 순서가 곧 표시 순서다.
+ *
+ * 문서는 GitHub Pages 에 있고 서로 링크돼 있다(처리방침 제8항 ↔ 약관 제11조).
+ * 그래서 하나만 걸면 사용자가 링크를 타고 나갔다 돌아올 길이 없다 — 셋 다 건다.
+ */
+const LEGAL_LINKS = [
+  { key: 'privacy', title: '개인정보처리방침', icon: 'privacy-tip', url: PRIVACY_POLICY_URL },
+  { key: 'terms', title: '이용약관', icon: 'gavel', url: TERMS_OF_SERVICE_URL },
+  { key: 'licenses', title: '오픈소스 라이선스', icon: 'code', url: OPEN_SOURCE_LICENSES_URL },
+] as const;
 
 export default function SettingsScreen({ onBack, onSupport, onNotices }: SettingsScreenProps) {
   const { colors, themeId, setThemeId } = useTheme();
@@ -61,6 +79,29 @@ export default function SettingsScreen({ onBack, onSupport, onNotices }: Setting
     showToast(t('구매를 마치지 못했어요. 잠시 후 다시 시도해 주세요'), 'error');
   };
 
+  /*
+   * 법적 고지 문서 열기.
+   *
+   * ⚠ 현재 앱 언어를 `?lang=` 으로 넘긴다. 문서는 한/영을 한 파일에 담고 이 값으로 고른다.
+   *   넘기지 않으면 브라우저 언어를 따라가서, 한국어로 앱을 쓰는 사람에게 영문 약관이
+   *   뜰 수 있다 — 읽을 수 없는 문서를 준 것과 같다.
+   *
+   * 브라우저가 없거나 열기에 실패해도 앱이 죽지 않도록 감싼다.
+   */
+  const openingLegalRef = useRef(false);
+
+  const openLegalDocument = async (url: string) => {
+    if (openingLegalRef.current) return; // 연속 탭으로 브라우저가 여러 번 뜨는 것을 막는다
+    openingLegalRef.current = true;
+    try {
+      await Linking.openURL(`${url}?lang=${language}`);
+    } catch (error) {
+      showToast(t('문서를 열지 못했어요. 잠시 후 다시 시도해 주세요'), 'error');
+    } finally {
+      openingLegalRef.current = false;
+    }
+  };
+
   const handleRestore = async () => {
     if (busy) return;
     const result = await restore();
@@ -91,7 +132,7 @@ export default function SettingsScreen({ onBack, onSupport, onNotices }: Setting
                 <TouchableOpacity
                   onPress={() => handleLanguageChange(code)}
                   activeOpacity={0.7}
-                  style={styles.languageRow}
+                  style={styles.cardRow}
                 >
                   {/* 각 언어를 그 언어로 적는다 — 자기 언어를 못 찾으면 의미가 없다 */}
                   <Text style={[styles.linkTitle, { color: colors.text }]}>{LANGUAGE_LABEL[code]}</Text>
@@ -286,6 +327,31 @@ export default function SettingsScreen({ onBack, onSupport, onNotices }: Setting
           )}
         </View>
 
+        {/* 법적 고지 */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('법적 고지')}</Text>
+          <View style={[styles.infoCard, { backgroundColor: colors.card, borderColor: colors.border, padding: 0 }]}>
+            {LEGAL_LINKS.map((link, index) => (
+              <React.Fragment key={link.key}>
+                {index > 0 && (
+                  <View style={[styles.infoDivider, { backgroundColor: colors.borderLight, marginVertical: 0 }]} />
+                )}
+                <TouchableOpacity
+                  onPress={() => openLegalDocument(link.url)}
+                  activeOpacity={0.7}
+                  style={styles.cardRow}
+                >
+                  <View style={styles.linkLeft}>
+                    <MaterialIcons name={link.icon} size={20} color={colors.primary} />
+                    <Text style={[styles.linkTitle, { color: colors.text }]}>{t(link.title)}</Text>
+                  </View>
+                  <MaterialIcons name="open-in-new" size={18} color={colors.textTertiary} />
+                </TouchableOpacity>
+              </React.Fragment>
+            ))}
+          </View>
+        </View>
+
         {/* 앱 정보 */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('앱 정보')}</Text>
@@ -432,7 +498,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 4,
   },
-  languageRow: {
+  /** 카드(infoCard) 안에 줄줄이 들어가는 행 — 언어 선택·법적 고지가 함께 쓴다 */
+  cardRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
