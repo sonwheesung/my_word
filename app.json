@@ -17,6 +17,7 @@
     },
     "android": {
       "package": "com.myword.front",
+      "versionCode": 16,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#8CC5A0"

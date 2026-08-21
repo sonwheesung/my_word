@@ -84,3 +84,14 @@ web-build/
 .env
 .env.local
 .env.*.local
+
+# --- 로컬 빌드 (EAS 무료 할당량 소진 시 사용) ---
+# expo prebuild 가 생성하는 네이티브 프로젝트. CNG 이므로 커밋하지 않는다
+/android/
+/ios/
+
+# 🔴 업로드 서명키와 비밀번호. 유출되면 앱을 위조 배포당할 수 있다 — 절대 커밋 금지
+*.jks
+keystore.properties
+credentials.json
+.gstack/
