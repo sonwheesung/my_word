@@ -184,7 +184,7 @@ export default function CategoryManageScreen({ onBack }: CategoryManageScreenPro
         <StatusBar style={colors.isDark ? 'light' : 'dark'} />
         <ScreenHeader title={t('카테고리 관리')} onBack={onBack} />
         <View style={[styles.skeletonAddButton, { backgroundColor: colors.border }]}>
-          <View style={styles.skeletonBar} />
+          <View style={[styles.skeletonBar, { backgroundColor: colors.border }]} />
         </View>
         <View style={{ padding: 16, paddingTop: 0 }}>
           {[1, 2, 3, 4].map((i) => (
@@ -233,6 +233,8 @@ export default function CategoryManageScreen({ onBack }: CategoryManageScreenPro
                 <TouchableOpacity
                   onPress={() => moveCategory(index, 'up')}
                   disabled={index === 0}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('{{name}} 위로 이동', { name: category.categoryName })}
                   style={[styles.orderButton, { backgroundColor: colors.borderLight }, index === 0 && styles.orderButtonDisabled]}
                 >
                   <MaterialIcons name="arrow-drop-up" size={20} color={index === 0 ? '#9CA3AF' : colors.primary} />
@@ -240,6 +242,8 @@ export default function CategoryManageScreen({ onBack }: CategoryManageScreenPro
                 <TouchableOpacity
                   onPress={() => moveCategory(index, 'down')}
                   disabled={index === categories.length - 1}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('{{name}} 아래로 이동', { name: category.categoryName })}
                   style={[
                     styles.orderButton,
                     { backgroundColor: colors.borderLight },
@@ -407,7 +411,6 @@ const styles = StyleSheet.create({
   },
   skeletonBar: {
     height: 16,
-    backgroundColor: '#D1D5DB',
     borderRadius: 4,
     width: '40%',
   },
@@ -563,7 +566,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 16,
+    borderRadius: 8,
     padding: 12,
     fontSize: 15,
     color: '#1A1A1A',

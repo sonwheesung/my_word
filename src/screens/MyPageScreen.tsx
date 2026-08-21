@@ -221,7 +221,7 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
                 {/* 요일 라벨 */}
                 <View style={styles.dayLabels}>
                   {DAY_LABELS.map((label, i) => (
-                    <Text key={i} style={styles.dayLabel}>
+                    <Text key={i} style={[styles.dayLabel, { color: colors.textTertiary }]}>
                       {i % 2 === 1 ? t(label) : ''}
                     </Text>
                   ))}
@@ -232,7 +232,7 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
                     <View key={colIdx} style={styles.heatmapColumn}>
                       {heatmapData.map((row, rowIdx) => {
                         const cell = row[colIdx];
-                        if (!cell) return <View key={rowIdx} style={styles.heatmapCell} />;
+                        if (!cell) return <View key={rowIdx} style={[styles.heatmapCell, { backgroundColor: colors.borderLight }]} />;
                         return (
                           <View
                             key={rowIdx}
@@ -268,7 +268,7 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
 
         {/* 연속 학습 카드 */}
         {stats && stats.streakDays > 0 && (
-          <View style={[styles.card, styles.streakCard]}>
+          <View style={[styles.card, styles.streakCard, { backgroundColor: colors.warningBg, borderColor: colors.warningBorder }]}>
             <MaterialIcons
               name={stats.streakDays >= 7 ? 'emoji-events' : stats.streakDays >= 3 ? 'local-fire-department' : 'auto-awesome'}
               size={32}
@@ -276,10 +276,10 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
               style={{ marginRight: 12 }}
             />
             <View style={styles.streakContent}>
-              <Text style={styles.streakTitle}>
+              <Text style={[styles.streakTitle, { color: colors.warningText }]}>
                 {t('{{count}}일 연속 학습 중!', { count: stats.streakDays })}
               </Text>
-              <Text style={styles.streakDesc}>
+              <Text style={[styles.streakDesc, { color: colors.warningText }]}>
                 {stats.streakDays >= 7
                   ? t('대단해요! 꾸준한 학습이 빛을 발하고 있어요')
                   : stats.streakDays >= 3
@@ -411,7 +411,6 @@ const styles = StyleSheet.create({
   },
   dayLabel: {
     fontSize: 10,
-    color: '#9CA3AF',
     height: 13,
     lineHeight: 13,
     textAlign: 'right',
@@ -428,7 +427,6 @@ const styles = StyleSheet.create({
     width: 11,
     height: 11,
     borderRadius: 2,
-    backgroundColor: '#EBEDF0',
   },
   // Legend
   legendContainer: {
@@ -452,9 +450,7 @@ const styles = StyleSheet.create({
   streakCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFBEB',
     borderWidth: 1,
-    borderColor: '#FDE68A',
   },
   streakContent: {
     flex: 1,
@@ -462,12 +458,10 @@ const styles = StyleSheet.create({
   streakTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#92400E',
     marginBottom: 2,
   },
   streakDesc: {
     fontSize: 13,
-    color: '#A16207',
     lineHeight: 18,
   },
 });

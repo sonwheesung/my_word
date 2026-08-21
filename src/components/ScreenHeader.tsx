@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -15,6 +16,7 @@ interface ScreenHeaderProps {
 }
 
 export default function ScreenHeader({ title, onBack, rightButton }: ScreenHeaderProps) {
+  const { t } = useTranslation();
   const { colors } = useTheme();
   // App 의 SafeAreaView 는 edges={['bottom']} 이라 상단 여백은 여기서 직접 준다.
   // 예전에는 paddingTop: 48 로 박아 뒀는데, 상태바 높이가 기기마다 달라서
@@ -32,7 +34,13 @@ export default function ScreenHeader({ title, onBack, rightButton }: ScreenHeade
         },
       ]}
     >
-      <TouchableOpacity onPress={onBack} style={styles.backButton} hitSlop={HIT_SLOP}>
+      <TouchableOpacity
+        onPress={onBack}
+        style={styles.backButton}
+        hitSlop={HIT_SLOP}
+        accessibilityRole="button"
+        accessibilityLabel={t('뒤로 가기')}
+      >
         <MaterialIcons name="arrow-back-ios-new" size={20} color={colors.primary} />
       </TouchableOpacity>
       <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>

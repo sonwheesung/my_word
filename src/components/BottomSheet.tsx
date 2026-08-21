@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -43,6 +44,7 @@ export default function BottomSheet({
   scrollable = true,
   avoidKeyboard = false,
 }: BottomSheetProps) {
+  const { t } = useTranslation();
   const { colors } = useTheme();
 
   const body = scrollable ? (
@@ -57,7 +59,7 @@ export default function BottomSheet({
       activeOpacity={1}
       onPress={onClose}
       accessibilityRole="button"
-      accessibilityLabel="닫기"
+      accessibilityLabel={t('닫기')}
     >
       <TouchableOpacity
         activeOpacity={1}

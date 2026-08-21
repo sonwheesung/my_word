@@ -445,7 +445,6 @@ const styles = StyleSheet.create({
   },
   emptyContainer: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
@@ -503,7 +502,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 16,
+    borderRadius: 8,
     padding: 14,
   },
   selectorLeft: {

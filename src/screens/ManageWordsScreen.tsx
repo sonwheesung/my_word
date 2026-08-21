@@ -353,7 +353,7 @@ export default function ManageWordsScreen({
           <Text style={[styles.primaryButtonText, { color: colors.card }]}>{t('카테고리 관리')}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.secondaryButton, { backgroundColor: colors.border }]} onPress={onBack}>
-          <Text style={styles.secondaryButtonText}>{t('돌아가기')}</Text>
+          <Text style={[styles.secondaryButtonText, { color: colors.text }]}>{t('돌아가기')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -529,6 +529,8 @@ export default function ManageWordsScreen({
                       <TouchableOpacity
                         style={[styles.modalSpeakButton, { backgroundColor: colors.primaryLight }]}
                         onPress={() => speakWord(selectedWord)}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('{{word}} 발음 듣기', { word: selectedWord.word })}
                       >
                         <MaterialIcons name="volume-up" size={20} color={colors.primary} />
                       </TouchableOpacity>
@@ -550,7 +552,7 @@ export default function ManageWordsScreen({
                     <View style={styles.modalSection}>
                       <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>{t('예문')}</Text>
                       {selectedWord.examples.map((example, index) => (
-                        <View key={index} style={styles.modalExampleItem}>
+                        <View key={index} style={[styles.modalExampleItem, { backgroundColor: colors.surface }]}>
                           <Text style={[styles.modalExampleText, { color: colors.text }]}>{example.example}</Text>
                           {example.translation && (
                             <Text style={[styles.modalExampleTranslation, { color: colors.textSecondary }]}>
@@ -580,7 +582,7 @@ export default function ManageWordsScreen({
                   {selectedWord.memo && selectedWord.memo.trim() !== '' && (
                     <View style={styles.modalSection}>
                       <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>{t('메모')}</Text>
-                      <View style={styles.modalMemoContainer}>
+                      <View style={[styles.modalMemoContainer, { backgroundColor: colors.surface }]}>
                         <Text style={[styles.modalMemoText, { color: colors.text }]}>{selectedWord.memo}</Text>
                       </View>
                     </View>
@@ -678,7 +680,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   secondaryButtonText: {
-    color: '#374151',
     fontSize: 15,
     fontWeight: '600',
   },
@@ -755,7 +756,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 16,
+    borderRadius: 8,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 15,
@@ -881,7 +882,6 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   modalExampleItem: {
-    backgroundColor: '#F9FAFB',
     borderRadius: 8,
     padding: 12,
     marginBottom: 8,
@@ -982,7 +982,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   modalMemoContainer: {
-    backgroundColor: '#F9FAFB',
     borderRadius: 8,
     padding: 12,
   },

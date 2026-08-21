@@ -315,11 +315,11 @@ export default function StatisticsScreen({ onBack }: StatisticsScreenProps) {
           const motivation = getMotivationMessage();
           if (!motivation) return null;
           return (
-            <View style={styles.motivationCard}>
+            <View style={[styles.motivationCard, { backgroundColor: colors.warningBg, borderColor: colors.warningBorder }]}>
               <MaterialIcons name={motivation.iconName} size={32} color={motivation.iconColor} style={{ marginRight: 12 }} />
               <View style={styles.motivationContent}>
-                <Text style={styles.motivationTitle}>{motivation.title}</Text>
-                <Text style={styles.motivationDesc}>{motivation.desc}</Text>
+                <Text style={[styles.motivationTitle, { color: colors.warningText }]}>{motivation.title}</Text>
+                <Text style={[styles.motivationDesc, { color: colors.warningText }]}>{motivation.desc}</Text>
               </View>
             </View>
           );
@@ -358,7 +358,7 @@ export default function StatisticsScreen({ onBack }: StatisticsScreenProps) {
                       {cat.accuracy.toFixed(0)}%
                     </Text>
                   ) : (
-                    <Text style={styles.categoryStatNoData}>-</Text>
+                    <Text style={[styles.categoryStatNoData, { color: colors.textTertiary }]}>-</Text>
                   )}
                 </View>
                 {cat.quizCount > 0 && (
@@ -375,20 +375,20 @@ export default function StatisticsScreen({ onBack }: StatisticsScreenProps) {
                       />
                     </View>
                     <View style={styles.categoryStatDetails}>
-                      <Text style={styles.categoryStatDetailText}>
+                      <Text style={[styles.categoryStatDetailText, { color: colors.textSecondary }]}>
                         {t('퀴즈 {{count}}회', { count: cat.quizCount })}
                       </Text>
-                      <Text style={styles.categoryStatDetailDot}>·</Text>
+                      <Text style={[styles.categoryStatDetailDot, { color: colors.textTertiary }]}>·</Text>
                       <Text style={[styles.categoryStatDetailText, { color: colors.successText }]}>
                         {t('정답 {{count}}', { count: cat.correctCount })}
                       </Text>
-                      <Text style={styles.categoryStatDetailDot}>·</Text>
+                      <Text style={[styles.categoryStatDetailDot, { color: colors.textTertiary }]}>·</Text>
                       <Text style={[styles.categoryStatDetailText, { color: colors.dangerText }]}>
                         {t('오답 {{count}}', { count: cat.incorrectCount })}
                       </Text>
                       {cat.weakWordCount > 0 && (
                         <>
-                          <Text style={styles.categoryStatDetailDot}>·</Text>
+                          <Text style={[styles.categoryStatDetailDot, { color: colors.textTertiary }]}>·</Text>
                           <Text style={[styles.categoryStatDetailText, { color: colors.warningText }]}>
                             {t('취약 {{count}}', { count: cat.weakWordCount })}
                           </Text>
@@ -484,14 +484,14 @@ export default function StatisticsScreen({ onBack }: StatisticsScreenProps) {
                     <View style={styles.wordItemInfo}>
                       <Text style={[styles.wordItemWord, { color: colors.text }]}>{item.word}</Text>
                       <View style={styles.wordItemStats}>
-                        <Text style={styles.wordItemStatText}>
+                        <Text style={[styles.wordItemStatText, { color: colors.textSecondary }]}>
                           {t('퀴즈')} <Text style={styles.wordItemStatBold}>{item.totalCount}</Text>
                         </Text>
-                        <Text style={styles.wordItemStatDot}>·</Text>
+                        <Text style={[styles.wordItemStatDot, { color: colors.textTertiary }]}>·</Text>
                         <Text style={[styles.wordItemStatText, { color: colors.successText }]}>
                           {t('정답')} <Text style={styles.wordItemStatBold}>{item.correctCount}</Text>
                         </Text>
-                        <Text style={styles.wordItemStatDot}>·</Text>
+                        <Text style={[styles.wordItemStatDot, { color: colors.textTertiary }]}>·</Text>
                         <Text style={[styles.wordItemStatText, { color: colors.dangerText }]}>
                           {t('오답')} <Text style={styles.wordItemStatBold}>{item.incorrectCount}</Text>
                         </Text>
@@ -527,7 +527,6 @@ const styles = StyleSheet.create({
   },
   emptyContainer: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
@@ -650,14 +649,12 @@ const styles = StyleSheet.create({
   },
   // 모티베이션 카드
   motivationCard: {
-    backgroundColor: '#FFFBEB',
     borderRadius: 20,
     padding: 16,
     marginBottom: 16,
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#FDE68A',
   },
   motivationContent: {
     flex: 1,
@@ -665,12 +662,10 @@ const styles = StyleSheet.create({
   motivationTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#92400E',
     marginBottom: 2,
   },
   motivationDesc: {
     fontSize: 13,
-    color: '#A16207',
     lineHeight: 18,
   },
   // 단어 정답률 버튼
@@ -746,7 +741,6 @@ const styles = StyleSheet.create({
   categoryStatNoData: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#D1D5DB',
   },
   categoryStatBar: {
     height: 6,
@@ -765,11 +759,9 @@ const styles = StyleSheet.create({
   },
   categoryStatDetailText: {
     fontSize: 12,
-    color: '#6B7280',
   },
   categoryStatDetailDot: {
     fontSize: 12,
-    color: '#D1D5DB',
     marginHorizontal: 6,
   },
   categoryStatNoQuiz: {
@@ -926,14 +918,12 @@ const styles = StyleSheet.create({
   },
   wordItemStatText: {
     fontSize: 12,
-    color: '#6B7280',
   },
   wordItemStatBold: {
     fontWeight: '700',
   },
   wordItemStatDot: {
     fontSize: 12,
-    color: '#D1D5DB',
     marginHorizontal: 6,
   },
   wordItemAccuracy: {

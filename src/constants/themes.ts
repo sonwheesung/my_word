@@ -56,6 +56,19 @@ export interface ThemeColors {
    */
   warningText: string;
 
+  /**
+   * 의미색 블록(힌트·정답·오답 카드)의 배경과 테두리.
+   *
+   * 연한 파스텔 배경은 다크 테마에서 그대로 밝게 떠 버린다. 명암별로 값이 다르다.
+   * 각 배경 위에는 짝이 되는 successText / warningText / dangerText 를 올린다.
+   */
+  successBg: string;
+  successBorder: string;
+  warningBg: string;
+  warningBorder: string;
+  dangerBg: string;
+  dangerBorder: string;
+
   // 다크모드 여부
   isDark: boolean;
 }
@@ -96,6 +109,12 @@ export const THEMES: Theme[] = [
       dangerText: '#DC2626', // 카드 배경 위 4.83:1
       successText: '#047857',
       warningText: '#92400E',
+      successBg: '#D1FAE5',
+      successBorder: '#6EE7B7',
+      warningBg: '#FFFBEB',
+      warningBorder: '#FDE68A',
+      dangerBg: '#FEE2E2',
+      dangerBorder: '#FCA5A5',
       isDark: false,
     },
   },
@@ -122,6 +141,12 @@ export const THEMES: Theme[] = [
       dangerText: '#DC2626', // 카드 배경 위 4.83:1
       successText: '#047857',
       warningText: '#92400E',
+      successBg: '#D1FAE5',
+      successBorder: '#6EE7B7',
+      warningBg: '#FFFBEB',
+      warningBorder: '#FDE68A',
+      dangerBg: '#FEE2E2',
+      dangerBorder: '#FCA5A5',
       isDark: false,
     },
   },
@@ -148,6 +173,12 @@ export const THEMES: Theme[] = [
       dangerText: '#DC2626', // 카드 배경 위 4.83:1
       successText: '#047857',
       warningText: '#92400E',
+      successBg: '#D1FAE5',
+      successBorder: '#6EE7B7',
+      warningBg: '#FFFBEB',
+      warningBorder: '#FDE68A',
+      dangerBg: '#FEE2E2',
+      dangerBorder: '#FCA5A5',
       isDark: false,
     },
   },
@@ -174,6 +205,12 @@ export const THEMES: Theme[] = [
       dangerText: '#DC2626', // 카드 배경 위 4.83:1
       successText: '#047857',
       warningText: '#92400E',
+      successBg: '#D1FAE5',
+      successBorder: '#6EE7B7',
+      warningBg: '#FFFBEB',
+      warningBorder: '#FDE68A',
+      dangerBg: '#FEE2E2',
+      dangerBorder: '#FCA5A5',
       isDark: false,
     },
   },
@@ -200,6 +237,12 @@ export const THEMES: Theme[] = [
       dangerText: '#DC2626', // 카드 배경 위 4.83:1
       successText: '#047857',
       warningText: '#92400E',
+      successBg: '#D1FAE5',
+      successBorder: '#6EE7B7',
+      warningBg: '#FFFBEB',
+      warningBorder: '#FDE68A',
+      dangerBg: '#FEE2E2',
+      dangerBorder: '#FCA5A5',
       isDark: false,
     },
   },
@@ -226,6 +269,12 @@ export const THEMES: Theme[] = [
       dangerText: '#F87171', // 카드 배경 위 6.03:1
       successText: '#6EE7B7',
       warningText: '#FCD34D',
+      successBg: '#10291F',
+      successBorder: '#1F5741',
+      warningBg: '#2B2312',
+      warningBorder: '#5C4A1C',
+      dangerBg: '#2E1717',
+      dangerBorder: '#5E2B2B',
       isDark: true,
     },
   },

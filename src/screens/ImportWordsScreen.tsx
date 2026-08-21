@@ -254,7 +254,7 @@ export default function ImportWordsScreen({ onBack, onImportComplete }: ImportWo
             style={styles.checkboxRow}
             onPress={() => setSkipDuplicates(!skipDuplicates)}
           >
-            <View style={[styles.checkbox, !skipDuplicates && styles.checkboxChecked]}>
+            <View style={[styles.checkbox, { borderColor: colors.border }, !skipDuplicates && { backgroundColor: colors.primary, borderColor: colors.primary }]}>
               {!skipDuplicates && <MaterialIcons name="check" size={16} color="#FFFFFF" />}
             </View>
             <Text style={[styles.checkboxLabel, { color: colors.text }]}>{t('중복된 단어도 함께 받기')}</Text>
@@ -388,8 +388,8 @@ export default function ImportWordsScreen({ onBack, onImportComplete }: ImportWo
                   </View>
                 ))}
               {skipDuplicates && previewDupCount > 0 && (
-                <View style={styles.previewSkippedInfo}>
-                  <Text style={styles.previewSkippedText}>
+                <View style={[styles.previewSkippedInfo, { backgroundColor: colors.warningBg }]}>
+                  <Text style={[styles.previewSkippedText, { color: colors.warningText }]}>
                     {t('중복 단어 {{count}}개는 건너뜁니다', { count: previewDupCount })}
                   </Text>
                 </View>
@@ -508,7 +508,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 16,
+    borderRadius: 8,
     padding: 14,
   },
   categorySelectorText: {
@@ -530,7 +530,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 16,
+    borderRadius: 8,
     padding: 14,
     fontSize: 14,
     color: '#1A1A1A',
@@ -552,15 +552,10 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderWidth: 2,
-    borderColor: '#D1D5DB',
     borderRadius: 4,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
-  },
-  checkboxChecked: {
-    backgroundColor: '#6366F1',
-    borderColor: '#6366F1',
   },
   checkboxLabel: {
     fontSize: 15,
@@ -733,13 +728,11 @@ const styles = StyleSheet.create({
   },
   previewSkippedInfo: {
     padding: 12,
-    backgroundColor: '#FEF3C7',
     borderRadius: 6,
     marginTop: 8,
   },
   previewSkippedText: {
     fontSize: 13,
-    color: '#92400E',
     textAlign: 'center',
   },
   previewButtons: {

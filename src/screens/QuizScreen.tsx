@@ -508,6 +508,8 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
               <TouchableOpacity
                 style={[styles.speakButton, { backgroundColor: colors.primaryLight }]}
                 onPress={() => speakWord(currentQuestion.question, currentQuestion.word)}
+                accessibilityRole="button"
+                accessibilityLabel={t('문제 발음 듣기')}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
                 <MaterialIcons name="volume-up" size={22} color={colors.primary} />
@@ -520,15 +522,15 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
         {!showHint ? (
           <TouchableOpacity style={styles.hintButton} onPress={() => setShowHint(true)}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <MaterialIcons name="lightbulb-outline" size={18} color="#8B5CF6" />
-              <Text style={styles.hintButtonText}> {t('힌트 보기')}</Text>
+              <MaterialIcons name="lightbulb-outline" size={18} color={colors.primary} />
+              <Text style={[styles.hintButtonText, { color: colors.primary }]}> {t('힌트 보기')}</Text>
             </View>
           </TouchableOpacity>
         ) : (
-          <View style={styles.hintBox}>
+          <View style={[styles.hintBox, { backgroundColor: colors.warningBg, borderColor: colors.warningBorder }]}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <MaterialIcons name="lightbulb-outline" size={18} color="#92400E" />
-              <Text style={styles.hintText}> {getHint(currentQuestion)}</Text>
+              <MaterialIcons name="lightbulb-outline" size={18} color={colors.warningText} />
+              <Text style={[styles.hintText, { color: colors.warningText }]}> {getHint(currentQuestion)}</Text>
             </View>
           </View>
         )}
@@ -547,8 +549,14 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
                   style={[
                     styles.choiceButton,
                     { backgroundColor: colors.card, borderColor: colors.border },
-                    isCorrectChoice && styles.choiceCorrect,
-                    isWrongSelected && styles.choiceWrong,
+                    isCorrectChoice && {
+                      backgroundColor: colors.successBg,
+                      borderColor: colors.successBorder,
+                    },
+                    isWrongSelected && {
+                      backgroundColor: colors.dangerBg,
+                      borderColor: colors.dangerBorder,
+                    },
                     isSelected && !feedback && { borderColor: colors.primaryStrong, backgroundColor: colors.primaryLight },
                   ]}
                   onPress={() => handleChoiceSelect(choice)}
@@ -587,8 +595,8 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
                     styles.choiceText,
                     { color: colors.text },
                     isSelected && !feedback && { color: colors.primaryStrong, fontWeight: '600' },
-                    isCorrectChoice && styles.choiceTextCorrect,
-                    isWrongSelected && styles.choiceTextWrong,
+                    isCorrectChoice && { color: colors.successText, fontWeight: '600' },
+                    isWrongSelected && { color: colors.dangerText, fontWeight: '600' },
                   ]}>
                     {choice}
                   </Text>
@@ -624,16 +632,18 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
         {feedback && (
           <View style={[
             styles.feedbackBox,
-            feedback.isCorrect ? styles.feedbackCorrect : styles.feedbackWrong,
+            feedback.isCorrect
+              ? { backgroundColor: colors.successBg, borderColor: colors.successBorder }
+              : { backgroundColor: colors.dangerBg, borderColor: colors.dangerBorder },
           ]}>
             <Text style={[
               styles.feedbackText,
-              feedback.isCorrect ? styles.feedbackTextCorrect : styles.feedbackTextWrong,
+              { color: feedback.isCorrect ? colors.successText : colors.dangerText },
             ]}>
               {feedback.isCorrect ? t('정답!') : t('오답')}
             </Text>
             {!feedback.isCorrect && (
-              <Text style={styles.feedbackCorrectAnswer}>
+              <Text style={[styles.feedbackCorrectAnswer, { color: colors.dangerText }]}>
                 {t('정답: {{answer}}', { answer: feedback.correctAnswer })}
               </Text>
             )}
@@ -803,20 +813,16 @@ const styles = StyleSheet.create({
   },
   hintButtonText: {
     fontSize: 14,
-    color: '#8B5CF6',
     fontWeight: '600',
   },
   hintBox: {
-    backgroundColor: '#FEF3C7',
     borderRadius: 16,
     padding: 12,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#FDE68A',
   },
   hintText: {
     fontSize: 15,
-    color: '#92400E',
     fontWeight: '600',
   },
   answerSection: {
@@ -832,7 +838,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 16,
+    borderRadius: 8,
     padding: 14,
     fontSize: 16,
     color: '#1A1A1A',
@@ -860,28 +866,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   feedbackCorrect: {
-    backgroundColor: '#D1FAE5',
     borderWidth: 1,
-    borderColor: '#6EE7B7',
   },
   feedbackWrong: {
-    backgroundColor: '#FEE2E2',
     borderWidth: 1,
-    borderColor: '#FCA5A5',
   },
   feedbackText: {
     fontSize: 20,
     fontWeight: 'bold',
   },
   feedbackTextCorrect: {
-    color: '#065F46',
   },
   feedbackTextWrong: {
-    color: '#991B1B',
   },
   feedbackCorrectAnswer: {
     fontSize: 15,
-    color: '#991B1B',
     marginTop: 8,
   },
   // 객관식 스타일
@@ -902,14 +901,6 @@ const styles = StyleSheet.create({
   choiceSelected: {
     borderColor: '#C4B5FD',
     backgroundColor: '#F5F3FF',
-  },
-  choiceCorrect: {
-    borderColor: '#10B981',
-    backgroundColor: '#D1FAE5',
-  },
-  choiceWrong: {
-    borderColor: '#EF4444',
-    backgroundColor: '#FEE2E2',
   },
   choiceKey: {
     width: 28,
@@ -933,13 +924,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#1A1A1A',
     flex: 1,
-  },
-  choiceTextCorrect: {
-    color: '#065F46',
-    fontWeight: '600',
-  },
-  choiceTextWrong: {
-    color: '#991B1B',
-    fontWeight: '600',
   },
 });
