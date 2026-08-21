@@ -16,7 +16,9 @@ import type { Category } from '../types/word';
 import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
 import ScreenHeader from '../components/ScreenHeader';
+import BottomSheet from '../components/BottomSheet';
 import { useTheme } from '../contexts/ThemeContext';
+import { FONT, RADIUS, SPACING } from '../constants/design';
 
 interface QuizSetupScreenProps {
   onBack: () => void;
@@ -364,57 +366,40 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
         </TouchableOpacity>
       </ScrollView>
 
-      {/* 카테고리 선택 모달 */}
-      <Modal
+      {/* 카테고리 선택 — 아래에서 올라오는 시트 */}
+      <BottomSheet
         visible={showCategoryPicker}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowCategoryPicker(false)}
+        onClose={() => setShowCategoryPicker(false)}
+        title={t('카테고리 선택')}
       >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowCategoryPicker(false)}
-        >
-          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
-            <Text style={[styles.modalTitle, { color: colors.text, borderBottomColor: colors.border }]}>{t('카테고리 선택')}</Text>
-            <ScrollView style={styles.categoryList}>
-              {categories.map((category) => (
-                <TouchableOpacity
-                  key={category.categoryId}
-                  style={[
-                    styles.categoryOption,
-                    { borderBottomColor: colors.borderLight },
-                    selectedCategoryId === category.categoryId && { backgroundColor: colors.primaryLight },
-                  ]}
-                  onPress={() => handleCategorySelect(category.categoryId)}
-                >
-                  <View style={styles.categoryOptionRow}>
-                    <Text
-                      style={[
-                        styles.categoryOptionText,
-                        { color: colors.textSecondary },
-                        selectedCategoryId === category.categoryId && { color: colors.primary, fontWeight: '600' },
-                      ]}
-                    >
-                      {category.categoryName}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.categoryOptionCount,
-                        { color: colors.textTertiary },
-                        selectedCategoryId === category.categoryId && { color: colors.primary },
-                      ]}
-                    >
-                      {t('{{count}}개', { count: category.wordCount ?? 0 })}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        </TouchableOpacity>
-      </Modal>
+        {categories.map((category) => {
+          const selected = selectedCategoryId === category.categoryId;
+          return (
+            <TouchableOpacity
+              key={category.categoryId}
+              style={[styles.sheetOption, selected && { backgroundColor: colors.primaryLight }]}
+              onPress={() => handleCategorySelect(category.categoryId)}
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+            >
+              <Text
+                style={[
+                  styles.sheetOptionText,
+                  { color: colors.textSecondary },
+                  selected && { color: colors.primary, fontWeight: '600' },
+                ]}
+                numberOfLines={1}
+              >
+                {category.categoryName}
+              </Text>
+              <Text style={[styles.sheetOptionCount, { color: colors.textTertiary }]}>
+                {t('{{count}}개', { count: category.wordCount ?? 0 })}
+              </Text>
+              {selected && <MaterialIcons name="check" size={18} color={colors.primary} />}
+            </TouchableOpacity>
+          );
+        })}
+      </BottomSheet>
 
       <Toast
         message={toast.message}
@@ -427,6 +412,22 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
 }
 
 const styles = StyleSheet.create({
+  sheetOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    borderRadius: RADIUS.md,
+    marginHorizontal: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md + 2,
+  },
+  sheetOptionText: {
+    flex: 1,
+    fontSize: FONT.body,
+  },
+  sheetOptionCount: {
+    fontSize: FONT.caption,
+  },
   container: {
     flex: 1,
     backgroundColor: '#F8F9FA',

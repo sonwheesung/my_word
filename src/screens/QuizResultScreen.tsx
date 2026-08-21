@@ -1,9 +1,9 @@
 import { useTranslation } from 'react-i18next';
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { SPACING } from '../constants/design';
+import { HIT_SLOP, SPACING } from '../constants/design';
 import { MaterialIcons } from '@expo/vector-icons';
 import type { QuizResult } from '../services/quizService';
 import { useInterstitialAd } from '../hooks/useInterstitialAd';
@@ -33,7 +33,6 @@ export default function QuizResultScreen({
   const { t } = useTranslation();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const [showWrongAnswers, setShowWrongAnswers] = useState(false);
   const { showAd } = useInterstitialAd();
   const { toast, showToast, hideToast } = useToast();
   const percentage = totalCount > 0 ? Math.round((correctCount / totalCount) * 100) : 0;
@@ -116,30 +115,102 @@ export default function QuizResultScreen({
           </View>
         </View>
 
+        {/*
+          틀린 단어를 모달 없이 여기에 바로 펼친다. 예전에는 `틀린 정답 확인하기` 를
+          눌러 전체화면 모달을 열어야 볼 수 있었다.
+        */}
+        {wrongResults.length > 0 && (
+          <View style={styles.wrongSection}>
+            <Text style={[styles.wrongSectionTitle, { color: colors.textSecondary }]}>
+              {t('틀린 단어')}
+            </Text>
+            <View style={[styles.wrongList, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              {wrongResults.map((result, index) => {
+                const speakableText = getSpeakableText(result);
+                return (
+                  <View
+                    key={index}
+                    style={[
+                      styles.wrongRowItem,
+                      index < wrongResults.length - 1 && {
+                        borderBottomWidth: 1,
+                        borderBottomColor: colors.borderLight,
+                      },
+                    ]}
+                  >
+                    <View style={styles.wrongRowHead}>
+                      <Text style={[styles.wrongRowWord, { color: colors.text }]} numberOfLines={1}>
+                        {result.word}
+                      </Text>
+                      {speakableText && (
+                        <TouchableOpacity
+                          onPress={() => speakWord(speakableText)}
+                          hitSlop={HIT_SLOP}
+                          accessibilityRole="button"
+                          accessibilityLabel={t('{{word}} 발음 듣기', { word: result.word })}
+                        >
+                          <MaterialIcons name="volume-up" size={18} color={colors.primary} />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                    <View style={styles.wrongRowLine}>
+                      <Text style={[styles.wrongRowLabel, { color: colors.textTertiary }]}>{t('정답')}</Text>
+                      <Text style={[styles.wrongRowValue, { color: colors.successText }]}>
+                        {result.correctAnswer}
+                      </Text>
+                    </View>
+                    {result.userAnswer ? (
+                      <View style={styles.wrongRowLine}>
+                        <Text style={[styles.wrongRowLabel, { color: colors.textTertiary }]}>{t('내 답')}</Text>
+                        <Text style={[styles.wrongRowValue, { color: colors.dangerText }]}>
+                          {result.userAnswer}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
+        {/* 주 액션 하나 + 보조 하나. 예전에는 비슷한 무게의 버튼이 넷이었다 */}
         <View style={styles.buttonContainer}>
-          {wrongResults.length > 0 && (
-            <>
+          <View style={styles.buttonRow}>
+            <TouchableOpacity
+              style={[styles.homeButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
+              onPress={onBackToHome}
+              accessibilityRole="button"
+            >
+              <Text style={[styles.homeButtonText, { color: colors.textSecondary }]}>{t('홈으로')}</Text>
+            </TouchableOpacity>
+            {wrongResults.length > 0 ? (
               <TouchableOpacity
-                style={[styles.wrongAnswerButton, { backgroundColor: colors.primaryLight, borderColor: colors.border }]}
-                onPress={() => setShowWrongAnswers(true)}
+                style={[styles.retryButton, { backgroundColor: colors.primaryStrong }]}
+                onPress={onRetryWrong}
                 accessibilityRole="button"
               >
-                <Text style={[styles.wrongAnswerButtonText, { color: colors.primary }]}>{t('틀린 정답 확인하기')}</Text>
+                <Text style={styles.retryButtonText}>
+                  {t('틀린 {{count}}개 다시 풀기', { count: wrongResults.length })}
+                </Text>
               </TouchableOpacity>
+            ) : (
               <TouchableOpacity
-                style={styles.retryWrongButton}
-                onPress={onRetryWrong}
+                style={[styles.retryButton, { backgroundColor: colors.primaryStrong }]}
+                onPress={onRetry}
+                accessibilityRole="button"
               >
-                <Text style={styles.retryWrongButtonText}>{t('틀린 문제만 다시 풀기')}</Text>
+                <Text style={styles.retryButtonText}>{t('다시 풀기')}</Text>
               </TouchableOpacity>
-            </>
+            )}
+          </View>
+          {wrongResults.length > 0 && (
+            <TouchableOpacity style={styles.retryAllButton} onPress={onRetry} accessibilityRole="button">
+              <Text style={[styles.retryAllButtonText, { color: colors.primary }]}>
+                {t('전체 다시 풀기')}
+              </Text>
+            </TouchableOpacity>
           )}
-          <TouchableOpacity style={[styles.retryButton, { backgroundColor: colors.primaryStrong }]} onPress={onRetry}>
-            <Text style={styles.retryButtonText}>{t('다시 풀기')}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.homeButton, { backgroundColor: colors.border }]} onPress={onBackToHome}>
-            <Text style={[styles.homeButtonText, { color: colors.textSecondary }]}>{t('홈으로')}</Text>
-          </TouchableOpacity>
         </View>
 
       </ScrollView>
@@ -148,58 +219,6 @@ export default function QuizResultScreen({
           스크롤되고 화면 하단에 고정되지 않는다(HomeScreen 과 같은 이유) */}
       <AdBanner />
 
-      {/* 틀린 정답 확인 모달 */}
-      <Modal
-        visible={showWrongAnswers}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowWrongAnswers(false)}
-      >
-        <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
-          <View style={[styles.modalHeader, { backgroundColor: colors.card, borderBottomColor: colors.border, paddingTop: insets.top + SPACING.lg }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>{t('틀린 문제 확인')}</Text>
-            <TouchableOpacity onPress={() => setShowWrongAnswers(false)}>
-              <Text style={[styles.modalCloseText, { color: colors.primary }]}>{t('닫기')}</Text>
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView style={styles.modalContent}>
-            {wrongResults.map((result, index) => {
-              const speakableText = getSpeakableText(result);
-              return (
-                <View key={index} style={[styles.wrongItem, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  <View style={styles.wrongIndexArea}>
-                    <Text style={[styles.wrongIndex, { color: colors.dangerText }]}>{index + 1}</Text>
-                    {speakableText && (
-                      <TouchableOpacity
-                        style={[styles.wrongSpeakButton, { backgroundColor: colors.primaryLight }]}
-                        onPress={() => speakWord(speakableText)}
-                        hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-                      >
-                        <MaterialIcons name="volume-up" size={16} color={colors.primary} />
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                  <View style={styles.wrongDetail}>
-                    <View style={styles.wrongRow}>
-                      <Text style={[styles.wrongLabel, { color: colors.textSecondary }]}>{t('문제')}</Text>
-                      <Text style={[styles.wrongWord, { color: colors.text }]}>{result.word}</Text>
-                    </View>
-                    <View style={styles.wrongRow}>
-                      <Text style={[styles.wrongLabel, { color: colors.textSecondary }]}>{t('정답')}</Text>
-                      <Text style={[styles.correctAnswerText, { color: colors.successText }]}>{result.correctAnswer}</Text>
-                    </View>
-                    <View style={styles.wrongRow}>
-                      <Text style={[styles.wrongLabel, { color: colors.textSecondary }]}>{t('내 답')}</Text>
-                      <Text style={[styles.userAnswerText, { color: colors.dangerText }]}>{result.userAnswer}</Text>
-                    </View>
-                  </View>
-                </View>
-              );
-            })}
-          </ScrollView>
-        </View>
-      </Modal>
 
       <Toast
         message={toast.message}
@@ -212,6 +231,63 @@ export default function QuizResultScreen({
 }
 
 const styles = StyleSheet.create({
+  wrongSection: {
+    width: '100%',
+    marginBottom: 20,
+  },
+  wrongSectionTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  wrongList: {
+    borderWidth: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  wrongRowItem: {
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    gap: 3,
+  },
+  wrongRowHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 2,
+  },
+  wrongRowWord: {
+    fontSize: 15,
+    fontWeight: '700',
+    flex: 1,
+  },
+  wrongRowLine: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 8,
+  },
+  wrongRowLabel: {
+    fontSize: 11,
+    width: 30,
+  },
+  wrongRowValue: {
+    fontSize: 13,
+    fontWeight: '500',
+    flex: 1,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  retryAllButton: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    marginTop: 4,
+  },
+  retryAllButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
   container: {
     flex: 1,
     backgroundColor: '#F8F9FA',
@@ -286,30 +362,8 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   // 틀린 문제를 '보는' 동작이라 파괴적이지 않다. 빨강을 걷고 보조 버튼 스타일로 맞춘다
-  wrongAnswerButton: {
-    borderRadius: 16,
-    padding: 16,
-    alignItems: 'center',
-    borderWidth: 1,
-  },
-  wrongAnswerButtonText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  retryWrongButton: {
-    backgroundColor: '#FEF3C7',
-    borderRadius: 16,
-    padding: 16,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-  },
-  retryWrongButtonText: {
-    color: '#92400E',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
   retryButton: {
+    flex: 1.4,
     backgroundColor: '#C4B5FD',
     borderRadius: 16,
     padding: 16,
@@ -321,6 +375,8 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   homeButton: {
+    flex: 1,
+    borderWidth: 1,
     backgroundColor: '#E5E7EB',
     borderRadius: 16,
     padding: 16,
@@ -332,94 +388,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   // 모달 스타일
-  modalContainer: {
-    flex: 1,
-    backgroundColor: '#F8F9FA',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1A1A1A',
-  },
-  modalCloseText: {
-    fontSize: 16,
-    color: '#C4B5FD',
-    fontWeight: '600',
-  },
-  modalContent: {
-    flex: 1,
-    padding: 16,
-  },
-  wrongItem: {
-    flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  wrongIndexArea: {
-    alignItems: 'center',
-    marginRight: 16,
-    gap: 8,
-  },
-  wrongIndex: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    minWidth: 24,
-    textAlign: 'center',
-  },
-  wrongSpeakButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#EDE9FE',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   wrongSpeakButtonText: {
     fontSize: 14,
-  },
-  wrongDetail: {
-    flex: 1,
-    gap: 8,
-  },
-  wrongRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  wrongLabel: {
-    fontSize: 13,
-    color: '#6B7280',
-    fontWeight: '600',
-    minWidth: 40,
-    marginRight: 8,
-  },
-  wrongWord: {
-    fontSize: 15,
-    color: '#1A1A1A',
-    fontWeight: '600',
-    flex: 1,
-  },
-  correctAnswerText: {
-    fontSize: 15,
-    fontWeight: '600',
-    flex: 1,
-  },
-  userAnswerText: {
-    fontSize: 15,
-    fontWeight: '600',
-    flex: 1,
   },
 });

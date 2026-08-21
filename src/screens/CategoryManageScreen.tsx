@@ -20,8 +20,10 @@ import type { Category } from '../types/word';
 import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
 import ScreenHeader from '../components/ScreenHeader';
+import BottomSheet from '../components/BottomSheet';
 import { CategoryCardSkeleton } from '../components/SkeletonLoader';
 import { useTheme } from '../contexts/ThemeContext';
+import { FONT, HIT_SLOP, RADIUS, SPACING } from '../constants/design';
 
 interface CategoryManageScreenProps {
   onBack: () => void;
@@ -283,74 +285,67 @@ export default function CategoryManageScreen({ onBack }: CategoryManageScreenPro
         )}
       </ScrollView>
 
-      {/* 추가/수정 모달 */}
-      <Modal
+      {/* 추가/수정 — 시트. 입력이 있으므로 키보드를 피한다 */}
+      <BottomSheet
         visible={modalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={closeModal}
+        onClose={closeModal}
+        title={editingCategory ? t('카테고리 수정') : t('카테고리 추가')}
+        avoidKeyboard
       >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>
-              {editingCategory ? t('카테고리 수정') : t('카테고리 추가')}
-            </Text>
+        <View style={styles.sheetForm}>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>{t('카테고리 이름')}</Text>
+          <TextInput
+            style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+            placeholder={t('예: 영어, 일본어, 중국어')}
+            placeholderTextColor={colors.textTertiary}
+            value={categoryName}
+            onChangeText={setCategoryName}
+            autoCorrect={false}
+            returnKeyType="next"
+            blurOnSubmit={false}
+            onSubmitEditing={() => descriptionRef.current?.focus()}
+            editable={!saving}
+            maxLength={20}
+          />
 
-            <View style={styles.modalForm}>
-              <Text style={[styles.label, { color: colors.textSecondary }]}>{t('카테고리 이름 *')}</Text>
-              <TextInput
-                style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
-                placeholder={t('예: 영어, 일본어, 중국어')}
-                placeholderTextColor={colors.textTertiary}
-                value={categoryName}
-                onChangeText={setCategoryName}
-                autoCorrect={false}
-                returnKeyType="next"
-                blurOnSubmit={false}
-                onSubmitEditing={() => descriptionRef.current?.focus()}
-                editable={!saving}
-                maxLength={20}
-              />
+          <Text style={[styles.label, { color: colors.textSecondary }]}>{t('설명 (선택)')}</Text>
+          <TextInput
+            ref={descriptionRef}
+            style={[styles.input, styles.textArea, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+            placeholder={t('카테고리 설명')}
+            placeholderTextColor={colors.textTertiary}
+            value={description}
+            onChangeText={setDescription}
+            autoCorrect={false}
+            multiline
+            maxLength={200}
+            editable={!saving}
+          />
 
-              <Text style={[styles.label, { color: colors.textSecondary }]}>{t('설명 (선택)')}</Text>
-              <TextInput
-                ref={descriptionRef}
-                style={[styles.input, styles.textArea, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
-                placeholder={t('카테고리 설명')}
-                placeholderTextColor={colors.textTertiary}
-                value={description}
-                onChangeText={setDescription}
-                autoCorrect={false}
-                multiline
-                numberOfLines={3}
-                maxLength={200}
-                editable={!saving}
-              />
-            </View>
-
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.modalCancelButton, { backgroundColor: colors.border }]}
-                onPress={closeModal}
-                disabled={saving}
-              >
-                <Text style={[styles.modalCancelButtonText, { color: colors.textSecondary }]}>{t('취소')}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.modalSaveButton, { backgroundColor: colors.primaryStrong }, saving && styles.modalButtonDisabled]}
-                onPress={handleSave}
-                disabled={saving}
-              >
-                {saving ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                  <Text style={styles.modalSaveButtonText}>{t('저장')}</Text>
-                )}
-              </TouchableOpacity>
-            </View>
+          <View style={styles.sheetButtons}>
+            <TouchableOpacity
+              style={[styles.sheetButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
+              onPress={closeModal}
+              disabled={saving}
+              accessibilityRole="button"
+            >
+              <Text style={[styles.sheetButtonText, { color: colors.textSecondary }]}>{t('취소')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.sheetButton, styles.sheetButtonPrimary, { backgroundColor: colors.primaryStrong }, saving && styles.modalButtonDisabled]}
+              onPress={handleSave}
+              disabled={saving}
+              accessibilityRole="button"
+            >
+              {saving ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <Text style={[styles.sheetButtonText, { color: '#FFFFFF' }]}>{t('저장')}</Text>
+              )}
+            </TouchableOpacity>
           </View>
         </View>
-      </Modal>
+      </BottomSheet>
 
       <Toast
         message={toast.message}
@@ -363,6 +358,30 @@ export default function CategoryManageScreen({ onBack }: CategoryManageScreenPro
 }
 
 const styles = StyleSheet.create({
+  sheetForm: {
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.sm,
+  },
+  sheetButtons: {
+    flexDirection: 'row',
+    gap: SPACING.md,
+    marginTop: SPACING.xl,
+  },
+  sheetButton: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: RADIUS.md,
+    paddingVertical: SPACING.lg - 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sheetButtonPrimary: {
+    borderColor: 'transparent',
+  },
+  sheetButtonText: {
+    fontSize: FONT.body,
+    fontWeight: '600',
+  },
   container: {
     flex: 1,
     backgroundColor: '#F8F9FA',

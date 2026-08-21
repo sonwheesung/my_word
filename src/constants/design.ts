@@ -62,3 +62,11 @@ export const LIMITS = {
 
 /** 글자수 표시를 켜는 기준. 이보다 짧은 필드는 굳이 세지 않는다 */
 export const COUNTER_THRESHOLD = 100;
+
+/**
+ * 검색 입력 debounce.
+ *
+ * 한 글자마다 전체 배열을 다시 거르면 목록이 커질수록 입력이 밀린다.
+ * 400ms 는 타이핑이 끊긴 것을 사람이 느끼기 시작하는 지점보다 짧다.
+ */
+export const SEARCH_DEBOUNCE_MS = 400;

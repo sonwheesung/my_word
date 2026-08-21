@@ -549,20 +549,52 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
                     { backgroundColor: colors.card, borderColor: colors.border },
                     isCorrectChoice && styles.choiceCorrect,
                     isWrongSelected && styles.choiceWrong,
-                    isSelected && !feedback && { borderColor: colors.primary, backgroundColor: colors.primaryLight },
+                    isSelected && !feedback && { borderColor: colors.primaryStrong, backgroundColor: colors.primaryLight },
                   ]}
                   onPress={() => handleChoiceSelect(choice)}
                   disabled={isSubmitting}
                 >
-                  <Text style={[styles.choiceNumber, { backgroundColor: colors.borderLight, color: colors.textSecondary }]}>{String.fromCharCode(65 + idx)}</Text>
+                  {/*
+                    기호칸을 색으로만 구분하지 않는다. 정답·오답을 초록/빨강으로만
+                    표시하면 색각 이상 사용자에게 같은 회색으로 보인다.
+                  */}
+                  <View
+                    style={[
+                      styles.choiceKey,
+                      { backgroundColor: colors.borderLight },
+                      isSelected && !feedback && { backgroundColor: colors.primary },
+                      isCorrectChoice && styles.choiceKeyCorrect,
+                      isWrongSelected && styles.choiceKeyWrong,
+                    ]}
+                  >
+                    {isCorrectChoice ? (
+                      <MaterialIcons name="check" size={16} color="#FFFFFF" />
+                    ) : isWrongSelected ? (
+                      <MaterialIcons name="close" size={16} color="#FFFFFF" />
+                    ) : (
+                      <Text
+                        style={[
+                          styles.choiceKeyText,
+                          { color: colors.textSecondary },
+                          isSelected && !feedback && { color: '#FFFFFF' },
+                        ]}
+                      >
+                        {String.fromCharCode(65 + idx)}
+                      </Text>
+                    )}
+                  </View>
                   <Text style={[
                     styles.choiceText,
                     { color: colors.text },
+                    isSelected && !feedback && { color: colors.primaryStrong, fontWeight: '600' },
                     isCorrectChoice && styles.choiceTextCorrect,
                     isWrongSelected && styles.choiceTextWrong,
                   ]}>
                     {choice}
                   </Text>
+                  {isSelected && !feedback && (
+                    <MaterialIcons name="check-circle" size={20} color={colors.primary} />
+                  )}
                 </TouchableOpacity>
               );
             })}
@@ -860,6 +892,7 @@ const styles = StyleSheet.create({
   choiceButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
     backgroundColor: '#FFFFFF',
     borderWidth: 2,
     borderColor: '#E5E7EB',
@@ -878,18 +911,23 @@ const styles = StyleSheet.create({
     borderColor: '#EF4444',
     backgroundColor: '#FEE2E2',
   },
-  choiceNumber: {
+  choiceKey: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#F3F4F6',
-    textAlign: 'center',
-    lineHeight: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  choiceKeyCorrect: {
+    backgroundColor: '#059669',
+  },
+  choiceKeyWrong: {
+    backgroundColor: '#DC2626',
+  },
+  choiceKeyText: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#6B7280',
-    marginRight: 12,
-    overflow: 'hidden',
   },
   choiceText: {
     fontSize: 16,

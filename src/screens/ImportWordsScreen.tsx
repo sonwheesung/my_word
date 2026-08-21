@@ -7,8 +7,9 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  ActivityIndicator,
+  KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
   Modal,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -20,9 +21,11 @@ import { shareService } from '../services/shareService';
 import type { ParsedWord, ParseResult, DuplicateCheckResult } from '../services/shareService';
 import type { Category } from '../types/word';
 import ScreenHeader from '../components/ScreenHeader';
+import BottomSheet from '../components/BottomSheet';
 import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
 import { useTheme } from '../contexts/ThemeContext';
+import { FONT, RADIUS, SPACING } from '../constants/design';
 
 interface ImportWordsScreenProps {
   onBack: () => void;
@@ -189,6 +192,10 @@ export default function ImportWordsScreen({ onBack, onImportComplete }: ImportWo
       <StatusBar style={colors.isDark ? 'light' : 'dark'} />
       <ScreenHeader title={t('단어 받기')} onBack={onBack} />
 
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -272,68 +279,55 @@ export default function ImportWordsScreen({ onBack, onImportComplete }: ImportWo
           )}
         </TouchableOpacity>
       </ScrollView>
+      </KeyboardAvoidingView>
 
-      {/* 카테고리 선택 모달 */}
-      <Modal
+      {/* 카테고리 선택 — 아래에서 올라오는 시트 */}
+      <BottomSheet
         visible={showCategoryPicker}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowCategoryPicker(false)}
+        onClose={() => setShowCategoryPicker(false)}
+        title={t('카테고리 선택')}
       >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowCategoryPicker(false)}
-        >
-          <View style={[styles.modalContent, { backgroundColor: colors.card }]} onStartShouldSetResponder={() => true}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>{t('카테고리 선택')}</Text>
-            <ScrollView style={styles.modalList}>
-              {categories.map((cat) => (
-                <TouchableOpacity
-                  key={cat.categoryId}
-                  style={[
-                    styles.modalItem,
-                    { borderBottomColor: colors.borderLight },
-                    selectedCategoryId === cat.categoryId && { backgroundColor: colors.primaryLight },
-                  ]}
-                  onPress={() => {
-                    setSelectedCategoryId(cat.categoryId);
-                    setShowCategoryPicker(false);
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.modalItemText,
-                      { color: colors.text },
-                      selectedCategoryId === cat.categoryId && { color: colors.primary, fontWeight: '600' },
-                    ]}
-                  >
-                    {cat.categoryName}
-                  </Text>
-                  <Text style={[styles.modalItemCount, { color: colors.textTertiary }]}>{t('{{count}}개', { count: cat.wordCount ?? 0 })}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+        {categories.map((cat) => {
+          const selected = selectedCategoryId === cat.categoryId;
+          return (
             <TouchableOpacity
-              style={[styles.modalCloseButton, { backgroundColor: colors.border }]}
-              onPress={() => setShowCategoryPicker(false)}
+              key={cat.categoryId}
+              style={[styles.sheetOption, selected && { backgroundColor: colors.primaryLight }]}
+              onPress={() => {
+                setSelectedCategoryId(cat.categoryId);
+                setShowCategoryPicker(false);
+              }}
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
             >
-              <Text style={[styles.modalCloseButtonText, { color: colors.textSecondary }]}>{t('닫기')}</Text>
+              <Text
+                style={[
+                  styles.sheetOptionText,
+                  { color: colors.text },
+                  selected && { color: colors.primary, fontWeight: '600' },
+                ]}
+                numberOfLines={1}
+              >
+                {cat.categoryName}
+              </Text>
+              <Text style={[styles.sheetOptionCount, { color: colors.textTertiary }]}>
+                {t('{{count}}개', { count: cat.wordCount ?? 0 })}
+              </Text>
+              {selected && <MaterialIcons name="check" size={18} color={colors.primary} />}
             </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
+          );
+        })}
+      </BottomSheet>
 
       {/* 미리보기 모달 */}
-      <Modal
+      <BottomSheet
         visible={showPreview}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowPreview(false)}
+        onClose={() => setShowPreview(false)}
+        title={t('미리보기')}
+        maxHeightRatio={0.85}
+        scrollable={false}
       >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.previewModalContent, { backgroundColor: colors.card }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>{t('미리보기')}</Text>
+        <View style={styles.previewBody}>
 
             {/* 요약 */}
             <View style={[styles.previewSummary, { backgroundColor: colors.surface }]}>
@@ -417,7 +411,7 @@ export default function ImportWordsScreen({ onBack, onImportComplete }: ImportWo
             {/* 버튼 */}
             <View style={styles.previewButtons}>
               <TouchableOpacity
-                style={[styles.previewCancelButton, { backgroundColor: colors.border }]}
+                style={[styles.previewCancelButton, { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}
                 onPress={() => setShowPreview(false)}
                 disabled={isSaving}
               >
@@ -426,7 +420,7 @@ export default function ImportWordsScreen({ onBack, onImportComplete }: ImportWo
               <TouchableOpacity
                 style={[
                   styles.previewSaveButton,
-                  { backgroundColor: colors.primary },
+                  { backgroundColor: colors.primaryStrong },
                   (isSaving || totalToSave === 0) && styles.buttonDisabled,
                 ]}
                 onPress={handleSave}
@@ -441,9 +435,8 @@ export default function ImportWordsScreen({ onBack, onImportComplete }: ImportWo
                 )}
               </TouchableOpacity>
             </View>
-          </View>
         </View>
-      </Modal>
+      </BottomSheet>
 
       <Toast
         message={toast.message}
@@ -456,6 +449,29 @@ export default function ImportWordsScreen({ onBack, onImportComplete }: ImportWo
 }
 
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
+  previewBody: {
+    paddingHorizontal: SPACING.xl,
+    flexShrink: 1,
+  },
+  sheetOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    borderRadius: RADIUS.md,
+    marginHorizontal: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md + 2,
+  },
+  sheetOptionText: {
+    flex: 1,
+    fontSize: FONT.body,
+  },
+  sheetOptionCount: {
+    fontSize: FONT.caption,
+  },
   container: {
     flex: 1,
     backgroundColor: '#F8F9FA',
