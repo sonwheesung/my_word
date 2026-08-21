@@ -11,6 +11,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SPACING } from '../constants/design';
 import { MaterialIcons } from '@expo/vector-icons';
 import { wordService } from '../services/wordService';
 import { quizService } from '../services/quizService';
@@ -61,6 +63,8 @@ interface QuizScreenProps {
 export default function QuizScreen({ categoryId, mode, wordCount, direction, answerType, retryWordIds, onComplete, onExit }: QuizScreenProps) {
   const { t } = useTranslation();
   const { colors } = useTheme();
+  // 자체 헤더를 그리므로 상태바 여백을 직접 준다
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const [allWords, setAllWords] = useState<Word[]>([]); // 보기 생성용 전체 단어
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
@@ -442,7 +446,7 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
   if (loading) {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.accent} />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={[styles.loadingText, { color: colors.textSecondary }]}>{t('퀴즈 준비 중...')}</Text>
       </View>
     );
@@ -473,7 +477,7 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
       <StatusBar style={colors.isDark ? 'light' : 'dark'} />
 
       {/* 진행 상태 */}
-      <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+      <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border, paddingTop: insets.top + SPACING.md }]}>
         <View style={styles.headerRow}>
           <TouchableOpacity onPress={handleExit} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -481,14 +485,14 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
               <Text style={[styles.exitText, { color: colors.textSecondary }]}>{t('나가기')}</Text>
             </View>
           </TouchableOpacity>
-          <Text style={[styles.progressText, { color: colors.accent }]}>{progress}</Text>
+          <Text style={[styles.progressText, { color: colors.text }]}>{progress}</Text>
           <View style={{ width: 64 }} />
         </View>
         <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
           <View
             style={[
               styles.progressFill,
-              { width: `${((currentIndex + 1) / questions.length) * 100}%`, backgroundColor: colors.accent }
+              { width: `${((currentIndex + 1) / questions.length) * 100}%`, backgroundColor: colors.primaryStrong }
             ]}
           />
         </View>
@@ -545,7 +549,7 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
                     { backgroundColor: colors.card, borderColor: colors.border },
                     isCorrectChoice && styles.choiceCorrect,
                     isWrongSelected && styles.choiceWrong,
-                    isSelected && !feedback && { borderColor: colors.accent, backgroundColor: colors.primaryLight },
+                    isSelected && !feedback && { borderColor: colors.primary, backgroundColor: colors.primaryLight },
                   ]}
                   onPress={() => handleChoiceSelect(choice)}
                   disabled={isSubmitting}
@@ -607,7 +611,7 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
         {/* 제출 버튼 (주관식만) */}
         {!isMultipleChoice && (
           <TouchableOpacity
-            style={[styles.submitButton, { backgroundColor: colors.accent }, isSubmitting && styles.submitButtonDisabled]}
+            style={[styles.submitButton, { backgroundColor: colors.primaryStrong }, isSubmitting && styles.submitButtonDisabled]}
             onPress={handleSubmit}
             disabled={isSubmitting}
           >
@@ -685,7 +689,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    paddingTop: 48,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },

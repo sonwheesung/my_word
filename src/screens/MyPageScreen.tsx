@@ -163,15 +163,15 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={[colors.accent]}
-            tintColor={colors.accent}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
           />
         }
       >
         {/* 프로필 카드 */}
         <View style={[styles.card, { backgroundColor: colors.card }]}>
           <View style={styles.profileRow}>
-            <View style={[styles.avatar, { backgroundColor: colors.accent }]}>
+            <View style={[styles.avatar, { backgroundColor: colors.primaryStrong }]}>
               <Text style={styles.avatarText}>M</Text>
             </View>
             <View style={styles.profileInfo}>
@@ -190,17 +190,17 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
           <View style={[styles.card, { backgroundColor: colors.card }]}>
             <View style={styles.summaryRow}>
               <View style={styles.summaryItem}>
-                <Text style={[styles.summaryValue, { color: colors.accent }]}>{stats.totalWordCount}</Text>
+                <Text style={[styles.summaryValue, { color: colors.text }]}>{stats.totalWordCount}</Text>
                 <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>{t('등록 단어')}</Text>
               </View>
               <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />
               <View style={styles.summaryItem}>
-                <Text style={[styles.summaryValue, { color: colors.accent }]}>{stats.totalQuizCount}</Text>
+                <Text style={[styles.summaryValue, { color: colors.text }]}>{stats.totalQuizCount}</Text>
                 <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>{t('퀴즈 횟수')}</Text>
               </View>
               <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />
               <View style={styles.summaryItem}>
-                <Text style={[styles.summaryValue, styles.streakValue]}>
+                <Text style={[styles.summaryValue, { color: colors.warningText }]}>
                   {stats.streakDays}
                 </Text>
                 <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>{t('연속 학습')}</Text>
@@ -400,9 +400,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6B7280',
   },
-  streakValue: {
-    color: '#F59E0B',
-  },
+  // 색은 화면에서 colors.warningText 로 넣는다(#F59E0B 는 흰 배경에서 2.15:1)
   // Heatmap
   heatmapContainer: {
     flexDirection: 'row',

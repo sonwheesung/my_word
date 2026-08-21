@@ -61,10 +61,10 @@ export default function NoticeScreen({ onBack }: NoticeScreenProps) {
         <View style={styles.centered}>
           <MaterialIcons name="campaign" size={48} color={colors.textTertiary} />
           <Text style={[styles.emptyTitle, { color: colors.textSecondary }]}>
-            등록된 공지사항이 없습니다
+            {t('등록된 공지사항이 없습니다')}
           </Text>
           <Text style={[styles.emptyBody, { color: colors.textTertiary }]}>
-            새로운 소식이 있으면 이곳에 안내해드릴게요
+            {t('새로운 소식이 있으면 이곳에 안내해드릴게요')}
           </Text>
         </View>
       ) : (

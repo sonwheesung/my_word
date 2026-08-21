@@ -253,7 +253,7 @@ export default function ManageWordsScreen({
         <MaterialIcons name="folder-open" size={64} color={colors.textTertiary} />
         <Text style={[styles.emptyTitle, { color: colors.text }]}>{t('카테고리가 없습니다')}</Text>
         <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>{t('먼저 카테고리를 생성해주세요')}</Text>
-        <TouchableOpacity style={[styles.primaryButton, { backgroundColor: colors.accent }]} onPress={onManageCategories}>
+        <TouchableOpacity style={[styles.primaryButton, { backgroundColor: colors.primaryStrong }]} onPress={onManageCategories}>
           <Text style={[styles.primaryButtonText, { color: colors.card }]}>{t('카테고리 관리')}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.secondaryButton, { backgroundColor: colors.border }]} onPress={onBack}>
@@ -491,7 +491,7 @@ export default function ManageWordsScreen({
                   <View style={styles.modalSection}>
                     <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>{t('뜻')}</Text>
                     {selectedWord.meanings.map((meaning, index) => (
-                      <Text key={index} style={styles.modalMeaningText}>
+                      <Text key={index} style={[styles.modalMeaningText, { color: colors.text }]}>
                         {index + 1}. {meaning}
                       </Text>
                     ))}
@@ -533,7 +533,7 @@ export default function ManageWordsScreen({
                     <View style={styles.modalSection}>
                       <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>{t('메모')}</Text>
                       <View style={styles.modalMemoContainer}>
-                        <Text style={styles.modalMemoText}>{selectedWord.memo}</Text>
+                        <Text style={[styles.modalMemoText, { color: colors.text }]}>{selectedWord.memo}</Text>
                       </View>
                     </View>
                   )}
@@ -542,7 +542,7 @@ export default function ManageWordsScreen({
                 {/* 버튼 - ScrollView 바깥에 항상 고정 */}
                 <View style={[styles.modalButtons, { borderTopColor: colors.border }]}>
                   <TouchableOpacity
-                    style={[styles.modalEditButton, { backgroundColor: colors.accent }]}
+                    style={[styles.modalEditButton, { backgroundColor: colors.primaryStrong }]}
                     onPress={() => {
                       setSelectedWord(null);
                       onEditWord(selectedWord.wordId);

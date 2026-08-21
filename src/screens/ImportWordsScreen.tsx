@@ -339,13 +339,13 @@ export default function ImportWordsScreen({ onBack, onImportComplete }: ImportWo
             <View style={[styles.previewSummary, { backgroundColor: colors.surface }]}>
               <View style={styles.previewSummaryRow}>
                 <Text style={[styles.previewSummaryLabel, { color: colors.textSecondary }]}>{t('신규 단어')}</Text>
-                <Text style={[styles.previewSummaryValue, { color: '#10B981' }]}>
+                <Text style={[styles.previewSummaryValue, { color: colors.successText }]}>
                   {t('{{count}}개', { count: previewNewCount })}
                 </Text>
               </View>
               <View style={styles.previewSummaryRow}>
                 <Text style={[styles.previewSummaryLabel, { color: colors.textSecondary }]}>{t('중복 단어')}</Text>
-                <Text style={[styles.previewSummaryValue, { color: '#F59E0B' }]}>
+                <Text style={[styles.previewSummaryValue, { color: colors.warningText }]}>
                   {t('{{count}}개', { count: previewDupCount })}
                   {skipDuplicates ? t(' (건너뜀)') : t(' (포함)')}
                 </Text>
@@ -353,7 +353,7 @@ export default function ImportWordsScreen({ onBack, onImportComplete }: ImportWo
               {previewErrorCount > 0 && (
                 <View style={styles.previewSummaryRow}>
                   <Text style={[styles.previewSummaryLabel, { color: colors.textSecondary }]}>{t('오류')}</Text>
-                  <Text style={[styles.previewSummaryValue, { color: '#EF4444' }]}>
+                  <Text style={[styles.previewSummaryValue, { color: colors.dangerText }]}>
                     {t('{{count}}건', { count: previewErrorCount })}
                   </Text>
                 </View>
@@ -369,7 +369,7 @@ export default function ImportWordsScreen({ onBack, onImportComplete }: ImportWo
               {duplicateResult?.newWords.map((pw, idx) => (
                 <View key={`new-${idx}`} style={[styles.previewItem, { borderBottomColor: colors.borderLight }]}>
                   <View style={[styles.previewBadge, { backgroundColor: '#D1FAE5' }]}>
-                    <Text style={[styles.previewBadgeText, { color: '#059669' }]}>{t('신규')}</Text>
+                    <Text style={[styles.previewBadgeText, { color: colors.successText }]}>{t('신규')}</Text>
                   </View>
                   <View style={styles.previewItemContent}>
                     <Text style={[styles.previewWord, { color: colors.text }]}>{pw.word}</Text>
@@ -383,7 +383,7 @@ export default function ImportWordsScreen({ onBack, onImportComplete }: ImportWo
                 duplicateResult?.duplicateWords.map((pw, idx) => (
                   <View key={`dup-${idx}`} style={[styles.previewItem, { borderBottomColor: colors.borderLight }]}>
                     <View style={[styles.previewBadge, { backgroundColor: '#FEF3C7' }]}>
-                      <Text style={[styles.previewBadgeText, { color: '#D97706' }]}>{t('중복')}</Text>
+                      <Text style={[styles.previewBadgeText, { color: colors.warningText }]}>{t('중복')}</Text>
                     </View>
                     <View style={styles.previewItemContent}>
                       <Text style={[styles.previewWord, { color: colors.text }]}>{pw.word}</Text>
@@ -403,10 +403,10 @@ export default function ImportWordsScreen({ onBack, onImportComplete }: ImportWo
               {parseResult?.errors.map((err, idx) => (
                 <View key={`err-${idx}`} style={[styles.previewItem, { borderBottomColor: colors.borderLight }]}>
                   <View style={[styles.previewBadge, { backgroundColor: '#FEE2E2' }]}>
-                    <Text style={[styles.previewBadgeText, { color: '#DC2626' }]}>{t('오류')}</Text>
+                    <Text style={[styles.previewBadgeText, { color: colors.dangerText }]}>{t('오류')}</Text>
                   </View>
                   <View style={styles.previewItemContent}>
-                    <Text style={styles.previewErrorText} numberOfLines={1}>
+                    <Text style={[styles.previewErrorText, { color: colors.dangerText }]} numberOfLines={1}>
                       {t('{{line}}행: {{reason}}', { line: err.line, reason: err.reason })}
                     </Text>
                   </View>
@@ -714,7 +714,6 @@ const styles = StyleSheet.create({
   },
   previewErrorText: {
     fontSize: 13,
-    color: '#EF4444',
   },
   previewSkippedInfo: {
     padding: 12,

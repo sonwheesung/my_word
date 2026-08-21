@@ -12,6 +12,8 @@ import {
   Modal,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SPACING } from '../constants/design';
 import { MaterialIcons } from '@expo/vector-icons';
 import { quizService, QuizStatistics, WordQuizStats, CategoryQuizStats } from '../services/quizService';
 import Toast from '../components/Toast';
@@ -30,6 +32,7 @@ interface StatisticsScreenProps {
 export default function StatisticsScreen({ onBack }: StatisticsScreenProps) {
   const { t } = useTranslation();
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const { toast, showToast, hideToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -214,15 +217,23 @@ export default function StatisticsScreen({ onBack }: StatisticsScreenProps) {
   }
 
   if (!statistics) {
+    // 빈 상태에도 헤더를 둔다(퀴즈 설정과 같은 이유)
     return (
-      <View style={[styles.emptyContainer, { backgroundColor: colors.background }]}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         <StatusBar style={colors.isDark ? 'light' : 'dark'} />
-        <MaterialIcons name="bar-chart" size={64} color={colors.textTertiary} />
-        <Text style={[styles.emptyTitle, { color: colors.text }]}>{t('통계 데이터가 없습니다')}</Text>
-        <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>{t('퀴즈를 풀어보세요!')}</Text>
-        <TouchableOpacity style={[styles.backButton, { backgroundColor: colors.accent }]} onPress={onBack}>
-          <Text style={styles.backButtonText}>{t('돌아가기')}</Text>
-        </TouchableOpacity>
+        <ScreenHeader title={t('학습 통계')} onBack={onBack} />
+        <View style={styles.emptyContainer}>
+          <MaterialIcons name="bar-chart" size={64} color={colors.textTertiary} />
+          <Text style={[styles.emptyTitle, { color: colors.text }]}>{t('통계 데이터가 없습니다')}</Text>
+          <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>{t('퀴즈를 풀어보세요!')}</Text>
+          <TouchableOpacity
+            style={[styles.backButton, { backgroundColor: colors.primaryStrong }]}
+            onPress={onBack}
+            accessibilityRole="button"
+          >
+            <Text style={styles.backButtonText}>{t('돌아가기')}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
@@ -239,8 +250,8 @@ export default function StatisticsScreen({ onBack }: StatisticsScreenProps) {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={[colors.accent]}
-            tintColor={colors.accent}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
           />
         }
       >
@@ -249,12 +260,12 @@ export default function StatisticsScreen({ onBack }: StatisticsScreenProps) {
           <View style={styles.cardTitleRow}><MaterialIcons name="trending-up" size={18} color={colors.primary} /><Text style={[styles.cardTitle, { color: colors.text }]}>{t('전체 학습 현황')}</Text></View>
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
-              <Text style={[styles.statValue, { color: colors.accent }]}>{statistics.totalWordCount}</Text>
+              <Text style={[styles.statValue, { color: colors.text }]}>{statistics.totalWordCount}</Text>
               <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{t('등록 단어')}</Text>
             </View>
             <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
             <View style={styles.statItem}>
-              <Text style={[styles.statValue, { color: colors.accent }]}>{statistics.totalCategoryCount}</Text>
+              <Text style={[styles.statValue, { color: colors.text }]}>{statistics.totalCategoryCount}</Text>
               <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{t('카테고리')}</Text>
             </View>
           </View>
@@ -266,28 +277,28 @@ export default function StatisticsScreen({ onBack }: StatisticsScreenProps) {
           {statistics.totalQuizCount > 0 ? (
             <>
               <View style={[styles.accuracyContainer, { backgroundColor: colors.surface }]}>
-                <Text style={[styles.accuracyValue, { color: colors.accent }]}>
+                <Text style={[styles.accuracyValue, { color: colors.primaryStrong }]}>
                   {statistics.accuracy.toFixed(1)}%
                 </Text>
                 <Text style={[styles.accuracyLabel, { color: colors.textSecondary }]}>{t('정답률')}</Text>
               </View>
               <View style={styles.statsRow}>
                 <View style={styles.statItem}>
-                  <Text style={[styles.statValue, styles.correctValue]}>
+                  <Text style={[styles.statValue, { color: colors.successText }]}>
                     {statistics.correctCount}
                   </Text>
                   <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{t('정답')}</Text>
                 </View>
                 <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
                 <View style={styles.statItem}>
-                  <Text style={[styles.statValue, styles.incorrectValue]}>
+                  <Text style={[styles.statValue, { color: colors.dangerText }]}>
                     {statistics.incorrectCount}
                   </Text>
                   <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{t('오답')}</Text>
                 </View>
                 <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
                 <View style={styles.statItem}>
-                  <Text style={[styles.statValue, { color: colors.accent }]}>{statistics.totalQuizCount}</Text>
+                  <Text style={[styles.statValue, { color: colors.text }]}>{statistics.totalQuizCount}</Text>
                   <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{t('총 문제')}</Text>
                 </View>
               </View>
@@ -322,7 +333,7 @@ export default function StatisticsScreen({ onBack }: StatisticsScreenProps) {
               <Text style={[styles.wordStatsButtonTitle, { color: colors.text }]}>{t('단어 정답률')}</Text>
               <Text style={[styles.wordStatsButtonDesc, { color: colors.textSecondary }]}>{t('단어별 퀴즈 성적을 확인하세요')}</Text>
             </View>
-            <Text style={[styles.wordStatsButtonArrow, { color: colors.accent }]}>→</Text>
+            <Text style={[styles.wordStatsButtonArrow, { color: colors.primary }]}>→</Text>
           </TouchableOpacity>
         )}
 
@@ -368,17 +379,17 @@ export default function StatisticsScreen({ onBack }: StatisticsScreenProps) {
                         {t('퀴즈 {{count}}회', { count: cat.quizCount })}
                       </Text>
                       <Text style={styles.categoryStatDetailDot}>·</Text>
-                      <Text style={[styles.categoryStatDetailText, { color: '#10B981' }]}>
+                      <Text style={[styles.categoryStatDetailText, { color: colors.successText }]}>
                         {t('정답 {{count}}', { count: cat.correctCount })}
                       </Text>
                       <Text style={styles.categoryStatDetailDot}>·</Text>
-                      <Text style={[styles.categoryStatDetailText, { color: '#EF4444' }]}>
+                      <Text style={[styles.categoryStatDetailText, { color: colors.dangerText }]}>
                         {t('오답 {{count}}', { count: cat.incorrectCount })}
                       </Text>
                       {cat.weakWordCount > 0 && (
                         <>
                           <Text style={styles.categoryStatDetailDot}>·</Text>
-                          <Text style={[styles.categoryStatDetailText, { color: '#F59E0B' }]}>
+                          <Text style={[styles.categoryStatDetailText, { color: colors.warningText }]}>
                             {t('취약 {{count}}', { count: cat.weakWordCount })}
                           </Text>
                         </>
@@ -399,7 +410,7 @@ export default function StatisticsScreen({ onBack }: StatisticsScreenProps) {
           <View style={[styles.card, { backgroundColor: colors.card }]}>
             <View style={styles.cardTitleRow}><MaterialIcons name="warning" size={18} color="#F59E0B" /><Text style={[styles.cardTitle, { color: colors.text }]}>{t('취약한 단어')}</Text></View>
             <View style={styles.weakWordInfo}>
-              <Text style={styles.weakWordCount}>
+              <Text style={[styles.weakWordCount, { color: colors.dangerText }]}>
                 {t('{{count}}개의 단어', { count: statistics.weakWordCount })}
               </Text>
               <Text style={[styles.weakWordDesc, { color: colors.textSecondary }]}>
@@ -414,7 +425,7 @@ export default function StatisticsScreen({ onBack }: StatisticsScreenProps) {
           <View style={[styles.card, styles.recommendCard, { backgroundColor: colors.primaryLight }]}>
             <MaterialIcons name="lightbulb" size={48} color={colors.primary} style={{ marginBottom: 12 }} />
             <Text style={[styles.recommendTitle, { color: colors.primary }]}>{t('학습을 시작해보세요!')}</Text>
-            <Text style={[styles.recommendDesc, { color: colors.accent }]}>
+            <Text style={[styles.recommendDesc, { color: colors.primary }]}>
               {t('{{count}}개의 단어가 학습을 기다리고 있습니다', { count: statistics.totalWordCount })}
             </Text>
           </View>
@@ -430,10 +441,10 @@ export default function StatisticsScreen({ onBack }: StatisticsScreenProps) {
       >
         <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
           {/* 모달 헤더 */}
-          <View style={[styles.modalHeader, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+          <View style={[styles.modalHeader, { backgroundColor: colors.card, borderBottomColor: colors.border, paddingTop: insets.top + SPACING.lg }]}>
             <Text style={[styles.modalTitle, { color: colors.text }]}>{wordStatsTitle}</Text>
             <TouchableOpacity onPress={() => setShowWordStats(false)}>
-              <Text style={[styles.modalCloseText, { color: colors.accent }]}>{t('닫기')}</Text>
+              <Text style={[styles.modalCloseText, { color: colors.primary }]}>{t('닫기')}</Text>
             </TouchableOpacity>
           </View>
 
@@ -443,7 +454,7 @@ export default function StatisticsScreen({ onBack }: StatisticsScreenProps) {
               {(['word', 'accuracy', 'totalCount', 'correctCount', 'incorrectCount'] as SortKey[]).map((key) => (
                 <TouchableOpacity
                   key={key}
-                  style={[styles.sortChip, { backgroundColor: colors.borderLight, borderColor: colors.border }, sortKey === key && { backgroundColor: colors.primaryLight, borderColor: colors.accent }]}
+                  style={[styles.sortChip, { backgroundColor: colors.borderLight, borderColor: colors.border }, sortKey === key && { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}
                   onPress={() => handleSortPress(key)}
                 >
                   <Text style={[styles.sortChipText, { color: colors.textSecondary }, sortKey === key && { color: colors.primary, fontWeight: '700' }]}>
@@ -458,7 +469,7 @@ export default function StatisticsScreen({ onBack }: StatisticsScreenProps) {
           {/* 단어 리스트 */}
           {wordStatsLoading ? (
             <View style={styles.modalLoadingContainer}>
-              <ActivityIndicator size="large" color={colors.accent} />
+              <ActivityIndicator size="large" color={colors.primary} />
             </View>
           ) : sortedWordStats.length === 0 ? (
             <View style={styles.modalEmptyContainer}>
@@ -477,11 +488,11 @@ export default function StatisticsScreen({ onBack }: StatisticsScreenProps) {
                           {t('퀴즈')} <Text style={styles.wordItemStatBold}>{item.totalCount}</Text>
                         </Text>
                         <Text style={styles.wordItemStatDot}>·</Text>
-                        <Text style={[styles.wordItemStatText, { color: '#10B981' }]}>
+                        <Text style={[styles.wordItemStatText, { color: colors.successText }]}>
                           {t('정답')} <Text style={styles.wordItemStatBold}>{item.correctCount}</Text>
                         </Text>
                         <Text style={styles.wordItemStatDot}>·</Text>
-                        <Text style={[styles.wordItemStatText, { color: '#EF4444' }]}>
+                        <Text style={[styles.wordItemStatText, { color: colors.dangerText }]}>
                           {t('오답')} <Text style={styles.wordItemStatBold}>{item.incorrectCount}</Text>
                         </Text>
                       </View>
@@ -628,12 +639,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B7280',
   },
-  correctValue: {
-    color: '#10B981',
-  },
-  incorrectValue: {
-    color: '#EF4444',
-  },
+  // 색은 화면에서 colors.successText / colors.dangerText 로 넣는다
   noDataContainer: {
     padding: 20,
     alignItems: 'center',
@@ -779,7 +785,6 @@ const styles = StyleSheet.create({
   weakWordCount: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#EF4444',
     marginBottom: 4,
   },
   weakWordDesc: {
@@ -817,7 +822,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    paddingTop: 52,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',

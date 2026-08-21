@@ -122,22 +122,31 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
   if (loading) {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.accent} />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={[styles.loadingText, { color: colors.textSecondary }]}>{t('로딩 중...')}</Text>
       </View>
     );
   }
 
   if (categories.length === 0) {
+    // 빈 상태에도 헤더를 둔다. 예전에는 ScreenHeader 없이 반환해서
+    // 뒤로가기도 Safe Area 도 없이 버튼 하나로만 빠져나갈 수 있었다
     return (
-      <View style={[styles.emptyContainer, { backgroundColor: colors.background }]}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         <StatusBar style={colors.isDark ? 'light' : 'dark'} />
-        <MaterialIcons name="folder-open" size={64} color={colors.textTertiary} />
-        <Text style={[styles.emptyTitle, { color: colors.text }]}>{t('카테고리가 없습니다')}</Text>
-        <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>{t('먼저 카테고리를 생성해주세요')}</Text>
-        <TouchableOpacity style={[styles.backButton, { backgroundColor: colors.accent }]} onPress={onBack}>
-          <Text style={styles.backButtonText}>{t('돌아가기')}</Text>
-        </TouchableOpacity>
+        <ScreenHeader title={t('퀴즈 설정')} onBack={onBack} />
+        <View style={styles.emptyContainer}>
+          <MaterialIcons name="folder-open" size={64} color={colors.textTertiary} />
+          <Text style={[styles.emptyTitle, { color: colors.text }]}>{t('카테고리가 없습니다')}</Text>
+          <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>{t('먼저 카테고리를 생성해주세요')}</Text>
+          <TouchableOpacity
+            style={[styles.backButton, { backgroundColor: colors.primaryStrong }]}
+            onPress={onBack}
+            accessibilityRole="button"
+          >
+            <Text style={styles.backButtonText}>{t('돌아가기')}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
@@ -178,7 +187,7 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
               style={[
                 styles.modeOption,
                 { backgroundColor: colors.card, borderColor: colors.border },
-                selectedMode === mode.value && { borderColor: colors.accent, backgroundColor: colors.primaryLight },
+                selectedMode === mode.value && { borderColor: colors.primary, backgroundColor: colors.primaryLight },
               ]}
               onPress={() => setSelectedMode(mode.value)}
             >
@@ -187,7 +196,7 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
                   style={[
                     styles.modeOptionLabel,
                     { color: colors.text },
-                    selectedMode === mode.value && { color: colors.accent },
+                    selectedMode === mode.value && { color: colors.primaryStrong },
                   ]}
                 >
                   {t(mode.label)}
@@ -197,10 +206,10 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
               <View
                 style={[
                   styles.radio,
-                  selectedMode === mode.value && { borderColor: colors.accent },
+                  selectedMode === mode.value && { borderColor: colors.primary },
                 ]}
               >
-                {selectedMode === mode.value && <View style={[styles.radioDot, { backgroundColor: colors.accent }]} />}
+                {selectedMode === mode.value && <View style={[styles.radioDot, { backgroundColor: colors.primary }]} />}
               </View>
             </TouchableOpacity>
           ))}
@@ -216,7 +225,7 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
                 style={[
                   styles.modeOption,
                   { backgroundColor: colors.card, borderColor: colors.border },
-                  selectedDirection === dir.value && { borderColor: colors.accent, backgroundColor: colors.primaryLight },
+                  selectedDirection === dir.value && { borderColor: colors.primary, backgroundColor: colors.primaryLight },
                 ]}
                 onPress={() => setSelectedDirection(dir.value)}
               >
@@ -225,7 +234,7 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
                     style={[
                       styles.modeOptionLabel,
                       { color: colors.text },
-                      selectedDirection === dir.value && { color: colors.accent },
+                      selectedDirection === dir.value && { color: colors.primaryStrong },
                     ]}
                   >
                     {t(dir.label)}
@@ -235,10 +244,10 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
                 <View
                   style={[
                     styles.radio,
-                    selectedDirection === dir.value && { borderColor: colors.accent },
+                    selectedDirection === dir.value && { borderColor: colors.primary },
                   ]}
                 >
-                  {selectedDirection === dir.value && <View style={[styles.radioDot, { backgroundColor: colors.accent }]} />}
+                  {selectedDirection === dir.value && <View style={[styles.radioDot, { backgroundColor: colors.primary }]} />}
                 </View>
               </TouchableOpacity>
             ))}
@@ -254,7 +263,7 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
               style={[
                 styles.modeOption,
                 { backgroundColor: colors.card, borderColor: colors.border },
-                selectedAnswerType === at.value && { borderColor: colors.accent, backgroundColor: colors.primaryLight },
+                selectedAnswerType === at.value && { borderColor: colors.primary, backgroundColor: colors.primaryLight },
               ]}
               onPress={() => setSelectedAnswerType(at.value)}
             >
@@ -263,7 +272,7 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
                   style={[
                     styles.modeOptionLabel,
                     { color: colors.text },
-                    selectedAnswerType === at.value && { color: colors.accent },
+                    selectedAnswerType === at.value && { color: colors.primaryStrong },
                   ]}
                 >
                   {t(at.label)}
@@ -273,10 +282,10 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
               <View
                 style={[
                   styles.radio,
-                  selectedAnswerType === at.value && { borderColor: colors.accent },
+                  selectedAnswerType === at.value && { borderColor: colors.primary },
                 ]}
               >
-                {selectedAnswerType === at.value && <View style={[styles.radioDot, { backgroundColor: colors.accent }]} />}
+                {selectedAnswerType === at.value && <View style={[styles.radioDot, { backgroundColor: colors.primary }]} />}
               </View>
             </TouchableOpacity>
           ))}
@@ -287,7 +296,7 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
           <View style={styles.labelRow}>
             <Text style={[styles.label, { marginBottom: 0, color: colors.text }]}>{t('문제 수')}</Text>
             {availableWordCount > 0 && (
-              <Text style={[styles.labelHint, { color: colors.accent }]}>{t('최대 {{count}}개', { count: availableWordCount })}</Text>
+              <Text style={[styles.labelHint, { color: colors.textSecondary }]}>{t('최대 {{count}}개', { count: availableWordCount })}</Text>
             )}
           </View>
           <View style={styles.wordCountButtons}>
@@ -296,7 +305,7 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
                 style={[
                   styles.wordCountButton,
                   { backgroundColor: colors.card, borderColor: colors.border },
-                  selectedWordCount === availableWordCount && { backgroundColor: colors.accent, borderColor: colors.accent },
+                  selectedWordCount === availableWordCount && { backgroundColor: colors.primaryStrong, borderColor: colors.primaryStrong },
                 ]}
                 onPress={() => setSelectedWordCount(availableWordCount)}
               >
@@ -319,7 +328,7 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
                   style={[
                     styles.wordCountButton,
                     { backgroundColor: colors.card, borderColor: colors.border },
-                    selectedWordCount === count && { backgroundColor: colors.accent, borderColor: colors.accent },
+                    selectedWordCount === count && { backgroundColor: colors.primaryStrong, borderColor: colors.primaryStrong },
                     isDisabled && styles.wordCountButtonDisabled,
                   ]}
                   onPress={() => !isDisabled && setSelectedWordCount(count)}
@@ -340,14 +349,14 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
             })}
           </View>
           {availableWordCount > 0 && availableWordCount < 5 && (
-            <Text style={styles.wordCountWarning}>
+            <Text style={[styles.wordCountWarning, { color: colors.warningText }]}>
               {t('단어가 {{count}}개뿐입니다. 단어를 더 추가해보세요!', { count: availableWordCount })}
             </Text>
           )}
         </View>
 
         <TouchableOpacity
-          style={[styles.startButton, { backgroundColor: colors.accent }, isStarting && { opacity: 0.6 }]}
+          style={[styles.startButton, { backgroundColor: colors.primaryStrong }, isStarting && { opacity: 0.6 }]}
           onPress={handleStartQuiz}
           disabled={isStarting}
         >
@@ -385,7 +394,7 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
                       style={[
                         styles.categoryOptionText,
                         { color: colors.textSecondary },
-                        selectedCategoryId === category.categoryId && { color: colors.accent, fontWeight: '600' },
+                        selectedCategoryId === category.categoryId && { color: colors.primary, fontWeight: '600' },
                       ]}
                     >
                       {category.categoryName}
@@ -394,7 +403,7 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
                       style={[
                         styles.categoryOptionCount,
                         { color: colors.textTertiary },
-                        selectedCategoryId === category.categoryId && { color: colors.accent },
+                        selectedCategoryId === category.categoryId && { color: colors.primary },
                       ]}
                     >
                       {t('{{count}}개', { count: category.wordCount ?? 0 })}
@@ -602,7 +611,6 @@ const styles = StyleSheet.create({
   },
   wordCountWarning: {
     fontSize: 13,
-    color: '#F59E0B',
     marginTop: 8,
   },
   startButton: {

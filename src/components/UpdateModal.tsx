@@ -9,6 +9,9 @@ import {
   Linking,
   Platform,
 } from 'react-native';
+import { useTheme } from '../contexts/ThemeContext';
+import { FONT, RADIUS, SPACING } from '../constants/design';
+
 interface UpdateModalProps {
   visible: boolean;
   currentVersion: string;
@@ -28,6 +31,10 @@ export default function UpdateModal({
   onClose,
 }: UpdateModalProps) {
   const { t } = useTranslation();
+  // 이 컴포넌트만 테마를 안 쓰고 색을 박아 두었었다. 다크 테마 사용자가 업데이트 안내를
+  // 받으면 흰 팝업이 그대로 떴다. 버전 게이트라 자주는 아니어도 반드시 보게 되는 화면이다.
+  const { colors } = useTheme();
+
   const handleUpdate = () => {
     if (storeUrl) {
       Linking.openURL(storeUrl).catch(() => {
@@ -45,45 +52,53 @@ export default function UpdateModal({
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: colors.card }]}>
           {/* 아이콘 */}
           <Text style={styles.icon}>🔄</Text>
 
           {/* 제목 */}
-          <Text style={styles.title}>{t('새 버전이 있습니다')}</Text>
+          <Text style={[styles.title, { color: colors.text }]}>{t('새 버전이 있습니다')}</Text>
 
           {/* 버전 정보 */}
-          <View style={styles.versionInfo}>
+          <View style={[styles.versionInfo, { backgroundColor: colors.surface }]}>
             <View style={styles.versionRow}>
-              <Text style={styles.versionLabel}>{t('현재 버전')}</Text>
-              <Text style={styles.versionValue}>{currentVersion}</Text>
+              <Text style={[styles.versionLabel, { color: colors.textSecondary }]}>{t('현재 버전')}</Text>
+              <Text style={[styles.versionValue, { color: colors.textSecondary }]}>{currentVersion}</Text>
             </View>
             <View style={styles.versionArrow}>
-              <Text style={styles.versionArrowText}>→</Text>
+              <Text style={[styles.versionArrowText, { color: colors.textTertiary }]}>→</Text>
             </View>
             <View style={styles.versionRow}>
-              <Text style={styles.versionLabel}>{t('최신 버전')}</Text>
-              <Text style={[styles.versionValue, styles.versionNew]}>{latestVersion}</Text>
+              <Text style={[styles.versionLabel, { color: colors.textSecondary }]}>{t('최신 버전')}</Text>
+              <Text style={[styles.versionValue, { color: colors.primary }]}>{latestVersion}</Text>
             </View>
           </View>
 
           {/* 안내 문구 */}
-          <Text style={styles.description}>
+          <Text style={[styles.description, { color: colors.textSecondary }]}>
             {t('최신 버전으로 업데이트하면\n새로운 기능을 사용할 수 있습니다.')}
           </Text>
 
-          {/* 버튼 */}
+          {/* 버튼 — 주 / 보조 / 3차 3단 위계 */}
           <View style={styles.buttons}>
             {Platform.OS !== 'web' && storeUrl ? (
-              <TouchableOpacity style={styles.updateButton} onPress={handleUpdate}>
+              <TouchableOpacity
+                style={[styles.updateButton, { backgroundColor: colors.primaryStrong }]}
+                onPress={handleUpdate}
+                accessibilityRole="button"
+              >
                 <Text style={styles.updateButtonText}>{t('업데이트')}</Text>
               </TouchableOpacity>
             ) : null}
-            <TouchableOpacity style={styles.skipButton} onPress={onSkip}>
-              <Text style={styles.skipButtonText}>{t('이 버전 건너뛰기')}</Text>
+            <TouchableOpacity
+              style={[styles.skipButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
+              onPress={onSkip}
+              accessibilityRole="button"
+            >
+              <Text style={[styles.skipButtonText, { color: colors.textSecondary }]}>{t('이 버전 건너뛰기')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-              <Text style={styles.closeButtonText}>{t('나중에')}</Text>
+            <TouchableOpacity style={styles.closeButton} onPress={onClose} accessibilityRole="button">
+              <Text style={[styles.closeButtonText, { color: colors.textTertiary }]}>{t('나중에')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -98,97 +113,84 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    padding: SPACING.xxl,
   },
   container: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 28,
+    borderRadius: RADIUS.xl,
+    padding: SPACING.xxl + SPACING.xs,
     width: '100%',
     maxWidth: 360,
     alignItems: 'center',
   },
   icon: {
     fontSize: 48,
-    marginBottom: 16,
+    marginBottom: SPACING.lg,
   },
   title: {
-    fontSize: 20,
+    fontSize: FONT.title + 2,
     fontWeight: 'bold',
-    color: '#1A1A1A',
-    marginBottom: 16,
+    marginBottom: SPACING.lg,
   },
   versionInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-    borderRadius: 10,
-    padding: 14,
-    marginBottom: 16,
-    gap: 12,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.lg - 2,
+    marginBottom: SPACING.lg,
+    gap: SPACING.md,
   },
   versionRow: {
     alignItems: 'center',
   },
   versionLabel: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginBottom: 4,
+    fontSize: FONT.caption,
+    marginBottom: SPACING.xs,
   },
   versionValue: {
-    fontSize: 16,
+    fontSize: FONT.body + 1,
     fontWeight: '600',
-    color: '#374151',
-  },
-  versionNew: {
-    color: '#6366F1',
   },
   versionArrow: {
-    paddingHorizontal: 4,
+    paddingHorizontal: SPACING.xs,
   },
   versionArrowText: {
-    fontSize: 18,
-    color: '#9CA3AF',
+    fontSize: FONT.title,
   },
   description: {
-    fontSize: 14,
-    color: '#6B7280',
+    fontSize: FONT.label + 1,
     textAlign: 'center',
     lineHeight: 22,
-    marginBottom: 24,
+    marginBottom: SPACING.xxl,
   },
   buttons: {
     width: '100%',
-    gap: 10,
+    gap: SPACING.sm + 2,
   },
   updateButton: {
-    backgroundColor: '#6366F1',
-    borderRadius: 10,
-    padding: 14,
+    borderRadius: RADIUS.md,
+    padding: SPACING.lg - 2,
     alignItems: 'center',
   },
   updateButtonText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: FONT.body + 1,
     fontWeight: '600',
   },
   skipButton: {
-    backgroundColor: '#F3F4F6',
-    borderRadius: 10,
-    padding: 14,
+    borderWidth: 1,
+    borderRadius: RADIUS.md,
+    padding: SPACING.lg - 2,
     alignItems: 'center',
   },
   skipButtonText: {
-    color: '#6B7280',
-    fontSize: 14,
+    fontSize: FONT.label + 1,
     fontWeight: '500',
   },
   closeButton: {
-    padding: 10,
+    padding: SPACING.sm + 2,
     alignItems: 'center',
   },
   closeButtonText: {
-    color: '#9CA3AF',
-    fontSize: 14,
+    fontSize: FONT.label + 1,
   },
 });

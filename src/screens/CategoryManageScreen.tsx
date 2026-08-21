@@ -199,7 +199,7 @@ export default function CategoryManageScreen({ onBack }: CategoryManageScreenPro
       <ScreenHeader title={t('카테고리 관리')} onBack={onBack} />
 
       {/* 추가 버튼 */}
-      <TouchableOpacity style={[styles.addButton, { backgroundColor: colors.accent }]} onPress={openCreateModal}>
+      <TouchableOpacity style={[styles.addButton, { backgroundColor: colors.primaryStrong }]} onPress={openCreateModal}>
         <Text style={styles.addButtonText}>{t('+ 카테고리 추가')}</Text>
       </TouchableOpacity>
 
@@ -272,8 +272,10 @@ export default function CategoryManageScreen({ onBack }: CategoryManageScreenPro
                 <TouchableOpacity
                   style={styles.deleteButton}
                   onPress={() => handleDelete(category)}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('{{name}} 카테고리 삭제', { name: category.categoryName })}
                 >
-                  <Text style={styles.deleteButtonText}>{t('삭제')}</Text>
+                  <Text style={[styles.deleteButtonText, { color: colors.dangerText }]}>{t('삭제')}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -335,7 +337,7 @@ export default function CategoryManageScreen({ onBack }: CategoryManageScreenPro
                 <Text style={[styles.modalCancelButtonText, { color: colors.textSecondary }]}>{t('취소')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalButton, styles.modalSaveButton, { backgroundColor: colors.accent }, saving && styles.modalButtonDisabled]}
+                style={[styles.modalButton, styles.modalSaveButton, { backgroundColor: colors.primaryStrong }, saving && styles.modalButtonDisabled]}
                 onPress={handleSave}
                 disabled={saving}
               >
@@ -499,14 +501,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  // 연분홍 배경(#FECACA)에 연빨강 글씨(#F87171)는 1.91:1 이었다.
+  // 배경을 걷어내고 글자만 남긴다 — 삭제는 확인 다이얼로그가 막아 주므로 버튼을 키울 이유가 없다
   deleteButton: {
-    backgroundColor: '#FECACA',
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 10,
   },
   deleteButtonText: {
-    color: '#F87171',
     fontSize: 14,
     fontWeight: '600',
   },

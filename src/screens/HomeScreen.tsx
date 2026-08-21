@@ -11,6 +11,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
 import { quizService } from '../services/quizService';
@@ -18,6 +19,7 @@ import type { QuizStatistics, MyPageStats } from '../services/quizService';
 import AdBanner from '../components/AdBanner';
 import { useTheme } from '../contexts/ThemeContext';
 import { useBootstrap } from '../contexts/BootstrapContext';
+import { SPACING } from '../constants/design';
 
 interface HomeScreenProps {
   onNavigateToManageWords: () => void;
@@ -64,6 +66,8 @@ export default function HomeScreen({
 }: HomeScreenProps) {
   const { colors } = useTheme();
   const { t } = useTranslation();
+  // 상태바 높이는 기기마다 다르다. 56 으로 박아 두면 노치·펀치홀 기기에서 어긋난다
+  const insets = useSafeAreaInsets();
   const { unreadCount } = useBootstrap();
   const [summary, setSummary] = useState<HomeSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -131,7 +135,7 @@ export default function HomeScreen({
         colors={[colors.gradientStart, colors.gradientEnd]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={styles.hero}
+        style={[styles.hero, { paddingTop: insets.top + SPACING.lg }]}
       >
         {/* 장식 원형 */}
         <View style={[styles.decorCircle, styles.decorCircle1]} />
@@ -289,7 +293,6 @@ const styles = StyleSheet.create({
 
   // ── 히어로 섹션 ──
   hero: {
-    paddingTop: 56,
     paddingBottom: 28,
     paddingHorizontal: SECTION_PADDING,
     borderBottomLeftRadius: 28,

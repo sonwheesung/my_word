@@ -2,6 +2,8 @@ import { useTranslation } from 'react-i18next';
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SPACING } from '../constants/design';
 import { MaterialIcons } from '@expo/vector-icons';
 import type { QuizResult } from '../services/quizService';
 import { useInterstitialAd } from '../hooks/useInterstitialAd';
@@ -30,6 +32,7 @@ export default function QuizResultScreen({
 }: QuizResultScreenProps) {
   const { t } = useTranslation();
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const [showWrongAnswers, setShowWrongAnswers] = useState(false);
   const { showAd } = useInterstitialAd();
   const { toast, showToast, hideToast } = useToast();
@@ -76,7 +79,7 @@ export default function QuizResultScreen({
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar style={colors.isDark ? 'light' : 'dark'} />
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + SPACING.xxl }]}>
         <View style={styles.emoji}>
           {isPerfect ? (
             <MaterialIcons name="emoji-events" size={80} color="#F59E0B" />
@@ -93,7 +96,7 @@ export default function QuizResultScreen({
 
         <View style={styles.scoreContainer}>
           <Text style={[styles.scoreLabel, { color: colors.textSecondary }]}>{t('정답률')}</Text>
-          <Text style={[styles.scoreValue, { color: colors.accent }]}>{percentage}%</Text>
+          <Text style={[styles.scoreValue, { color: colors.primaryStrong }]}>{percentage}%</Text>
           <Text style={[styles.scoreDetail, { color: colors.textSecondary }]}>
             {t('{{correct}} / {{total}} 문제', { correct: correctCount, total: totalCount })}
           </Text>
@@ -101,12 +104,12 @@ export default function QuizResultScreen({
 
         <View style={[styles.statsContainer, { backgroundColor: colors.card }]}>
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>{correctCount}</Text>
+            <Text style={[styles.statValue, { color: colors.successText }]}>{correctCount}</Text>
             <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{t('정답')}</Text>
           </View>
           <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
           <View style={styles.statItem}>
-            <Text style={[styles.statValue, styles.wrongValue]}>
+            <Text style={[styles.statValue, { color: colors.dangerText }]}>
               {totalCount - correctCount}
             </Text>
             <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{t('오답')}</Text>
@@ -117,10 +120,11 @@ export default function QuizResultScreen({
           {wrongResults.length > 0 && (
             <>
               <TouchableOpacity
-                style={styles.wrongAnswerButton}
+                style={[styles.wrongAnswerButton, { backgroundColor: colors.primaryLight, borderColor: colors.border }]}
                 onPress={() => setShowWrongAnswers(true)}
+                accessibilityRole="button"
               >
-                <Text style={styles.wrongAnswerButtonText}>{t('틀린 정답 확인하기')}</Text>
+                <Text style={[styles.wrongAnswerButtonText, { color: colors.primary }]}>{t('틀린 정답 확인하기')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.retryWrongButton}
@@ -130,7 +134,7 @@ export default function QuizResultScreen({
               </TouchableOpacity>
             </>
           )}
-          <TouchableOpacity style={[styles.retryButton, { backgroundColor: colors.accent }]} onPress={onRetry}>
+          <TouchableOpacity style={[styles.retryButton, { backgroundColor: colors.primaryStrong }]} onPress={onRetry}>
             <Text style={styles.retryButtonText}>{t('다시 풀기')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[styles.homeButton, { backgroundColor: colors.border }]} onPress={onBackToHome}>
@@ -152,10 +156,10 @@ export default function QuizResultScreen({
         onRequestClose={() => setShowWrongAnswers(false)}
       >
         <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
-          <View style={[styles.modalHeader, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+          <View style={[styles.modalHeader, { backgroundColor: colors.card, borderBottomColor: colors.border, paddingTop: insets.top + SPACING.lg }]}>
             <Text style={[styles.modalTitle, { color: colors.text }]}>{t('틀린 문제 확인')}</Text>
             <TouchableOpacity onPress={() => setShowWrongAnswers(false)}>
-              <Text style={[styles.modalCloseText, { color: colors.accent }]}>{t('닫기')}</Text>
+              <Text style={[styles.modalCloseText, { color: colors.primary }]}>{t('닫기')}</Text>
             </TouchableOpacity>
           </View>
 
@@ -165,7 +169,7 @@ export default function QuizResultScreen({
               return (
                 <View key={index} style={[styles.wrongItem, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <View style={styles.wrongIndexArea}>
-                    <Text style={styles.wrongIndex}>{index + 1}</Text>
+                    <Text style={[styles.wrongIndex, { color: colors.dangerText }]}>{index + 1}</Text>
                     {speakableText && (
                       <TouchableOpacity
                         style={[styles.wrongSpeakButton, { backgroundColor: colors.primaryLight }]}
@@ -183,11 +187,11 @@ export default function QuizResultScreen({
                     </View>
                     <View style={styles.wrongRow}>
                       <Text style={[styles.wrongLabel, { color: colors.textSecondary }]}>{t('정답')}</Text>
-                      <Text style={styles.correctAnswerText}>{result.correctAnswer}</Text>
+                      <Text style={[styles.correctAnswerText, { color: colors.successText }]}>{result.correctAnswer}</Text>
                     </View>
                     <View style={styles.wrongRow}>
                       <Text style={[styles.wrongLabel, { color: colors.textSecondary }]}>{t('내 답')}</Text>
-                      <Text style={styles.userAnswerText}>{result.userAnswer}</Text>
+                      <Text style={[styles.userAnswerText, { color: colors.dangerText }]}>{result.userAnswer}</Text>
                     </View>
                   </View>
                 </View>
@@ -267,14 +271,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#E5E7EB',
     marginHorizontal: 20,
   },
+  // 색은 화면에서 colors.successText / colors.dangerText 로 넣는다
   statValue: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#10B981',
     marginBottom: 4,
-  },
-  wrongValue: {
-    color: '#EF4444',
   },
   statLabel: {
     fontSize: 14,
@@ -284,16 +285,14 @@ const styles = StyleSheet.create({
     width: '100%',
     gap: 12,
   },
+  // 틀린 문제를 '보는' 동작이라 파괴적이지 않다. 빨강을 걷고 보조 버튼 스타일로 맞춘다
   wrongAnswerButton: {
-    backgroundColor: '#FEE2E2',
     borderRadius: 16,
     padding: 16,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#FECACA',
   },
   wrongAnswerButtonText: {
-    color: '#DC2626',
     fontSize: 16,
     fontWeight: 'bold',
   },
@@ -343,7 +342,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    paddingTop: 52,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
@@ -379,7 +377,6 @@ const styles = StyleSheet.create({
   wrongIndex: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#EF4444',
     minWidth: 24,
     textAlign: 'center',
   },
@@ -417,13 +414,11 @@ const styles = StyleSheet.create({
   },
   correctAnswerText: {
     fontSize: 15,
-    color: '#10B981',
     fontWeight: '600',
     flex: 1,
   },
   userAnswerText: {
     fontSize: 15,
-    color: '#EF4444',
     fontWeight: '600',
     flex: 1,
   },
