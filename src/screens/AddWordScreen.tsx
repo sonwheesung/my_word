@@ -11,6 +11,8 @@ import {
   ActivityIndicator,
   Modal,
   Keyboard,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
@@ -23,6 +25,19 @@ import { useToast } from '../hooks/useToast';
 import ScreenHeader from '../components/ScreenHeader';
 import { useTheme } from '../contexts/ThemeContext';
 import { normalizeForCompare } from '../utils/text';
+import {
+  COUNTER_THRESHOLD,
+  FONT,
+  HIT_SLOP,
+  INPUT_PADDING_H,
+  INPUT_PADDING_V,
+  LIMITS,
+  RADIUS,
+  SPACING,
+} from '../constants/design';
+
+/** 메모 입력 상한. 남은 글자수를 보여주려면 화면도 이 값을 알아야 한다 */
+const MEMO_MAX = 500;
 
 interface AddWordScreenProps {
   wordId?: number | null;
@@ -49,8 +64,17 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
   const [loadingWord, setLoadingWord] = useState(false);
   const [searching, setSearching] = useState(false);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
+  // 예문·태그·메모는 선택 항목이다. 대부분은 단어와 뜻만 넣으므로 기본은 접어 둔다.
+  const [showOptional, setShowOptional] = useState(false);
 
-  const firstMeaningRef = useRef<TextInput>(null);
+  /**
+   * 뜻·예문 입력칸 참조.
+   *
+   * `+ 추가` 를 누르면 빈 칸만 생기고 커서는 그대로였다. 그래서 추가 → 새 칸 탭 → 입력,
+   * 늘 두 번을 눌러야 했다. 새로 생긴 칸으로 포커스를 옮기려면 목록 전체의 ref 가 필요하다.
+   */
+  const meaningRefs = useRef<Array<TextInput | null>>([]);
+  const exampleRefs = useRef<Array<TextInput | null>>([]);
 
   const isEditMode = !!wordId;
 
@@ -103,17 +127,23 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
   };
 
   const addMeaning = () => {
-    if (meanings.length >= 10) {
-      showToast(t('뜻은 최대 10개까지 추가할 수 있습니다'), 'error');
+    if (meanings.length >= LIMITS.meanings) {
+      // 상한에서는 버튼 자체를 감추므로 여기까지 오지 않는다. 방어용으로만 남긴다
+      showToast(t('뜻은 최대 {{count}}개까지 추가할 수 있습니다', { count: LIMITS.meanings }), 'error');
       return;
     }
+    const nextIndex = meanings.length;
     setMeanings([...meanings, '']);
+    // 새 칸이 실제로 붙은 다음 프레임에 커서를 옮긴다. 키보드가 내려가지 않아 흐름이 안 끊긴다
+    requestAnimationFrame(() => meaningRefs.current[nextIndex]?.focus());
   };
 
   const removeMeaning = (index: number) => {
     if (meanings.length > 1) {
       const newMeanings = meanings.filter((_, i) => i !== index);
       setMeanings(newMeanings);
+      // 지운 칸의 ref 가 남아 있으면 다음 추가 때 엉뚱한 칸으로 포커스가 간다
+      meaningRefs.current.splice(index, 1);
     }
   };
 
@@ -124,31 +154,35 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
   };
 
   const addExample = () => {
-    if (examples.length >= 5) {
-      showToast(t('예문은 최대 5개까지 추가할 수 있습니다'), 'error');
+    if (examples.length >= LIMITS.examples) {
+      showToast(t('예문은 최대 {{count}}개까지 추가할 수 있습니다', { count: LIMITS.examples }), 'error');
       return;
     }
+    const nextIndex = examples.length;
     setExamples([...examples, { example: '', translation: '' }]);
+    requestAnimationFrame(() => exampleRefs.current[nextIndex]?.focus());
   };
 
   const removeExample = (index: number) => {
     if (examples.length > 1) {
       const newExamples = examples.filter((_, i) => i !== index);
       setExamples(newExamples);
+      exampleRefs.current.splice(index, 1);
     }
   };
 
   const updateExample = (index: number, field: 'example' | 'translation', value: string) => {
-    const newExamples = [...examples];
-    newExamples[index][field] = value;
+    // 얕은 복사만 하면 index 위치의 객체는 같은 참조라 상태를 직접 건드리게 된다.
+    // 항목까지 새로 만들어 준다
+    const newExamples = examples.map((item, i) => (i === index ? { ...item, [field]: value } : item));
     setExamples(newExamples);
   };
 
   const addTag = () => {
     const trimmed = tagInput.trim();
     if (!trimmed) return;
-    if (tags.length >= 10) {
-      showToast(t('태그는 최대 10개까지 추가할 수 있습니다'), 'error');
+    if (tags.length >= LIMITS.tags) {
+      showToast(t('태그는 최대 {{count}}개까지 추가할 수 있습니다', { count: LIMITS.tags }), 'error');
       setTagInput('');
       return;
     }
@@ -328,11 +362,15 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
     return (
       <View style={[styles.emptyContainer, { backgroundColor: colors.background }]}>
         <StatusBar style={colors.isDark ? 'light' : 'dark'} />
-        <MaterialIcons name="folder-open" size={64} color={colors.textTertiary} />
+        <MaterialIcons name="folder-open" size={64} color={colors.textTertiary} style={styles.emptyIcon} />
         <Text style={[styles.emptyTitle, { color: colors.text }]}>{t('카테고리가 없습니다')}</Text>
         <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>{t('먼저 카테고리를 생성해주세요')}</Text>
-        <TouchableOpacity style={[styles.backButton, { backgroundColor: colors.accent }]} onPress={onBack}>
-          <Text style={styles.backButtonText}>{t('돌아가기')}</Text>
+        <TouchableOpacity
+          style={[styles.saveButton, styles.emptyAction, { backgroundColor: colors.primaryStrong }]}
+          onPress={onBack}
+          accessibilityRole="button"
+        >
+          <Text style={styles.saveButtonText}>{t('돌아가기')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -343,266 +381,370 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
       <StatusBar style={colors.isDark ? 'light' : 'dark'} />
       <ScreenHeader title={isEditMode ? t('단어 수정') : t('단어 추가')} onBack={onBack} />
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-        {/* 카테고리 선택 */}
-        <View style={styles.section}>
-          <Text style={[styles.label, { color: colors.textSecondary }]}>{t('카테고리 *')}</Text>
-          <TouchableOpacity
-            style={[styles.categorySelector, { backgroundColor: colors.card, borderColor: colors.border }]}
-            onPress={() => setShowCategoryPicker(true)}
-            disabled={loading}
-          >
-            <Text style={[styles.categorySelectorText, { color: colors.text }]}>
-              {selectedCategory?.categoryName || t('카테고리 선택')}
-            </Text>
-            <MaterialIcons name="keyboard-arrow-down" size={20} color={colors.textSecondary} />
-          </TouchableOpacity>
-
-          <Modal
-            visible={showCategoryPicker}
-            transparent
-            animationType="fade"
-            onRequestClose={() => setShowCategoryPicker(false)}
-          >
+      {/*
+        저장 바를 키보드 위로 밀어 올린다. 없으면 메모나 뒤쪽 예문을 채울 때
+        키보드가 입력칸과 저장 버튼을 함께 덮는다.
+      */}
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView
+          style={styles.flex}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* ── 카테고리 ── */}
+          <View style={styles.section}>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>{t('카테고리')}</Text>
             <TouchableOpacity
-              style={styles.modalOverlay}
-              activeOpacity={1}
-              onPress={() => setShowCategoryPicker(false)}
+              style={[styles.field, styles.selectField, { backgroundColor: colors.card, borderColor: colors.border }]}
+              onPress={() => setShowCategoryPicker(true)}
+              disabled={loading}
+              accessibilityRole="button"
+              accessibilityLabel={t('카테고리 선택')}
             >
-              <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
-                <Text style={[styles.modalTitle, { color: colors.text, borderBottomColor: colors.border }]}>{t('카테고리 선택')}</Text>
-                <ScrollView style={styles.categoryList}>
-                  {categories.map((category) => (
-                    <TouchableOpacity
-                      key={category.categoryId}
-                      style={[
-                        styles.categoryOption,
-                        { borderBottomColor: colors.borderLight },
-                        selectedCategoryId === category.categoryId && { backgroundColor: colors.primaryLight },
-                      ]}
-                      onPress={() => {
-                        setSelectedCategoryId(category.categoryId);
-                        setShowCategoryPicker(false);
-                      }}
-                    >
-                      <Text
-                        style={[
-                          styles.categoryOptionText,
-                          { color: colors.textSecondary },
-                          selectedCategoryId === category.categoryId && { color: colors.primary, fontWeight: '600' },
-                        ]}
-                      >
-                        {category.categoryName}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-            </TouchableOpacity>
-          </Modal>
-        </View>
-
-        {/* 단어 입력 */}
-        <View style={styles.section}>
-          <Text style={[styles.label, { color: colors.textSecondary }]}>{t('단어 *')}</Text>
-          <View style={styles.wordInputRow}>
-            <TextInput
-              style={[styles.input, styles.wordInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
-              placeholder={t('단어를 입력하세요')}
-              placeholderTextColor={colors.textTertiary}
-              value={word}
-              // 입력값을 가공하지 않는다. 첫 글자를 강제로 소문자로 바꾸면
-              // 독일어 명사(Apfel)나 고유명사가 틀린 철자로 저장되고,
-              // 터키어 İ 는 i + 결합 점으로 글자 수까지 늘어난다
-              onChangeText={setWord}
-              autoCapitalize="none"
-              autoCorrect={false}
-              returnKeyType="search"
-              blurOnSubmit={false}
-              onSubmitEditing={handleDictionarySearch}
-              maxLength={100}
-              editable={!loading && !searching}
-            />
-            <TouchableOpacity
-              style={[styles.searchButton, { backgroundColor: colors.primary }, (searching || !word.trim()) && styles.searchButtonDisabled]}
-              onPress={handleDictionarySearch}
-              disabled={searching || !word.trim() || loading}
-            >
-              {searching ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <Text style={styles.searchButtonText}>{t('검색')}</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-          <Text style={[styles.wordInputHint, { color: colors.textTertiary }]}>{t('단어 입력 후 검색 버튼을 누르면 뜻과 예문을 자동으로 가져옵니다')}</Text>
-        </View>
-
-        {/* 뜻 입력 */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>{t('뜻 *')}</Text>
-            <TouchableOpacity onPress={addMeaning} disabled={loading} style={[styles.addButton, { backgroundColor: colors.accent }]}>
-              <Text style={styles.addButtonText}>{t('+ 추가')}</Text>
+              <Text style={[styles.selectText, { color: colors.text }]} numberOfLines={1}>
+                {selectedCategory?.categoryName || t('카테고리 선택')}
+              </Text>
+              <MaterialIcons name="keyboard-arrow-down" size={20} color={colors.textTertiary} />
             </TouchableOpacity>
           </View>
 
-          {meanings.map((meaning, index) => (
-            <View key={index} style={styles.listItem}>
+          {/* ── 단어 ── */}
+          <View style={styles.section}>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>{t('단어')}</Text>
+            <View style={styles.inlineRow}>
               <TextInput
-                ref={index === 0 ? firstMeaningRef : undefined}
-                style={[styles.input, styles.listItemInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
-                placeholder={t('뜻 {{n}}', { n: index + 1 })}
+                style={[styles.field, styles.flex, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
+                placeholder={t('단어를 입력하세요')}
                 placeholderTextColor={colors.textTertiary}
-                value={meaning}
-                onChangeText={(value) => updateMeaning(index, value)}
+                value={word}
+                // 입력값을 가공하지 않는다. 첫 글자를 강제로 소문자로 바꾸면
+                // 독일어 명사(Apfel)나 고유명사가 틀린 철자로 저장되고,
+                // 터키어 İ 는 i + 결합 점으로 글자 수까지 늘어난다
+                onChangeText={setWord}
+                autoCapitalize="none"
                 autoCorrect={false}
-                maxLength={200}
-                editable={!loading}
+                returnKeyType="search"
+                blurOnSubmit={false}
+                onSubmitEditing={handleDictionarySearch}
+                maxLength={100}
+                editable={!loading && !searching}
               />
-              {meanings.length > 1 && (
-                <TouchableOpacity
-                  onPress={() => removeMeaning(index)}
-                  disabled={loading}
-                  style={styles.removeButton}
-                >
-                  <MaterialIcons name="close" size={16} color="#F87171" />
-                </TouchableOpacity>
-              )}
+              {/*
+                보조 액션이다. 채운 버튼은 화면에 저장 하나만 둔다 —
+                둘 다 채워 두면 어느 쪽이 최종 동작인지 알 수 없다.
+              */}
+              <TouchableOpacity
+                style={[
+                  styles.secondaryButton,
+                  { backgroundColor: colors.primaryLight, borderColor: colors.border },
+                  (searching || !word.trim()) && styles.disabled,
+                ]}
+                onPress={handleDictionarySearch}
+                disabled={searching || !word.trim() || loading}
+              >
+                {searching ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <Text style={[styles.secondaryButtonText, { color: colors.primary }]}>{t('뜻 찾기')}</Text>
+                )}
+              </TouchableOpacity>
             </View>
-          ))}
-        </View>
-
-        {/* 예문 입력 */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>{t('예문 (선택)')}</Text>
-            <TouchableOpacity onPress={addExample} disabled={loading} style={[styles.addButton, { backgroundColor: colors.accent }]}>
-              <Text style={styles.addButtonText}>{t('+ 추가')}</Text>
-            </TouchableOpacity>
+            <Text style={[styles.hint, { color: colors.textTertiary }]}>
+              {t('찾기를 누르면 뜻과 예문을 자동으로 채웁니다')}
+            </Text>
           </View>
 
-          {examples.map((example, index) => (
-            <View key={index} style={[styles.exampleItem, { backgroundColor: colors.surface }]}>
-              <View style={styles.exampleHeader}>
-                <Text style={[styles.exampleNumber, { color: colors.textSecondary }]}>{t('예문 {{n}}', { n: index + 1 })}</Text>
-                {examples.length > 1 && (
+          {/* ── 뜻 ── */}
+          <View style={styles.section}>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>{t('뜻')}</Text>
+
+            {meanings.map((meaning, index) => (
+              <View key={index} style={styles.listRow}>
+                <TextInput
+                  ref={(el) => {
+                    meaningRefs.current[index] = el;
+                  }}
+                  style={[styles.field, styles.flex, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
+                  placeholder={t('뜻 {{n}}', { n: index + 1 })}
+                  placeholderTextColor={colors.textTertiary}
+                  value={meaning}
+                  onChangeText={(value) => updateMeaning(index, value)}
+                  autoCorrect={false}
+                  maxLength={200}
+                  editable={!loading}
+                />
+                {meanings.length > 1 && (
                   <TouchableOpacity
-                    onPress={() => removeExample(index)}
+                    onPress={() => removeMeaning(index)}
                     disabled={loading}
                     style={styles.removeButton}
+                    hitSlop={HIT_SLOP}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('뜻 {{n}} 삭제', { n: index + 1 })}
                   >
-                    <MaterialIcons name="close" size={16} color="#F87171" />
+                    <MaterialIcons name="close" size={18} color={colors.textTertiary} />
                   </TouchableOpacity>
                 )}
               </View>
-              <TextInput
-                style={[styles.input, styles.exampleInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
-                placeholder={t('예문')}
-                placeholderTextColor={colors.textTertiary}
-                value={example.example}
-                // 첫 글자 강제 대문자화 제거 — 대소문자가 없는 언어에는 무의미하고
-                // 있는 언어에서는 사용자가 의도한 표기를 덮어쓴다.
-                // 대문자 힌트는 아래 autoCapitalize(키보드 설정)로 충분하다
-                onChangeText={(value) => updateExample(index, 'example', value)}
-                autoCapitalize="sentences"
-                autoCorrect={false}
-                multiline
-                maxLength={300}
-                editable={!loading}
-              />
-              <TextInput
-                style={[styles.input, styles.exampleInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
-                placeholder={t('번역 (선택)')}
-                placeholderTextColor={colors.textTertiary}
-                value={example.translation}
-                onChangeText={(value) => updateExample(index, 'translation', value)}
-                autoCorrect={false}
-                multiline
-                maxLength={300}
-                editable={!loading}
-              />
-            </View>
-          ))}
-        </View>
+            ))}
 
-        {/* 태그 입력 */}
-        <View style={styles.section}>
-          <Text style={[styles.label, { color: colors.textSecondary }]}>{t('태그 (선택)')}</Text>
-          {tags.length > 0 && (
-            <View style={styles.tagChipsContainer}>
-              {tags.map((tag, index) => (
-                <View key={index} style={[styles.tagChip, { backgroundColor: colors.primaryLight }]}>
-                  <Text style={[styles.tagChipText, { color: colors.primary }]}>{tag}</Text>
-                  <TouchableOpacity
-                    onPress={() => removeTag(index)}
-                    disabled={loading}
-                    style={[styles.tagChipRemove, { backgroundColor: colors.primaryLight }]}
-                  >
-                    <MaterialIcons name="close" size={12} color={colors.primary} />
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </View>
-          )}
-          <View style={styles.tagInputRow}>
-            <TextInput
-              style={[styles.input, styles.tagInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
-              placeholder={t('태그 입력 (예: 동사, 비즈니스)')}
-              placeholderTextColor={colors.textTertiary}
-              value={tagInput}
-              onChangeText={setTagInput}
-              onSubmitEditing={addTag}
-              returnKeyType="done"
-              autoCapitalize="none"
-              autoCorrect={false}
-              maxLength={30}
-              editable={!loading}
-            />
-            <TouchableOpacity
-              onPress={addTag}
-              disabled={loading || !tagInput.trim()}
-              style={[
-                styles.tagAddButton,
-                { backgroundColor: colors.accent },
-                (!tagInput.trim() || loading) && styles.tagAddButtonDisabled,
-              ]}
-            >
-              <Text style={styles.tagAddButtonText}>{t('추가')}</Text>
-            </TouchableOpacity>
+            {/*
+              목록 끝에 둔다. 다 채운 손가락이 그대로 닿는 자리다.
+              상한에 닿으면 아예 감춘다 — 눌러 보고 나서 막힌 걸 알면 답답하다.
+            */}
+            {meanings.length < LIMITS.meanings && (
+              <TouchableOpacity
+                onPress={addMeaning}
+                disabled={loading}
+                style={styles.ghostButton}
+                hitSlop={HIT_SLOP}
+                accessibilityRole="button"
+              >
+                <MaterialIcons name="add" size={16} color={colors.primary} />
+                <Text style={[styles.ghostButtonText, { color: colors.primary }]}>{t('뜻 추가')}</Text>
+              </TouchableOpacity>
+            )}
           </View>
-        </View>
 
-        {/* 메모 */}
-        <View style={styles.section}>
-          <Text style={[styles.label, { color: colors.textSecondary }]}>{t('메모 (선택)')}</Text>
-          <TextInput
-            style={[styles.input, styles.memoInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
-            placeholder={t('헷갈리는 점, 외우는 팁 등을 메모하세요')}
-            placeholderTextColor={colors.textTertiary}
-            value={memo}
-            onChangeText={setMemo}
-            multiline
-            numberOfLines={3}
-            textAlignVertical="top"
-            maxLength={500}
-            editable={!loading}
-          />
-        </View>
+          {/* ── 선택 항목 접기 ── */}
+          <TouchableOpacity
+            style={[
+              styles.foldToggle,
+              { borderTopColor: colors.border, borderBottomColor: showOptional ? 'transparent' : colors.border },
+            ]}
+            onPress={() => setShowOptional((prev) => !prev)}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: showOptional }}
+          >
+            <Text style={[styles.foldTitle, { color: colors.text }]}>{t('예문 · 태그 · 메모')}</Text>
+            <View style={styles.foldRight}>
+              <Text style={[styles.foldHint, { color: colors.textTertiary }]}>
+                {/* `선택` 은 '고르다'로도 읽혀 영어 번역이 Select 로 굳어 있다. 뜻이 갈리지 않는 키를 쓴다 */}
+                {showOptional ? t('접기') : t('선택 항목')}
+              </Text>
+              <MaterialIcons
+                name={showOptional ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
+                size={20}
+                color={colors.textTertiary}
+              />
+            </View>
+          </TouchableOpacity>
 
-        {/* 저장 버튼 */}
-        <TouchableOpacity
-          style={[styles.saveButton, { backgroundColor: colors.accent }, loading && styles.saveButtonDisabled]}
-          onPress={handleSave}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.saveButtonText}>{t('저장')}</Text>
+          {showOptional && (
+            <View style={styles.foldBody}>
+              {/* 예문 */}
+              <View style={styles.section}>
+                <Text style={[styles.label, { color: colors.textSecondary }]}>{t('예문')}</Text>
+
+                {examples.map((example, index) => (
+                  // 원문과 번역은 한 쌍이다. 왼쪽 가는 선으로 묶어 두면 회색 카드로 감싸지 않고도
+                  // 짝이 보인다 — 카드로 감싸면 예문 두 개만 넣어도 화면이 꽉 찬다
+                  <View key={index} style={styles.exampleGroup}>
+                    <View style={[styles.exampleRule, { backgroundColor: colors.border }]} />
+                    <View style={styles.flex}>
+                      <TextInput
+                        ref={(el) => {
+                          exampleRefs.current[index] = el;
+                        }}
+                        style={[styles.field, styles.exampleInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
+                        placeholder={t('예문')}
+                        placeholderTextColor={colors.textTertiary}
+                        value={example.example}
+                        // 첫 글자 강제 대문자화 제거 — 대소문자가 없는 언어에는 무의미하고
+                        // 있는 언어에서는 사용자가 의도한 표기를 덮어쓴다.
+                        // 대문자 힌트는 아래 autoCapitalize(키보드 설정)로 충분하다
+                        onChangeText={(value) => updateExample(index, 'example', value)}
+                        autoCapitalize="sentences"
+                        autoCorrect={false}
+                        multiline
+                        maxLength={300}
+                        editable={!loading}
+                      />
+                      <TextInput
+                        style={[styles.field, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
+                        placeholder={t('번역 (선택)')}
+                        placeholderTextColor={colors.textTertiary}
+                        value={example.translation}
+                        onChangeText={(value) => updateExample(index, 'translation', value)}
+                        autoCorrect={false}
+                        multiline
+                        maxLength={300}
+                        editable={!loading}
+                      />
+                    </View>
+                    {examples.length > 1 && (
+                      <TouchableOpacity
+                        onPress={() => removeExample(index)}
+                        disabled={loading}
+                        style={styles.removeButton}
+                        hitSlop={HIT_SLOP}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('예문 {{n}} 삭제', { n: index + 1 })}
+                      >
+                        <MaterialIcons name="close" size={18} color={colors.textTertiary} />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                ))}
+
+                {examples.length < LIMITS.examples && (
+                  <TouchableOpacity
+                    onPress={addExample}
+                    disabled={loading}
+                    style={styles.ghostButton}
+                    hitSlop={HIT_SLOP}
+                    accessibilityRole="button"
+                  >
+                    <MaterialIcons name="add" size={16} color={colors.primary} />
+                    <Text style={[styles.ghostButtonText, { color: colors.primary }]}>{t('예문 추가')}</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {/* 태그 */}
+              <View style={styles.section}>
+                <Text style={[styles.label, { color: colors.textSecondary }]}>{t('태그')}</Text>
+                {tags.length > 0 && (
+                  <View style={styles.tagChipsContainer}>
+                    {tags.map((tag, index) => (
+                      <View
+                        key={index}
+                        style={[styles.tagChip, { backgroundColor: colors.primaryLight, borderColor: colors.border }]}
+                      >
+                        <Text style={[styles.tagChipText, { color: colors.primary }]}>{tag}</Text>
+                        <TouchableOpacity
+                          onPress={() => removeTag(index)}
+                          disabled={loading}
+                          hitSlop={HIT_SLOP}
+                          accessibilityRole="button"
+                          accessibilityLabel={t('태그 {{tag}} 삭제', { tag })}
+                        >
+                          <MaterialIcons name="close" size={13} color={colors.primary} />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </View>
+                )}
+                {/*
+                  `추가` 버튼을 없앴다. 엔터로 넣을 수 있는데 버튼까지 있으면 손이 두 번 간다.
+                  대신 그 방법을 플레이스홀더가 알려준다.
+                */}
+                <TextInput
+                  style={[styles.field, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
+                  placeholder={t('입력하고 엔터를 누르면 추가됩니다')}
+                  placeholderTextColor={colors.textTertiary}
+                  value={tagInput}
+                  onChangeText={setTagInput}
+                  onSubmitEditing={addTag}
+                  returnKeyType="done"
+                  blurOnSubmit={false}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  maxLength={30}
+                  editable={!loading}
+                />
+              </View>
+
+              {/* 메모 */}
+              <View style={styles.section}>
+                <Text style={[styles.label, { color: colors.textSecondary }]}>{t('메모')}</Text>
+                <TextInput
+                  style={[styles.field, styles.memoInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
+                  placeholder={t('헷갈리는 점, 외우는 팁 등을 메모하세요')}
+                  placeholderTextColor={colors.textTertiary}
+                  value={memo}
+                  onChangeText={setMemo}
+                  multiline
+                  textAlignVertical="top"
+                  maxLength={MEMO_MAX}
+                  editable={!loading}
+                />
+                {/* 상한이 걸려 있는데 표시가 없으면 500자에서 입력이 그냥 멈춘 것처럼 보인다 */}
+                {memo.length > COUNTER_THRESHOLD && (
+                  <Text style={[styles.counter, { color: colors.textTertiary }]}>
+                    {memo.length} / {MEMO_MAX}
+                  </Text>
+                )}
+              </View>
+            </View>
           )}
+        </ScrollView>
+
+        {/*
+          저장을 스크롤 밖으로 뺀다. 폼 안에 있으면 어디서 입력을 끝내든
+          매번 맨 아래까지 내려야 저장할 수 있다.
+        */}
+        <View style={[styles.saveBar, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
+          <TouchableOpacity
+            style={[styles.saveButton, { backgroundColor: colors.primaryStrong }, loading && styles.disabled]}
+            onPress={handleSave}
+            disabled={loading}
+            accessibilityRole="button"
+          >
+            {loading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.saveButtonText}>{t('저장하기')}</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+
+      {/* ── 카테고리 선택 시트 ── */}
+      <Modal
+        visible={showCategoryPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowCategoryPicker(false)}
+      >
+        <TouchableOpacity
+          style={styles.sheetOverlay}
+          activeOpacity={1}
+          onPress={() => setShowCategoryPicker(false)}
+        >
+          {/*
+            화면 한가운데 팝업이 아니라 아래에서 올라오게 한다. 카테고리가 늘어나면
+            가운데 팝업은 세로로 길어지고 위쪽 항목에 엄지가 닿지 않는다.
+            시트 안쪽 터치는 여기서 끊어야 눌렀을 때 같이 닫히지 않는다.
+          */}
+          <TouchableOpacity activeOpacity={1} style={[styles.sheet, { backgroundColor: colors.card }]}>
+            <View style={[styles.sheetGrabber, { backgroundColor: colors.border }]} />
+            <Text style={[styles.sheetTitle, { color: colors.text }]}>{t('카테고리 선택')}</Text>
+            <ScrollView style={styles.sheetList}>
+              {categories.map((category) => {
+                const selected = selectedCategoryId === category.categoryId;
+                return (
+                  <TouchableOpacity
+                    key={category.categoryId}
+                    style={[styles.sheetOption, selected && { backgroundColor: colors.primaryLight }]}
+                    onPress={() => {
+                      setSelectedCategoryId(category.categoryId);
+                      setShowCategoryPicker(false);
+                    }}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                  >
+                    <Text
+                      style={[
+                        styles.sheetOptionText,
+                        { color: colors.textSecondary },
+                        selected && { color: colors.primary, fontWeight: '600' },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {category.categoryName}
+                    </Text>
+                    {selected && <MaterialIcons name="check" size={18} color={colors.primary} />}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </TouchableOpacity>
         </TouchableOpacity>
-      </ScrollView>
+      </Modal>
 
       <Toast
         message={toast.message}
@@ -617,296 +759,254 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+  },
+  flex: {
+    flex: 1,
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
     alignItems: 'center',
     justifyContent: 'center',
   },
   loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: '#6B7280',
+    marginTop: SPACING.md,
+    fontSize: FONT.label,
   },
   emptyContainer: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
+    padding: SPACING.xxl,
   },
   emptyIcon: {
-    fontSize: 64,
-    marginBottom: 16,
+    marginBottom: SPACING.lg,
   },
   emptyTitle: {
-    fontSize: 20,
+    fontSize: FONT.display,
     fontWeight: 'bold',
-    color: '#1A1A1A',
-    marginBottom: 8,
+    marginBottom: SPACING.sm,
   },
   emptySubtitle: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 24,
+    fontSize: FONT.label,
+    marginBottom: SPACING.xxl,
   },
-  scrollView: {
-    flex: 1,
+  /** 빈 상태의 버튼은 화면 폭 전체를 채울 이유가 없다 */
+  emptyAction: {
+    paddingHorizontal: SPACING.xxl + SPACING.md,
   },
+
   scrollContent: {
-    padding: 20,
+    padding: SPACING.xl,
+    paddingBottom: SPACING.xxl,
   },
   section: {
-    marginBottom: 24,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: SPACING.xl,
   },
   label: {
-    fontSize: 14,
+    fontSize: FONT.label,
     fontWeight: '600',
-    color: '#374151',
-    marginBottom: 8,
+    marginBottom: SPACING.sm,
   },
-  input: {
-    backgroundColor: '#FFFFFF',
+
+  // ── 입력 ──
+  /**
+   * 입력 계열 공통 치수. 높이 40dp 로 맞춘다.
+   * ⚠ radius 를 16 으로 두면 알약처럼 보여서 입력칸으로 안 읽힌다.
+   */
+  field: {
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 16,
-    padding: 12,
-    fontSize: 15,
-    color: '#1A1A1A',
+    borderRadius: RADIUS.md,
+    paddingVertical: INPUT_PADDING_V,
+    paddingHorizontal: INPUT_PADDING_H,
+    fontSize: FONT.body,
   },
-  wordInputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  wordInput: {
-    flex: 1,
-    marginRight: 8,
-  },
-  searchButton: {
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 56,
-  },
-  searchButtonDisabled: {
-    opacity: 0.5,
-  },
-  searchButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  wordInputHint: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    marginTop: 6,
-  },
-  categorySelector: {
+  selectField: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 16,
-    padding: 12,
   },
-  categorySelectorText: {
-    fontSize: 15,
-    color: '#1A1A1A',
-  },
-  categorySelectorIcon: {
-    fontSize: 12,
-    color: '#6B7280',
-  },
-  modalOverlay: {
+  selectText: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
+    fontSize: FONT.body,
   },
-  modalContent: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    width: '100%',
-    maxWidth: 400,
-    maxHeight: '60%',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1A1A1A',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  categoryList: {
-    maxHeight: 300,
-  },
-  categoryOption: {
-    padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  categoryOptionSelected: {
-    backgroundColor: '#EEF2FF',
-  },
-  categoryOptionText: {
-    fontSize: 15,
-    color: '#374151',
-  },
-  categoryOptionTextSelected: {
-    color: '#6366F1',
-    fontWeight: '600',
-  },
-  addButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: '#C4B5FD',
-    borderRadius: 10,
-  },
-  addButtonText: {
-    fontSize: 13,
-    color: '#FFFFFF',
-    fontWeight: '600',
-  },
-  listItem: {
+  inlineRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    gap: SPACING.sm,
   },
-  listItemInput: {
-    flex: 1,
-    marginRight: 8,
-  },
-  removeButton: {
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FECACA',
-    borderRadius: 16,
-  },
-  removeButtonText: {
-    fontSize: 16,
-    color: '#F87171',
-    fontWeight: 'bold',
-  },
-  exampleItem: {
-    marginBottom: 16,
-    padding: 12,
-    backgroundColor: '#F9FAFB',
-    borderRadius: 16,
-  },
-  exampleHeader: {
+  listRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    gap: SPACING.xs,
+    marginBottom: SPACING.sm,
   },
-  exampleNumber: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#6B7280',
+  hint: {
+    fontSize: FONT.caption,
+    marginTop: SPACING.xs + 2,
   },
-  exampleInput: {
-    marginBottom: 8,
+  counter: {
+    fontSize: FONT.micro,
+    textAlign: 'right',
+    marginTop: SPACING.xs,
+  },
+  memoInput: {
+    minHeight: 88,
+  },
+
+  // ── 버튼 3단 위계 ──
+  /** 주 액션: 화면당 하나. 채운 배경 + 흰 글씨 */
+  saveBar: {
+    borderTopWidth: 1,
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.md,
   },
   saveButton: {
-    backgroundColor: '#C4B5FD',
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: RADIUS.md,
+    paddingVertical: SPACING.lg,
     alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 24,
-  },
-  saveButtonDisabled: {
-    opacity: 0.6,
   },
   saveButtonText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: FONT.body + 1,
     fontWeight: 'bold',
   },
-  backButton: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    backgroundColor: '#C4B5FD',
-    borderRadius: 16,
+  /** 보조 액션: 연한 배경 + 테두리. 되돌릴 수 있는 동작 */
+  secondaryButton: {
+    borderWidth: 1,
+    borderRadius: RADIUS.md,
+    paddingVertical: INPUT_PADDING_V,
+    paddingHorizontal: SPACING.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 72,
   },
-  backButtonText: {
-    color: '#FFFFFF',
-    fontSize: 15,
+  secondaryButtonText: {
+    fontSize: FONT.label,
     fontWeight: '600',
   },
+  /** 3차 액션: 글자만. 반복 가능한 소소한 조작 */
+  ghostButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    alignSelf: 'flex-start',
+    paddingVertical: SPACING.xs + 2,
+  },
+  ghostButtonText: {
+    fontSize: FONT.label,
+    fontWeight: '600',
+  },
+  removeButton: {
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  disabled: {
+    opacity: 0.5,
+  },
+
+  // ── 선택 항목 접기 ──
+  foldToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    paddingVertical: SPACING.lg,
+  },
+  foldTitle: {
+    fontSize: FONT.label + 1,
+    fontWeight: '600',
+  },
+  foldRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+  },
+  foldHint: {
+    fontSize: FONT.caption,
+  },
+  foldBody: {
+    paddingTop: SPACING.lg,
+  },
+
+  // ── 예문 ──
+  exampleGroup: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: SPACING.sm,
+    marginBottom: SPACING.md,
+  },
+  exampleRule: {
+    width: 2,
+    alignSelf: 'stretch',
+    borderRadius: 1,
+  },
+  exampleInput: {
+    marginBottom: SPACING.xs + 2,
+  },
+
+  // ── 태그 ──
   tagChipsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 12,
+    gap: SPACING.sm,
+    marginBottom: SPACING.md,
   },
   tagChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EDE9FE',
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    gap: SPACING.xs + 2,
+    borderWidth: 1,
+    borderRadius: RADIUS.pill,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs + 2,
   },
   tagChipText: {
-    fontSize: 13,
-    color: '#7C3AED',
+    fontSize: FONT.caption + 1,
     fontWeight: '500',
-    marginRight: 6,
   },
-  tagChipRemove: {
-    width: 18,
-    height: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#DDD6FE',
-    borderRadius: 9,
+
+  // ── 카테고리 시트 ──
+  sheetOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    justifyContent: 'flex-end',
   },
-  tagChipRemoveText: {
-    fontSize: 10,
-    color: '#7C3AED',
+  sheet: {
+    borderTopLeftRadius: RADIUS.sheet,
+    borderTopRightRadius: RADIUS.sheet,
+    paddingTop: SPACING.sm,
+    paddingBottom: SPACING.xxl,
+    maxHeight: '70%',
+  },
+  sheetGrabber: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: SPACING.md,
+  },
+  sheetTitle: {
+    fontSize: FONT.title - 2,
     fontWeight: 'bold',
+    paddingHorizontal: SPACING.xl,
+    marginBottom: SPACING.sm,
   },
-  tagInputRow: {
+  sheetList: {
+    paddingHorizontal: SPACING.sm,
+  },
+  sheetOption: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md + 2,
   },
-  tagInput: {
+  sheetOptionText: {
     flex: 1,
-    marginRight: 8,
-  },
-  tagAddButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#C4B5FD',
-    borderRadius: 16,
-  },
-  tagAddButtonDisabled: {
-    opacity: 0.5,
-  },
-  tagAddButtonText: {
-    fontSize: 14,
-    color: '#FFFFFF',
-    fontWeight: '600',
-  },
-  memoInput: {
-    minHeight: 80,
-    textAlignVertical: 'top',
+    fontSize: FONT.body,
   },
 });

@@ -1,8 +1,16 @@
 export interface ThemeColors {
   // 브랜드
-  primary: string;       // 주 버튼, 링크, 활성 상태
-  accent: string;        // 강조 버튼, 로딩
-  primaryLight: string;  // 선택 배경, 연한 강조
+  primary: string;       // 링크, 활성 상태, 아이콘
+  /**
+   * 흰 글씨를 얹는 채운 버튼 전용. primary 보다 한 단계 진하다.
+   *
+   * ⚠ 여기에 primary 나 accent 를 쓰면 안 된다. accent(#C4B5FD 계열)는 흰 글씨 대비가
+   *   1.72:1 로 WCAG 최소 4.5:1 의 절반도 안 되고, primary(#6366F1)조차 4.47:1 로
+   *   아슬아슬하게 미달한다. 이 값들은 모두 4.5:1 을 넘긴 것이다.
+   */
+  primaryStrong: string;
+  accent: string;        // 강조 배경, 로딩 (채운 버튼 배경으로 쓰지 않는다)
+  primaryLight: string;  // 선택 배경, 보조 버튼 배경
 
   // 그라데이션
   gradientStart: string; // 히어로 그라데이션 시작
@@ -23,10 +31,30 @@ export interface ThemeColors {
   border: string;        // 기본 테두리
   borderLight: string;   // 연한 테두리
 
-  // 시맨틱 (고정 — 테마 불문)
+  // 시맨틱 (고정 — 테마 불문). 배경·아이콘·테두리용이다
   success: string;
   error: string;
   warning: string;
+
+  /**
+   * 삭제처럼 되돌릴 수 없는 동작의 **글자색**.
+   *
+   * error(#EF4444)는 흰 배경에서 3.76:1 로 본문 기준 4.5:1 에 못 미친다.
+   * 반대로 다크 배경에서는 진한 빨강이 안 보인다. 그래서 명암별로 값이 다르다.
+   * ⚠ 배경색으로 쓰지 않는다 — 배경은 error 를 쓴다.
+   */
+  dangerText: string;
+
+  /**
+   * 정답·성공을 **글자로** 표시할 때. success(#10B981)는 흰 배경에서 2.54:1 이다.
+   */
+  successText: string;
+
+  /**
+   * 주의·중복을 **글자로** 표시할 때. warning(#F59E0B)은 흰 배경에서 2.15:1 로
+   * 셋 중 가장 나쁘다.
+   */
+  warningText: string;
 
   // 다크모드 여부
   isDark: boolean;
@@ -50,6 +78,7 @@ export const THEMES: Theme[] = [
     name: '인디고',
     colors: {
       primary: '#6366F1',
+      primaryStrong: '#4F46E5', // 흰 글씨 대비 6.30:1
       accent: '#C4B5FD',
       primaryLight: '#EEF2FF',
       gradientStart: '#6366F1',
@@ -64,6 +93,9 @@ export const THEMES: Theme[] = [
       border: '#E5E7EB',
       borderLight: '#F3F4F6',
       ...SEMANTIC,
+      dangerText: '#DC2626', // 카드 배경 위 4.83:1
+      successText: '#047857',
+      warningText: '#92400E',
       isDark: false,
     },
   },
@@ -72,6 +104,7 @@ export const THEMES: Theme[] = [
     name: '민트',
     colors: {
       primary: '#10B981',
+      primaryStrong: '#047857', // 흰 글씨 대비 5.48:1
       accent: '#6EE7B7',
       primaryLight: '#ECFDF5',
       gradientStart: '#10B981',
@@ -86,6 +119,9 @@ export const THEMES: Theme[] = [
       border: '#E5E7EB',
       borderLight: '#F3F4F6',
       ...SEMANTIC,
+      dangerText: '#DC2626', // 카드 배경 위 4.83:1
+      successText: '#047857',
+      warningText: '#92400E',
       isDark: false,
     },
   },
@@ -94,6 +130,7 @@ export const THEMES: Theme[] = [
     name: '로즈',
     colors: {
       primary: '#F43F5E',
+      primaryStrong: '#BE123C', // 흰 글씨 대비 6.28:1
       accent: '#FDA4AF',
       primaryLight: '#FFF1F2',
       gradientStart: '#F43F5E',
@@ -108,6 +145,9 @@ export const THEMES: Theme[] = [
       border: '#E5E7EB',
       borderLight: '#F3F4F6',
       ...SEMANTIC,
+      dangerText: '#DC2626', // 카드 배경 위 4.83:1
+      successText: '#047857',
+      warningText: '#92400E',
       isDark: false,
     },
   },
@@ -116,6 +156,7 @@ export const THEMES: Theme[] = [
     name: '오렌지',
     colors: {
       primary: '#F97316',
+      primaryStrong: '#C2410C', // 흰 글씨 대비 5.18:1
       accent: '#FDBA74',
       primaryLight: '#FFF7ED',
       gradientStart: '#F97316',
@@ -130,6 +171,9 @@ export const THEMES: Theme[] = [
       border: '#E5E7EB',
       borderLight: '#F3F4F6',
       ...SEMANTIC,
+      dangerText: '#DC2626', // 카드 배경 위 4.83:1
+      successText: '#047857',
+      warningText: '#92400E',
       isDark: false,
     },
   },
@@ -138,6 +182,7 @@ export const THEMES: Theme[] = [
     name: '스카이',
     colors: {
       primary: '#0EA5E9',
+      primaryStrong: '#0369A1', // 흰 글씨 대비 5.93:1
       accent: '#7DD3FC',
       primaryLight: '#F0F9FF',
       gradientStart: '#0EA5E9',
@@ -152,6 +197,9 @@ export const THEMES: Theme[] = [
       border: '#E5E7EB',
       borderLight: '#F3F4F6',
       ...SEMANTIC,
+      dangerText: '#DC2626', // 카드 배경 위 4.83:1
+      successText: '#047857',
+      warningText: '#92400E',
       isDark: false,
     },
   },
@@ -160,6 +208,7 @@ export const THEMES: Theme[] = [
     name: '다크',
     colors: {
       primary: '#8B5CF6',
+      primaryStrong: '#7C3AED', // 흰 글씨 대비 5.70:1
       accent: '#A78BFA',
       primaryLight: '#2D2640',
       gradientStart: '#1E1E2E',
@@ -174,6 +223,9 @@ export const THEMES: Theme[] = [
       border: '#333333',
       borderLight: '#2A2A2A',
       ...SEMANTIC,
+      dangerText: '#F87171', // 카드 배경 위 6.03:1
+      successText: '#6EE7B7',
+      warningText: '#FCD34D',
       isDark: true,
     },
   },

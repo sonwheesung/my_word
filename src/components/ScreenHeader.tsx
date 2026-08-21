@@ -1,7 +1,9 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
+import { FONT, HIT_SLOP, SPACING } from '../constants/design';
 
 interface ScreenHeaderProps {
   title: string;
@@ -14,15 +16,30 @@ interface ScreenHeaderProps {
 
 export default function ScreenHeader({ title, onBack, rightButton }: ScreenHeaderProps) {
   const { colors } = useTheme();
+  // App 의 SafeAreaView 는 edges={['bottom']} 이라 상단 여백은 여기서 직접 준다.
+  // 예전에는 paddingTop: 48 로 박아 뒀는데, 상태바 높이가 기기마다 달라서
+  // 노치·펀치홀 기기에서 제목이 붙거나 떠 보였다.
+  const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-      <TouchableOpacity onPress={onBack} style={styles.backButton}>
+    <View
+      style={[
+        styles.header,
+        {
+          backgroundColor: colors.card,
+          borderBottomColor: colors.border,
+          paddingTop: insets.top + SPACING.md,
+        },
+      ]}
+    >
+      <TouchableOpacity onPress={onBack} style={styles.backButton} hitSlop={HIT_SLOP}>
         <MaterialIcons name="arrow-back-ios-new" size={20} color={colors.primary} />
       </TouchableOpacity>
-      <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
+      <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>
+        {title}
+      </Text>
       {rightButton ? (
-        <TouchableOpacity onPress={rightButton.onPress} style={styles.rightButton}>
+        <TouchableOpacity onPress={rightButton.onPress} style={styles.rightButton} hitSlop={HIT_SLOP}>
           <Text style={[styles.rightButtonText, { color: colors.primary }]}>{rightButton.text}</Text>
         </TouchableOpacity>
       ) : (
@@ -37,9 +54,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    paddingTop: 48,
+    paddingHorizontal: SPACING.lg,
+    paddingBottom: SPACING.md,
     borderBottomWidth: 1,
   },
   backButton: {
@@ -49,7 +65,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
-    fontSize: 18,
+    flex: 1,
+    textAlign: 'center',
+    fontSize: FONT.title,
     fontWeight: 'bold',
   },
   rightButton: {
@@ -57,7 +75,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   rightButtonText: {
-    fontSize: 14,
+    fontSize: FONT.label,
     fontWeight: '600',
   },
 });
