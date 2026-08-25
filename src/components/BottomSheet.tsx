@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../contexts/ThemeContext';
 import { FONT, RADIUS, SPACING } from '../constants/design';
 
@@ -46,6 +47,11 @@ export default function BottomSheet({
 }: BottomSheetProps) {
   const { t } = useTranslation();
   const { colors } = useTheme();
+  // Modal 은 루트 <SafeAreaView edges={['bottom']}> 바깥의 별도 네이티브 뷰에 그려진다.
+  // 즉 루트가 주는 하단 여백이 시트에는 닿지 않는다. edgeToEdgeEnabled=true 라
+  // 시트가 내비게이션 바 아래까지 내려가므로 여기서 직접 비켜 준다.
+  // (이 값을 빼먹으면 3버튼 내비바 기기에서 시트 맨 아래 버튼이 절반 잘린다)
+  const insets = useSafeAreaInsets();
 
   const body = scrollable ? (
     <ScrollView keyboardShouldPersistTaps="handled">{children}</ScrollView>
@@ -54,25 +60,36 @@ export default function BottomSheet({
   );
 
   const sheet = (
-    <TouchableOpacity
-      style={styles.overlay}
-      activeOpacity={1}
-      onPress={onClose}
-      accessibilityRole="button"
-      accessibilityLabel={t('닫기')}
-    >
+    <View style={styles.overlay}>
+      {/*
+        바깥을 눌러 닫는 영역. 시트를 감싸지 않고 **형제**로 둔다.
+        감싸면 시트 안의 버튼이 이 버튼 안에 중첩돼 두 가지가 깨진다 —
+        웹에서 `<button> cannot contain a nested <button>` DOM 오류가 나고,
+        스크린 리더는 시트 전체를 "닫기" 버튼 하나로 읽어 내용을 못 읽는다.
+        먼저 그려지므로 시트가 위에 얹힌다.
+      */}
       <TouchableOpacity
+        style={StyleSheet.absoluteFill}
         activeOpacity={1}
+        onPress={onClose}
+        accessibilityRole="button"
+        accessibilityLabel={t('닫기')}
+      />
+      <View
         style={[
           styles.sheet,
-          { backgroundColor: colors.card, maxHeight: `${Math.round(maxHeightRatio * 100)}%` },
+          {
+            backgroundColor: colors.card,
+            maxHeight: `${Math.round(maxHeightRatio * 100)}%`,
+            paddingBottom: SPACING.xxl + insets.bottom,
+          },
         ]}
       >
         <View style={[styles.grabber, { backgroundColor: colors.border }]} />
         {title ? <Text style={[styles.title, { color: colors.text }]}>{title}</Text> : null}
         {body}
-      </TouchableOpacity>
-    </TouchableOpacity>
+      </View>
+    </View>
   );
 
   return (
@@ -104,7 +121,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: RADIUS.sheet,
     borderTopRightRadius: RADIUS.sheet,
     paddingTop: SPACING.sm,
-    paddingBottom: SPACING.xxl,
+    // paddingBottom 은 insets.bottom 을 더해 인라인으로 준다
   },
   grabber: {
     width: 36,

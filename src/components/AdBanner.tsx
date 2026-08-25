@@ -3,6 +3,7 @@ import { View, StyleSheet, Platform } from 'react-native';
 
 import { usePurchase } from '../contexts/PurchaseContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { AD_BANNER_HEIGHT } from '../constants/design';
 
 let BannerAd: any = null;
 let BannerAdSize: any = null;
@@ -20,6 +21,19 @@ try {
 }
 
 const { ADMOB_BANNER_ID } = require('../constants/adConfig');
+
+/**
+ * 배너가 실제로 그려지는 높이. 안 그려지면 0.
+ * 토스트처럼 화면 하단에 절대 배치되는 요소가 광고를 덮지 않도록 비켜설 때 쓴다.
+ * (광고를 콘텐츠로 가리는 것은 AdMob 정책 위반이다)
+ */
+export function useAdBannerHeight(): number {
+  const { adFree } = usePurchase();
+  if (adFree || Platform.OS === 'web' || !adsAvailable || !BannerAd) {
+    return 0;
+  }
+  return AD_BANNER_HEIGHT;
+}
 
 export default function AdBanner() {
   // 평생 광고 제거를 산 사람에게는 아무것도 그리지 않는다

@@ -77,3 +77,10 @@ export const COUNTER_THRESHOLD = 100;
  * 400ms 는 타이핑이 끊긴 것을 사람이 느끼기 시작하는 지점보다 짧다.
  */
 export const SEARCH_DEBOUNCE_MS = 400;
+
+/**
+ * 하단 배너 광고가 차지하는 높이(dp).
+ * ANCHORED_ADAPTIVE_BANNER 는 기기마다 50~60 사이에서 정해진다. 화면 하단에 겹칠 수 있는
+ * 요소(토스트 등)가 비켜설 때 쓰는 근삿값이다. 정확한 값이 필요한 레이아웃에는 쓰지 말 것.
+ */
+export const AD_BANNER_HEIGHT = 60;

@@ -9,6 +9,7 @@ import {
   Linking,
   Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../contexts/ThemeContext';
 import { FONT, RADIUS, SPACING } from '../constants/design';
 
@@ -30,6 +31,9 @@ export default function UpdateModal({
   onSkip,
   onClose,
 }: UpdateModalProps) {
+  // Modal 은 루트 SafeAreaView 바깥이라 시스템 바를 직접 비켜 줘야 한다.
+  // 세로 중앙 정렬이라 지금은 잘리지 않지만, 버튼이 3개라 화면이 짧으면 아래가 물린다.
+  const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   // 이 컴포넌트만 테마를 안 쓰고 색을 박아 두었었다. 다크 테마 사용자가 업데이트 안내를
   // 받으면 흰 팝업이 그대로 떴다. 버전 게이트라 자주는 아니어도 반드시 보게 되는 화면이다.
@@ -51,7 +55,12 @@ export default function UpdateModal({
       animationType="fade"
       onRequestClose={onClose}
     >
-      <View style={styles.overlay}>
+      <View
+        style={[
+          styles.overlay,
+          { paddingTop: insets.top + SPACING.xxl, paddingBottom: insets.bottom + SPACING.xxl },
+        ]}
+      >
         <View style={[styles.container, { backgroundColor: colors.card }]}>
           {/* 아이콘 */}
           <Text style={styles.icon}>🔄</Text>
@@ -113,7 +122,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: SPACING.xxl,
+    paddingHorizontal: SPACING.xxl,
+    // 세로 패딩은 insets 를 더해 인라인으로 준다
   },
   container: {
     borderRadius: RADIUS.xl,

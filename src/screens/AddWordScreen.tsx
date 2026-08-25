@@ -9,7 +9,6 @@ import {
   Alert,
   ScrollView,
   ActivityIndicator,
-  Modal,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -23,6 +22,7 @@ import type { Category } from '../types/word';
 import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
 import ScreenHeader from '../components/ScreenHeader';
+import BottomSheet from '../components/BottomSheet';
 import { useTheme } from '../contexts/ThemeContext';
 import { normalizeForCompare } from '../utils/text';
 import {
@@ -693,27 +693,16 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
         </View>
       </KeyboardAvoidingView>
 
-      {/* ── 카테고리 선택 시트 ── */}
-      <Modal
+      {/* ── 카테고리 선택 시트 ──
+          공용 BottomSheet 를 쓴다. 예전에는 같은 구조를 여기 복사해 뒀는데,
+          그 복사본만 하단 세이프 영역을 비켜 주지 않아 3버튼 내비바 기기에서
+          맨 아래 항목이 잘렸다. 시트는 한 곳에서만 정의한다. */}
+      <BottomSheet
         visible={showCategoryPicker}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowCategoryPicker(false)}
+        onClose={() => setShowCategoryPicker(false)}
+        title={t('카테고리 선택')}
       >
-        <TouchableOpacity
-          style={styles.sheetOverlay}
-          activeOpacity={1}
-          onPress={() => setShowCategoryPicker(false)}
-        >
-          {/*
-            화면 한가운데 팝업이 아니라 아래에서 올라오게 한다. 카테고리가 늘어나면
-            가운데 팝업은 세로로 길어지고 위쪽 항목에 엄지가 닿지 않는다.
-            시트 안쪽 터치는 여기서 끊어야 눌렀을 때 같이 닫히지 않는다.
-          */}
-          <TouchableOpacity activeOpacity={1} style={[styles.sheet, { backgroundColor: colors.card }]}>
-            <View style={[styles.sheetGrabber, { backgroundColor: colors.border }]} />
-            <Text style={[styles.sheetTitle, { color: colors.text }]}>{t('카테고리 선택')}</Text>
-            <ScrollView style={styles.sheetList}>
+        <View style={styles.sheetList}>
               {categories.map((category) => {
                 const selected = selectedCategoryId === category.categoryId;
                 return (
@@ -741,10 +730,8 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
                   </TouchableOpacity>
                 );
               })}
-            </ScrollView>
-          </TouchableOpacity>
-        </TouchableOpacity>
-      </Modal>
+        </View>
+      </BottomSheet>
 
       <Toast
         message={toast.message}
@@ -969,31 +956,6 @@ const styles = StyleSheet.create({
   },
 
   // ── 카테고리 시트 ──
-  sheetOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    borderTopLeftRadius: RADIUS.sheet,
-    borderTopRightRadius: RADIUS.sheet,
-    paddingTop: SPACING.sm,
-    paddingBottom: SPACING.xxl,
-    maxHeight: '70%',
-  },
-  sheetGrabber: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginBottom: SPACING.md,
-  },
-  sheetTitle: {
-    fontSize: FONT.title - 2,
-    fontWeight: 'bold',
-    paddingHorizontal: SPACING.xl,
-    marginBottom: SPACING.sm,
-  },
   sheetList: {
     paddingHorizontal: SPACING.sm,
   },

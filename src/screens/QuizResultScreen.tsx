@@ -7,7 +7,7 @@ import { HIT_SLOP, SPACING } from '../constants/design';
 import { MaterialIcons } from '@expo/vector-icons';
 import type { QuizResult } from '../services/quizService';
 import { useInterstitialAd } from '../hooks/useInterstitialAd';
-import AdBanner from '../components/AdBanner';
+import AdBanner, { useAdBannerHeight } from '../components/AdBanner';
 import { useTheme } from '../contexts/ThemeContext';
 import { speak } from '../utils/speech';
 import Toast from '../components/Toast';
@@ -32,6 +32,8 @@ export default function QuizResultScreen({
 }: QuizResultScreenProps) {
   const { t } = useTranslation();
   const { colors } = useTheme();
+  // 토스트가 배너 광고를 덮지 않게 그 높이만큼 띄운다(AdMob 정책)
+  const adBannerHeight = useAdBannerHeight();
   const insets = useSafeAreaInsets();
   const { showAd } = useInterstitialAd();
   const { toast, showToast, hideToast } = useToast();
@@ -225,6 +227,7 @@ export default function QuizResultScreen({
         type={toast.type}
         visible={toast.visible}
         onHide={hideToast}
+        offsetBottom={adBannerHeight}
       />
     </View>
   );

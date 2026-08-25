@@ -476,7 +476,12 @@ export default function StatisticsScreen({ onBack }: StatisticsScreenProps) {
               <Text style={[styles.modalEmptyText, { color: colors.textTertiary }]}>{t('퀴즈 기록이 없습니다')}</Text>
             </View>
           ) : (
-            <ScrollView style={styles.modalContent}>
+            <ScrollView
+              style={styles.modalContent}
+              /* Modal 은 루트 SafeAreaView 바깥이라 하단 여백을 직접 준다.
+                 없으면 마지막 단어 행이 내비게이션 바에 깔린다. */
+              contentContainerStyle={{ paddingBottom: insets.bottom + SPACING.lg }}
+            >
               {sortedWordStats.map((item, index) => (
                 <View key={item.wordId} style={[styles.wordItem, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <View style={styles.wordItemLeft}>

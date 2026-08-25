@@ -27,8 +27,8 @@ import { useToast } from '../hooks/useToast';
 import ScreenHeader from '../components/ScreenHeader';
 import { WordCardSkeleton } from '../components/SkeletonLoader';
 import BottomSheet from '../components/BottomSheet';
-import { HIT_SLOP, SEARCH_DEBOUNCE_MS } from '../constants/design';
-import AdBanner from '../components/AdBanner';
+import { FONT, HIT_SLOP, RADIUS, SEARCH_DEBOUNCE_MS, SPACING } from '../constants/design';
+import AdBanner, { useAdBannerHeight } from '../components/AdBanner';
 import { useTheme } from '../contexts/ThemeContext';
 import { speak } from '../utils/speech';
 import { normalizeForCompare } from '../utils/text';
@@ -50,6 +50,8 @@ export default function ManageWordsScreen({
 }: ManageWordsScreenProps) {
   const { t } = useTranslation();
   const { colors } = useTheme();
+  // 토스트가 배너 광고를 덮지 않게 그 높이만큼 띄운다(AdMob 정책)
+  const adBannerHeight = useAdBannerHeight();
   const { toast, showToast, hideToast } = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
@@ -522,7 +524,7 @@ export default function ManageWordsScreen({
       >
             {selectedWord && (
               <>
-                <ScrollView style={styles.detailScroll}>
+                <ScrollView style={styles.detailScroll} contentContainerStyle={styles.detailScrollContent}>
                   <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
                     <View style={styles.modalWordRow}>
                       <Text style={[styles.modalWordText, { color: colors.text }]}>{selectedWord.word}</Text>
@@ -624,6 +626,7 @@ export default function ManageWordsScreen({
         type={toast.type}
         visible={toast.visible}
         onHide={hideToast}
+        offsetBottom={adBannerHeight}
       />
     </View>
   );
@@ -635,6 +638,14 @@ const styles = StyleSheet.create({
   },
   detailScroll: {
     flexShrink: 1,
+  },
+  /*
+   * ⚠ 시트 본문의 좌우 여백은 여기 한 곳에서만 준다. 가운데 팝업이던 때는 바깥
+   *   컨테이너가 갖고 있었는데, BottomSheet 로 옮기면서 같이 사라져 단어·뜻이
+   *   화면 왼쪽 끝에 붙어 있었다. 하단 버튼 줄은 ScrollView 밖이라 따로 준다.
+   */
+  detailScrollContent: {
+    paddingHorizontal: SPACING.xl,
   },
   container: {
     flex: 1,
@@ -899,22 +910,23 @@ const styles = StyleSheet.create({
   },
   modalButtons: {
     flexDirection: 'row',
-    gap: 6,
-    paddingTop: 12,
+    gap: SPACING.sm,
+    paddingTop: SPACING.md,
+    paddingHorizontal: SPACING.xl,
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
-    marginTop: 4,
+    marginTop: SPACING.xs,
   },
   modalEditButton: {
     flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 6,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    borderRadius: RADIUS.md,
     alignItems: 'center',
   },
   modalEditButtonText: {
     color: '#FFFFFF',
-    fontSize: 13,
+    fontSize: FONT.body,
     fontWeight: '600',
   },
   // 연빨강 배경(#FCA5A5)에 흰 글씨는 1.8:1 이었다. 배경을 걷고 글자만 남긴다 —
@@ -922,13 +934,13 @@ const styles = StyleSheet.create({
   modalDeleteButton: {
     flex: 1,
     borderWidth: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 6,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    borderRadius: RADIUS.md,
     alignItems: 'center',
   },
   modalDeleteButtonText: {
-    fontSize: 13,
+    fontSize: FONT.body,
     fontWeight: '600',
   },
   modalCloseButton: {
