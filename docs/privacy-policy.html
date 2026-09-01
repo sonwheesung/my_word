@@ -154,7 +154,7 @@
 
         <h2>1. 개인정보의 수집 및 이용 목적</h2>
         <p>My Word(이하 "앱")는 사용자의 단어 학습을 돕기 위한 목적으로 개발된 애플리케이션입니다. 본 앱은 별도의 회원가입 없이 사용 가능하며, 계정을 만들거나 이름·이메일·전화번호 등 사용자를 식별할 수 있는 정보를 수집하지 않습니다.</p>
-        <p>학습 데이터는 기기 안에만 저장됩니다. 다만 사용자가 <strong>직접 실행한 경우에 한해</strong> 아래 두 기능에서 외부로 데이터가 전송됩니다: 단어 검색(제5항), 문의하기(제6항). 이와 별개로 앱을 실행할 때마다 공지사항과 최신 버전을 확인하기 위한 조회 요청이 발생하며, 그 내용은 제6항에 적었습니다.</p>
+        <p>학습 데이터는 기기 안에만 저장됩니다. 다만 사용자가 <strong>직접 실행한 경우에 한해</strong> 아래 두 기능에서 외부로 데이터가 전송됩니다: 단어 검색(제5항), 문의하기(제6항). 이와 별개로 앱을 실행할 때마다 공지사항과 최신 버전을 확인하기 위한 조회 요청이 발생하며, 이때 제6-2항의 기기 식별자가 함께 전송됩니다. 자세한 내용은 제6항에 적었습니다.</p>
         <p>또한 본 앱은 유료 상품(평생 광고 제거)의 인앱 결제를 제공하며, 이 경우에도 결제 정보는 Google Play가 처리할 뿐 본 앱이 수집하거나 저장하지 않습니다. 자세한 내용은 제7항을 참고해 주세요.</p>
 
         <h2>2. 기기에만 저장되는 데이터</h2>
@@ -187,7 +187,7 @@
         <p>아래 세 기능은 같은 서버(이하 "문의 접수 서버")를 이용합니다.</p>
 
         <h3>6-1. 공지사항 및 버전 확인</h3>
-        <p>앱을 실행할 때마다 새 공지사항과 최신 버전이 있는지 확인하는 <strong>조회 요청</strong>이 한 번 발생합니다. 이때 서버로 보내는 것은 <strong>앱 버전과 기기 종류(Android / iOS)뿐</strong>이며, 학습 데이터나 사용자를 식별할 수 있는 정보는 포함되지 않습니다. 공지를 읽었는지 여부도 서버로 보내지 않고 기기 안에만 기록합니다.</p>
+        <p>앱을 실행할 때마다 새 공지사항과 최신 버전이 있는지 확인하는 <strong>조회 요청</strong>이 한 번 발생합니다. 이때 서버로 보내는 것은 <strong>앱 버전, 기기 종류(Android / iOS), 그리고 제6-2항의 기기 식별자</strong>입니다. 기기 식별자는 서비스를 이용한 기기 수를 날짜별로 집계하는 데 쓰이며, 같은 기기가 하루에 여러 번 실행해도 하루 1회로만 기록합니다. 학습 데이터는 포함되지 않습니다. 공지를 읽었는지 여부도 서버로 보내지 않고 기기 안에만 기록합니다.</p>
         <p>다만 모든 인터넷 요청이 그렇듯 서버 접근 기록에 IP 주소가 남을 수 있습니다. 이 기록은 서비스 운영·장애 대응 목적으로만 이용합니다.</p>
 
         <h3>6-2. 문의하기</h3>
@@ -196,10 +196,13 @@
             <li>문의 분류 (오류 / 건의 / 질문 / 기타)</li>
             <li>사용자가 작성한 문의 내용</li>
             <li>앱 버전, 기기 종류(Android / iOS)</li>
+            <li>기기 식별자 (앱이 최초 실행 시 기기 안에서 만든 무작위 값)</li>
         </ul>
-        <p><strong>문의는 익명으로 접수됩니다.</strong> 계정 정보나 기기 고유 식별자를 함께 보내지 않으므로 작성자를 특정할 수 없으며, 같은 이유로 개별 답변은 드리지 못합니다. 문의 내용은 앱 개선 목적으로만 이용합니다.</p>
-        <p>작성자를 알 수 없는 구조이므로, 문의를 보내신 뒤에는 해당 문의 건에 대한 열람·정정·삭제 요청을 처리할 수 없습니다. 이 점을 감안하여 문의 본문에 이름·연락처 등 개인을 알아볼 수 있는 정보는 적지 말아 주세요.</p>
-        <p>보관 기간: 접수일로부터 1년. 기간이 지난 문의는 파기합니다.</p>
+        <p><strong>문의는 이 기기에 부여된 무작위 식별자로 접수됩니다.</strong> 이 식별자는 앱을 처음 실행할 때 기기 안에서 무작위로 만들어져 안전한 저장 영역에 보관되는 값으로, 계정이 아니며 이름·이메일·전화번호 등은 여전히 수집하지 않습니다. 회사는 이 값으로 이용자가 누구인지 알 수 없고, 같은 기기에서 온 문의라는 사실만 알 수 있습니다.</p>
+        <p>수집·이용 목적은 <strong>두 가지뿐</strong>입니다: ① 보내주신 문의에 대한 답변을 그 기기로 전달하기 위해, ② 같은 기기의 문의를 하나로 묶어 중복 접수를 방지하기 위해. 문의 내용 자체는 앱 개선 목적으로만 이용합니다. 이 수집은 「개인정보 보호법」 제15조 제1항 제4호(정보주체의 요청에 따른 조치의 이행)에 근거합니다.</p>
+        <p><strong>이 식별자는 제4항의 광고 식별자(GAID)와 전혀 다른 값입니다.</strong> 광고 게재, 맞춤형 광고, 행태정보 수집, 이용자 분석 목적으로는 사용하지 않으며, 제3자에게 제공하거나 본 앱과 문의 접수 서버 밖으로 내보내지 않습니다.</p>
+        <p>이 값은 기기 안에만 보관되므로 <strong>앱을 삭제하시면 함께 지워지고, 이전에 보내신 문의와의 연결도 끊깁니다.</strong> 연결이 끊긴 뒤에는 해당 문의 건에 대한 열람·정정·삭제 요청에 본인 확인을 할 수 없어 처리해 드릴 수 없습니다(제10항). 또한 문의 본문에는 이름·연락처 등 개인을 알아볼 수 있는 정보를 적지 말아 주세요 — 답변을 드리는 데에는 위 식별자만으로 충분합니다.</p>
+        <p>보관 기간: 접수일로부터 <strong>3년</strong>. 「전자상거래 등에서의 소비자보호에 관한 법률」 제6조 및 같은 법 시행령 제6조에 따른 "소비자의 불만 또는 분쟁처리에 관한 기록"의 보존 기간에 맞춘 것입니다. 기기 식별자도 문의와 같은 기간 보관한 뒤 함께 파기합니다.</p>
         <p>처리위탁 및 보관 위치: 문의 접수 서버는 Vercel Inc.(호스팅)과 Supabase Inc.(데이터베이스)를 이용하며, 데이터베이스는 대한민국(서울) 리전에 저장됩니다. 서비스 제공 과정에서 국외에 소재한 서버를 경유할 수 있습니다.</p>
 
         <h2>7. 인앱 결제(평생 광고 제거)</h2>
@@ -214,7 +217,7 @@
         <h2>8. 데이터 보관 및 삭제</h2>
         <p>기기에 저장된 데이터(제2항)는 앱을 삭제하면 함께 삭제됩니다. 앱 내에서 개별 단어, 카테고리 등을 직접 삭제할 수도 있습니다. 기기에만 저장되는 구조이므로 앱 삭제·기기 초기화 시 학습 데이터는 복구할 수 없으며, 필요한 경우 앱의 CSV 내보내기 기능으로 미리 보관하실 수 있습니다(자세한 내용은 <a href="./terms-of-service.html">이용약관</a> 제11조).</p>
         <p>문의 내역의 보관·파기는 제6항을 따릅니다. 구매 이력은 Google Play(이용자의 Google 계정)에 보관되며, 본 앱은 이를 보유하지 않습니다.</p>
-        <p><strong>파기 절차 및 방법</strong>: 문의 내역은 보관 기간(1년)이 지나면 데이터베이스에서 <strong>복구할 수 없는 방식으로 삭제</strong>합니다. 본 앱은 개인정보를 종이 문서로 출력하거나 별도 매체에 백업하지 않으므로, 그 밖의 파기 대상은 없습니다. 기기에 저장된 학습 데이터는 앱을 삭제할 때 운영체제가 앱 저장 영역과 함께 제거합니다.</p>
+        <p><strong>파기 절차 및 방법</strong>: 문의 내역은 보관 기간(3년)이 지나면 데이터베이스에서 <strong>복구할 수 없는 방식으로 삭제</strong>합니다. 본 앱은 개인정보를 종이 문서로 출력하거나 별도 매체에 백업하지 않으므로, 그 밖의 파기 대상은 없습니다. 기기에 저장된 학습 데이터는 앱을 삭제할 때 운영체제가 앱 저장 영역과 함께 제거합니다.</p>
 
         <h2>9. 아동의 개인정보 보호</h2>
         <p>본 앱은 아동의 개인정보를 의도적으로 수집하지 않습니다. 법정대리인의 동의가 필요한 연령 기준은 국가마다 다르며, 본 앱은 다음 기준 중 이용자에게 적용되는 것을 따릅니다.</p>
@@ -222,7 +225,7 @@
             <li><strong>대한민국</strong>: 「개인정보 보호법」에 따라 <strong>만 14세 미만</strong> 아동의 개인정보는 법정대리인의 동의가 필요합니다.</li>
             <li><strong>미국 등</strong>: COPPA 등에 따라 <strong>만 13세 미만</strong> 아동을 기준으로 합니다.</li>
         </ul>
-        <p>다만 본 앱은 회원가입이 없고 이름·이메일·전화번호 등 이용자를 식별할 수 있는 정보를 일절 수집하지 않으므로, 연령과 무관하게 수집되는 개인정보가 없습니다. 미성년자의 인앱 결제에 대해서는 Google Play의 구매 승인 등 보호 절차가 적용됩니다.</p>
+        <p>다만 본 앱은 회원가입이 없고 이름·이메일·전화번호 등 이용자를 식별할 수 있는 정보를 일절 수집하지 않습니다. 문의하기를 이용하시는 경우에 한해 제6-2항의 기기 식별자가 수집되나, 이는 기기에 부여된 무작위 값일 뿐 연령·신원을 알 수 있는 정보가 아닙니다. 미성년자의 인앱 결제에 대해서는 Google Play의 구매 승인 등 보호 절차가 적용됩니다.</p>
 
         <h2>10. 정보주체의 권리와 행사 방법</h2>
         <p>이용자(정보주체)는 「개인정보 보호법」 제35조부터 제37조에 따라 본 앱이 처리하는 자신의 개인정보에 대하여 <strong>열람, 정정·삭제, 처리정지</strong>를 요구할 권리를 가집니다. 만 14세 미만 아동의 개인정보에 대해서는 법정대리인이 이 권리를 행사할 수 있습니다. 권리 행사는 제14항의 연락처로 요청하실 수 있으며, 접수 후 지체 없이 조치하고 그 결과를 알려드립니다. 회사는 권리 행사를 이유로 이용자에게 불이익을 주지 않습니다.</p>
@@ -230,7 +233,7 @@
             <p><strong>다만 본 앱에는 위 권리를 행사할 대상이 되는 개인정보가 사실상 존재하지 않습니다.</strong> 없는 절차를 있는 것처럼 적지 않기 위해 그 이유를 함께 밝힙니다.</p>
             <ul>
                 <li><strong>학습 데이터</strong>는 기기 안에만 있고 회사가 보유하지 않으므로, 열람·정정·삭제를 회사에 요청할 필요 없이 앱에서 직접 하시면 됩니다(제2·8항).</li>
-                <li><strong>문의 내역</strong>은 익명으로 접수되어 작성자를 특정할 수 없습니다. 따라서 개별 문의 건에 대한 열람·정정·삭제 요청은 본인 확인이 불가능하여 처리할 수 없습니다(제6-2항).</li>
+                <li><strong>문의 내역</strong>은 제6-2항의 기기 식별자로 귀속되므로, 문의를 보내신 기기에서 요청하시면 해당 문의 건의 열람·정정·삭제를 처리해 드릴 수 있습니다. 다만 앱을 삭제하여 식별자가 사라진 뒤에는 본인 확인이 불가능하여 처리할 수 없습니다(제6-2항).</li>
                 <li><strong>광고 식별자</strong>는 회사가 아니라 기기와 Google이 관리하므로, 제4항의 방법으로 기기 설정에서 직접 삭제하거나 거부하실 수 있습니다.</li>
                 <li><strong>구매 이력</strong>은 Google Play(이용자의 Google 계정)에 있으므로 Google Play를 통해 확인·관리하실 수 있습니다(제7항).</li>
             </ul>
@@ -242,7 +245,7 @@
             <li><strong>수집 자체의 최소화</strong>: 회원가입과 계정을 두지 않아 이름·이메일·전화번호 등 이용자를 식별할 수 있는 정보를 애초에 수집하지 않습니다. 가장 확실한 안전조치는 보유하지 않는 것입니다.</li>
             <li><strong>전송 구간 암호화</strong>: 앱과 서버 사이의 모든 통신은 HTTPS(TLS)로 암호화하여 전송합니다.</li>
             <li><strong>접근 권한 최소화</strong>: 문의 접수 서버와 데이터베이스에 접근할 수 있는 사람은 제14항의 개인정보 보호책임자로 한정하며, 접근에는 별도의 인증을 요구합니다.</li>
-            <li><strong>보유 기간 제한</strong>: 문의 내역은 접수일로부터 1년이 지나면 파기합니다(제6·8항).</li>
+            <li><strong>보유 기간 제한</strong>: 문의 내역과 기기 식별자는 접수일로부터 3년이 지나면 파기합니다(제6·8항).</li>
             <li><strong>결제 정보 미취급</strong>: 결제는 Google Play가 전담하므로 회사는 카드번호·계좌번호 등 결제수단 정보와 구매 토큰을 전송받지도, 저장하지도 않습니다. 취급하지 않는 정보는 유출될 수 없습니다(제7항).</li>
         </ul>
 
@@ -253,13 +256,13 @@
             <li><strong>Google LLC</strong> (미국) — 번역 조회(Google Translate API). 이전 항목: 이용자가 검색한 단어. 이전 시기: 검색을 실행한 때. 회사는 이를 보관하지 않습니다.</li>
             <li><strong>Free Dictionary API</strong> (dictionaryapi.dev) — 사전 조회. 이전 항목·시기는 위와 같습니다.</li>
             <li><strong>Google LLC</strong> (미국) — 인앱 결제 처리(Google Play). 결제 정보는 Google이 직접 처리하며 회사를 거치지 않습니다(제7항).</li>
-            <li><strong>Vercel Inc.</strong> (미국) — 문의 접수 서버 호스팅. 요청이 국외에 소재한 서버를 경유할 수 있습니다.</li>
-            <li><strong>Supabase Inc.</strong> (미국) — 문의 데이터베이스. 데이터는 <strong>대한민국(서울) 리전</strong>에 저장됩니다.</li>
+            <li><strong>Vercel Inc.</strong> (미국) — 문의 접수 서버 호스팅. 이전 항목: 문의 내용, 기기 식별자, 앱 버전·기기 종류. 요청이 국외에 소재한 서버를 경유할 수 있습니다.</li>
+            <li><strong>Supabase Inc.</strong> (미국) — 문의 데이터베이스. 이전 항목: 위와 같음. 보유 기간: 3년(제6-2항). 데이터는 <strong>대한민국(서울) 리전</strong>에 저장됩니다.</li>
         </ul>
         <p>이용자는 위 국외 이전을 거부할 수 있습니다. 거부하시려면 해당 기능(단어 검색, 문의하기)을 이용하지 않으시면 되며, 광고 관련 이전은 제4항의 방법으로 광고 식별자를 삭제하거나 제7항의 유료 상품(평생 광고 제거)을 구매하여 차단하실 수 있습니다. 다만 거부하시는 경우 해당 기능은 이용하실 수 없습니다.</p>
 
         <h2>13. 개인정보처리방침 변경</h2>
-        <p>본 방침은 변경될 수 있으며, 변경 시 앱 업데이트 또는 본 페이지를 통해 공지합니다. 이용자에게 불리하게 변경하는 경우에는 시행일로부터 최소 30일 전에 공지하며, 변경 전후의 내용을 비교하여 알아보기 쉽게 표시합니다.</p>
+        <p>본 방침은 변경될 수 있으며, 변경 시 앱 업데이트 또는 본 페이지를 통해 공지합니다. 변경하는 경우 시행일과 변경 사유·내용을 함께 표시하여 알아보기 쉽게 안내합니다.</p>
 
         <h2>14. 개인정보 보호책임자 및 문의</h2>
         <p>「개인정보 보호법」 제31조에 따라 개인정보 보호책임자를 다음과 같이 지정합니다. 개인정보 관련 문의·열람·정정·삭제 요청은 아래로 보내주시면 지체 없이 답변드리겠습니다.</p>
@@ -280,7 +283,7 @@
         </div>
 
         <!-- 시행일 2026-08-17 = 본 문서가 GitHub Pages 에 게시된 날. 약관 제3조가 "게시함으로써 효력이 발생한다" 고 정하고 있고, 유료 상품은 그 이후에 판매를 시작하므로 순서가 맞다. -->
-        <p class="date">최초 시행일: 2026년 4월 10일<br>개정 시행일: 2026년 8월 17일 (인앱 결제 도입에 따른 제1·4항 변경 및 제7항 신설, 제8항 보완, 문의 이메일 변경, 사업자 정보 추가, 제9항 아동 연령 기준 국가별 병기, 개인정보 보호책임자 지정, 제4항 광고 식별자 거부 방법 안내 추가, 제10항 정보주체의 권리·제11항 안전성 확보조치·제12항 국외 이전 신설)</p>
+        <p class="date">최초 시행일: 2026년 4월 10일<br>개정 시행일: 2026년 9월 1일 (문의 답변 전달을 위한 기기 식별자 수집 개시에 따른 제6-1·6-2항 개정 및 제1·9·10·11·12항 반영, 문의 보관 기간을 실제 운영과 일치하도록 1년 → 3년으로 정정, 제13항 변경 고지 방식 정비)<br>개정 시행일: 2026년 8월 17일 (인앱 결제 도입에 따른 제1·4항 변경 및 제7항 신설, 제8항 보완, 문의 이메일 변경, 사업자 정보 추가, 제9항 아동 연령 기준 국가별 병기, 개인정보 보호책임자 지정, 제4항 광고 식별자 거부 방법 안내 추가, 제10항 정보주체의 권리·제11항 안전성 확보조치·제12항 국외 이전 신설)</p>
         </div>
         <!-- =================== 한국어 끝 =================== -->
 
@@ -328,7 +331,7 @@
         <p>The following three features use the same server (the "inquiry server").</p>
 
         <h3>6-1. Notices and Version Check</h3>
-        <p>Each time the App is launched, one <strong>lookup request</strong> is made to check whether a new notice or a newer version exists. What is sent to the server at that time is <strong>only the app version and the device type (Android / iOS)</strong>; no learning data and no information that can identify the user is included. Whether you have read a notice is also not sent to the server and is recorded only on the device.</p>
+        <p>Each time the App is launched, one <strong>lookup request</strong> is made to check whether a new notice or a newer version exists. What is sent to the server at that time is <strong>the app version, the device type (Android / iOS), and the device identifier described in Section 6-2</strong>. The device identifier is used to count how many devices used the service on each date; multiple launches by the same device on the same day are recorded only once. No learning data is included. Whether you have read a notice is also not sent to the server and is recorded only on the device.</p>
         <p>However, as is the case with every internet request, your IP address may remain in the server access logs. These logs are used only for the purposes of operating the service and responding to incidents.</p>
 
         <h3>6-2. Contact Us</h3>
@@ -337,10 +340,13 @@
             <li>Inquiry category (Bug / Suggestion / Question / Other)</li>
             <li>The inquiry text written by the user</li>
             <li>App version and device type (Android / iOS)</li>
+            <li>A device identifier (a random value created on the device the first time the App is launched)</li>
         </ul>
-        <p><strong>Inquiries are received anonymously.</strong> Because no account information or unique device identifier is sent together with them, the author cannot be identified, and for the same reason we are unable to provide individual replies. Inquiry content is used only for the purpose of improving the App.</p>
-        <p>Since the structure makes it impossible to know who the author is, once an inquiry has been sent we cannot process requests to access, correct, or delete that inquiry. With this in mind, please do not write information that can identify an individual, such as a name or contact details, in the body of your inquiry.</p>
-        <p>Retention period: one year from the date of receipt. Inquiries older than that period are destroyed.</p>
+        <p><strong>Inquiries are submitted using a random identifier assigned to this device.</strong> That identifier is a random value generated on the device the first time the App is launched and kept in secure device storage. It is not an account, and we still do not collect your name, email address, or phone number. It does not tell us who you are — only that an inquiry came from the same device.</p>
+        <p>It is collected and used for <strong>two purposes only</strong>: (i) to deliver our reply to your inquiry back to that device, and (ii) to group inquiries from the same device so that duplicates can be prevented. The inquiry text itself is used only to improve the App. This collection relies on Article 15(1)4 of the Personal Information Protection Act of the Republic of Korea (carrying out measures requested by the data subject).</p>
+        <p><strong>This identifier is an entirely different value from the advertising identifier (GAID) described in Section 4.</strong> It is not used for serving advertisements, personalised advertising, behavioural data collection, or user analytics, and it is not provided to any third party or sent anywhere outside the App and the inquiry server.</p>
+        <p>Because the value lives only on the device, <strong>uninstalling the App erases it and severs the link to any inquiry you previously sent.</strong> Once that link is gone we cannot verify identity for, and therefore cannot process, requests to access, correct, or delete that inquiry (Section 10). Please also refrain from writing information that can identify an individual, such as a name or contact details, in the body of your inquiry — the identifier above is all we need in order to reply.</p>
+        <p>Retention period: <strong>three years</strong> from the date of receipt, aligned with the retention period for "records concerning consumer complaints or dispute resolution" under Article 6 of the Act on Consumer Protection in Electronic Commerce and Article 6 of its Enforcement Decree. The device identifier is retained for the same period and destroyed together with the inquiry.</p>
         <p>Entrustment of processing and storage location: The inquiry server uses Vercel Inc. (hosting) and Supabase Inc. (database), and the database is stored in the Republic of Korea (Seoul) region. Data may pass through servers located outside Korea in the course of providing the service.</p>
 
         <h2>7. In-App Purchase (Lifetime Ad Removal)</h2>
@@ -355,7 +361,7 @@
         <h2>8. Data Retention and Deletion</h2>
         <p>Data stored on the device (Section 2) is deleted together with the App when the App is uninstalled. You can also delete individual words, categories, and so on directly within the App. Because the data is stored only on the device, learning data cannot be recovered if the App is deleted or the device is reset; if necessary, you can keep a copy in advance using the App's CSV export feature (for details, see Article 11 of the <a href="./terms-of-service.html?lang=en">Terms of Service</a>).</p>
         <p>Retention and destruction of inquiry records follow Section 6. Purchase history is kept by Google Play (in the user's Google account), and the App does not hold it.</p>
-        <p><strong>Destruction procedure and method</strong>: once the retention period (one year) has passed, inquiry records are <strong>deleted from the database in a manner that cannot be recovered</strong>. The App does not print personal information onto paper or back it up to any separate medium, so there is nothing else to destroy. Learning data stored on the device is removed by the operating system together with the App's storage area when the App is uninstalled.</p>
+        <p><strong>Destruction procedure and method</strong>: once the retention period (three years) has passed, inquiry records are <strong>deleted from the database in a manner that cannot be recovered</strong>. The App does not print personal information onto paper or back it up to any separate medium, so there is nothing else to destroy. Learning data stored on the device is removed by the operating system together with the App's storage area when the App is uninstalled.</p>
 
         <h2>9. Protection of Children's Personal Information</h2>
         <p>The App does not intentionally collect personal information from children. The age at which a legal representative's consent is required differs by country, and the App follows whichever of the following applies to the User.</p>
@@ -363,7 +369,7 @@
             <li><strong>Republic of Korea</strong>: under the Personal Information Protection Act, the personal information of children <strong>under the age of 14</strong> requires the consent of a legal representative.</li>
             <li><strong>United States and others</strong>: under COPPA and similar laws, the threshold is <strong>under the age of 13</strong>.</li>
         </ul>
-        <p>In any case, the App has no sign-up and collects no information that can identify a User, such as name, email address, or phone number, so there is no personal information collected regardless of age. For in-app purchases by minors, Google Play's protective procedures, such as purchase approval, apply.</p>
+        <p>In any case, the App has no sign-up and collects no information that can identify a User, such as name, email address, or phone number. Where you use Contact Us, the device identifier described in Section 6-2 is collected, but it is a random value assigned to the device and reveals nothing about age or identity. For in-app purchases by minors, Google Play's protective procedures, such as purchase approval, apply.</p>
 
         <h2>10. Your Rights as a Data Subject and How to Exercise Them</h2>
         <p>Under Articles 35 through 37 of the Personal Information Protection Act of the Republic of Korea, you (the data subject) have the right to request <strong>access to, correction or deletion of, and suspension of the processing of</strong> your personal information processed by the App. For the personal information of a child under the age of 14, a legal representative may exercise these rights. You may exercise them by writing to the contact in Section 14; we will act on your request without delay and inform you of the outcome. We will not disadvantage you for exercising these rights. If you are located outside Korea, the rights granted to you by the data protection law of your country of residence apply in addition to the above.</p>
@@ -371,7 +377,7 @@
             <p><strong>That said, there is in practice almost no personal information in the App against which these rights could be exercised.</strong> We set out the reasons here rather than describing a procedure that does not exist.</p>
             <ul>
                 <li><strong>Learning data</strong> exists only on your device and is not held by us, so you do not need to ask us — you can access, correct, or delete it directly in the App (Sections 2 and 8).</li>
-                <li><strong>Inquiry records</strong> are received anonymously and the author cannot be identified. We therefore cannot verify identity for, and cannot process, requests to access, correct, or delete an individual inquiry (Section 6-2).</li>
+                <li><strong>Inquiry records</strong> are attributed using the device identifier in Section 6-2, so if you make the request from the device that sent the inquiry we can process access, correction, and deletion for that inquiry. Once the App has been uninstalled and the identifier is gone, however, identity cannot be verified and the request cannot be processed (Section 6-2).</li>
                 <li><strong>The advertising identifier</strong> is managed by your device and Google rather than by us, so you can delete it or opt out yourself in your device settings using the method in Section 4.</li>
                 <li><strong>Purchase history</strong> is held by Google Play (in your Google account) and can be reviewed and managed there (Section 7).</li>
             </ul>
@@ -383,7 +389,7 @@
             <li><strong>Minimising collection itself</strong>: there is no sign-up and no account, so information that could identify a User — name, email address, phone number — is never collected in the first place. The surest safeguard is not to hold the data.</li>
             <li><strong>Encryption in transit</strong>: all communication between the App and our server is encrypted using HTTPS (TLS).</li>
             <li><strong>Minimising access rights</strong>: access to the inquiry server and its database is limited to the Personal Information Protection Officer named in Section 14, and separate authentication is required.</li>
-            <li><strong>Limited retention</strong>: inquiry records are destroyed one year after receipt (Sections 6 and 8).</li>
+            <li><strong>Limited retention</strong>: inquiry records and the device identifier are destroyed three years after receipt (Sections 6 and 8).</li>
             <li><strong>No handling of payment information</strong>: payment is handled entirely by Google Play, so we neither receive nor store payment method details such as card or account numbers, nor purchase tokens. Information that is never handled cannot be leaked (Section 7).</li>
         </ul>
 
@@ -394,13 +400,13 @@
             <li><strong>Google LLC</strong> (United States) — translation (Google Translate API). Items transferred: the word you searched for. When: at the moment you run a search. We do not retain it.</li>
             <li><strong>Free Dictionary API</strong> (dictionaryapi.dev) — dictionary lookup. Items transferred and timing are the same as above.</li>
             <li><strong>Google LLC</strong> (United States) — in-app purchase processing (Google Play). Payment information is handled directly by Google and does not pass through us (Section 7).</li>
-            <li><strong>Vercel Inc.</strong> (United States) — hosting of the inquiry server. Requests may pass through servers located outside Korea.</li>
-            <li><strong>Supabase Inc.</strong> (United States) — the inquiry database. The data itself is stored in the <strong>Republic of Korea (Seoul) region</strong>.</li>
+            <li><strong>Vercel Inc.</strong> (United States) — hosting of the inquiry server. Items transferred: inquiry content, the device identifier, app version and device type. Requests may pass through servers located outside Korea.</li>
+            <li><strong>Supabase Inc.</strong> (United States) — the inquiry database. Items transferred: as above. Retention: three years (Section 6-2). The data itself is stored in the <strong>Republic of Korea (Seoul) region</strong>.</li>
         </ul>
         <p>You may refuse these overseas transfers. To do so, simply do not use the features concerned (word search, Contact Us); for advertising-related transfers, you may delete your advertising identifier using the method in Section 4, or block them by purchasing the paid product in Section 7 (Lifetime Ad Removal). Please note that if you refuse, the corresponding features will not be available.</p>
 
         <h2>13. Changes to This Privacy Policy</h2>
-        <p>This Policy may be changed, and any change will be announced through an app update or through this page. Where a change is unfavourable to Users, we will announce it at least 30 days before it takes effect and will present the content before and after the change side by side so that it is easy to understand.</p>
+        <p>This Policy may be changed, and any change will be announced through an app update or through this page. When we make a change, we will state the effective date together with the reason for and substance of the change so that it is easy to understand.</p>
 
         <h2>14. Personal Information Protection Officer and Contact</h2>
         <p>In accordance with Article 31 of the Personal Information Protection Act of the Republic of Korea, the Personal Information Protection Officer is designated as follows. Please send any inquiries regarding personal information, or requests to access, correct, or delete it, to the contact below, and we will respond without delay.</p>
@@ -421,7 +427,7 @@
         </div>
 
         <!-- 시행일 2026-08-17 = 본 문서가 GitHub Pages 에 게시된 날. 약관 제3조가 "게시함으로써 효력이 발생한다" 고 정하고 있고, 유료 상품은 그 이후에 판매를 시작하므로 순서가 맞다. -->
-        <p class="date">Initial effective date: April 10, 2026<br>Amended effective date: August 17, 2026 (amendment of Sections 1 and 4 and addition of Section 7 following the introduction of in-app purchases, supplementation of Section 8, change of the inquiry email address, addition of business information, per-country age thresholds in Section 9, designation of a Personal Information Protection Officer, addition of advertising-identifier opt-out guidance to Section 4, and addition of Section 10 (rights of data subjects), Section 11 (security measures) and Section 12 (overseas transfers))</p>
+        <p class="date">Initial effective date: April 10, 2026<br>Amended effective date: September 1, 2026 (amendment of Sections 6-1 and 6-2 following the start of device-identifier collection for delivering replies to inquiries, consequential changes to Sections 1, 9, 10, 11 and 12, correction of the inquiry retention period from one year to three years to match actual operation, and revision of the change-notification method in Section 13)<br>Amended effective date: August 17, 2026 (amendment of Sections 1 and 4 and addition of Section 7 following the introduction of in-app purchases, supplementation of Section 8, change of the inquiry email address, addition of business information, per-country age thresholds in Section 9, designation of a Personal Information Protection Officer, addition of advertising-identifier opt-out guidance to Section 4, and addition of Section 10 (rights of data subjects), Section 11 (security measures) and Section 12 (overseas transfers))</p>
         </div>
         <!-- =================== English 끝 =================== -->
     </div>
