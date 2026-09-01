@@ -115,6 +115,25 @@
 `AndroidManifest.xml` 의 `expo.modules.updates.*`(ENABLED·EXPO_UPDATE_URL·채널 헤더)는
 한 번 넣으면 바뀌지 않는다. 네이티브 모듈을 추가·제거했을 때만 `runtimeVersion` 을 올린다.
 
+**짝이 없는 단독 설정**(app.json 에 대응물이 없어 표에 못 넣지만 재생성되면 사라진다):
+
+| 파일 | 값 | 사라지면 |
+|---|---|---|
+| `android/gradle.properties` | `android.enableMinifyInReleaseBuilds=true` | Play "앱 최적화" 경고가 되살아난다 |
+| `android/app/proguard-rules.pro` | `expo.modules.**` keep 등 | R8 이 Expo 모듈 이름을 바꿔 **기능이 조용히 사라진다** |
+
+### R8 (난독화·코드 축소)
+
+Expo 템플릿 기본값은 **꺼짐**이다. 2026-09-01 에 켰다 — Play 콘솔 `모니터링 및 개선 → 조치 취하기`가
+난독화율 **1%** 를 두고 *"앱의 공개 상태와 게시 기능에 영향을 미칠 수 있습니다"* 로 경고했기 때문이다
+(기준 25% · 기한 2027-02 · 대상 19(1.3.3)).
+
+- 🔴 **켠 뒤에는 릴리스 빌드로 전 화면 E2E 를 돌린다.** 디버그 빌드는 R8 을 안 타므로 검증이 안 된다.
+  깨지는 방식이 크래시가 아니라 **조용한 기능 실종**(모듈 등록 실패)이라 눈으로 봐야 잡힌다.
+- 🚫 `com.facebook.react.**` 를 통째로 keep 하지 않는다 — 난독화율이 다시 바닥이 되어 켠 의미가 없어진다.
+  대부분의 라이브러리는 `consumer-rules.pro` 를 AAR 에 담아 오므로 필요한 것은 이미 지켜진다.
+- R8 은 네이티브 설정이라 **OTA 로 못 바꾼다.** 스토어 릴리스에서만 반영된다.
+
 ### OTA (expo-updates)
 
 - 채널은 `eas.json` 의 빌드 프로필에 있다(`production`/`preview`/`development`)
