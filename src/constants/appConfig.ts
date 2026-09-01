@@ -1,7 +1,11 @@
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
-// 현재 앱 버전 (app.json과 동기화)
-export const APP_VERSION = '1.3.1';
+// 현재 앱 버전 — app.json 의 값을 그대로 읽는다.
+// ⚠ 손으로 적어 두면 반드시 어긋난다. 실제로 app.json 이 1.3.2 인데 여기가 1.3.1 로 남아
+//   설정 화면에 틀린 버전이 보이고 강제 업데이트 판정도 한 버전 뒤처져 있었다(2026-09-01 정정).
+//   이 값은 공통 서버에도 그대로 전송된다.
+export const APP_VERSION = Constants.expoConfig?.version ?? '0.0.0';
 
 // Google Play Store 링크
 // 공통 서버가 version.androidUrl 을 내려주면 그 값을 우선하고, 없을 때 이 상수로 폴백한다.
@@ -20,6 +24,13 @@ export const LANGUAGE_KEY = '@my_word_language';
 // ⚠ 이 값은 캐시일 뿐 진실이 아니다 — 진실은 Google Play 의 구매 이력이다.
 //   부팅 직후 Play 조회가 끝나기 전까지 광고가 번쩍이는 것을 막으려고 둔다.
 export const AD_FREE_KEY = '@my_word_ad_free';
+
+// --- SecureStore 키 (AsyncStorage 아님) ---
+// 문의를 이 기기에 귀속시키는 무작위 UUID. 최초 실행 때 한 번 만들고 그 뒤로 바뀌지 않는다.
+// ⚠ 이 값을 아는 사람이 이 기기의 문의를 읽을 수 있다 — 자격증명이라 위 키들과 달리
+//   SecureStore 에 보관한다. AsyncStorage 로 옮기지 말 것.
+// ⚠ SecureStore 키에는 '@' 를 쓸 수 없어 접두사 형식이 위와 다르다.
+export const DEVICE_ID_KEY = 'myword_device_id';
 
 // --- 인앱 상품 ---
 // Play Console 의 관리형 상품(비소비성) ID 와 반드시 같아야 한다.

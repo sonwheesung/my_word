@@ -96,11 +96,13 @@ export default function SupportScreen({ onBack }: SupportScreenProps) {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
-          {/* 익명 안내 — 무엇이 전송되는지 먼저 밝힌다 */}
+          {/* 무엇이 전송되는지 먼저 밝힌다.
+              ⚠ 이 릴리스에는 답변을 보는 화면이 없다. 귀속만 시작했을 뿐이므로
+                 "답변을 받을 수 있다"고 쓰지 않는다 — 화면이 생기면 그때 문구를 바꾼다. */}
           <View style={[styles.notice, { backgroundColor: colors.primaryLight }]}>
             <MaterialIcons name="lock-outline" size={18} color={colors.primary} />
             <Text style={[styles.noticeText, { color: colors.textSecondary }]}>
-              {t('익명으로 접수됩니다. 작성자 정보는 보내지 않으며, 앱 버전과 기기 종류만 함께 전달됩니다. 개별 답변은 드리지 못하는 점 양해 부탁드립니다.')}
+              {t('문의는 이 기기에 만든 임의의 식별자로 접수됩니다. 이름·이메일 같은 개인정보는 보내지 않으며, 앱 버전과 기기 종류가 함께 전달됩니다. 답변 확인 기능은 준비 중입니다.')}
             </Text>
           </View>
 

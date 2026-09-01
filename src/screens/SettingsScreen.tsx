@@ -246,7 +246,7 @@ export default function SettingsScreen({ onBack, onSupport, onNotices }: Setting
               <View>
                 <Text style={[styles.linkTitle, { color: colors.text }]}>{t('문의하기')}</Text>
                 <Text style={[styles.linkSubtitle, { color: colors.textTertiary }]}>
-                  {t('익명으로 의견을 보낼 수 있어요')}
+                  {t('앱 개선 의견을 보낼 수 있어요')}
                 </Text>
               </View>
             </View>

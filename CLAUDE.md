@@ -100,4 +100,27 @@
 - `npx expo install --check`로 버전 정합성 검증
 - `npx tsc --noEmit`으로 타입 체크 통과 필수
 
+### ⚠ 네이티브 설정 수동 동기화 (`android/` 는 gitignore)
+
+`android/` 는 git 에 없고 서명 설정(`keystore.properties` 를 읽는 `signingConfigs`)이 손으로
+들어가 있다. **`expo prebuild` 를 돌리면 그 설정이 날아간다.** 그래서 아래 값들은 `app.json`
+을 고칠 때 **손으로 같이** 고쳐야 한다. 안 맞으면 조용히 어긋난다.
+
+| app.json | 짝이 되는 네이티브 파일 | 안 맞으면 |
+|---|---|---|
+| `version` | `android/app/build.gradle` → `versionName` | 스토어 표기 불일치 |
+| `android.versionCode` | `android/app/build.gradle` → `versionCode` | 업로드 거부 |
+| `runtimeVersion` | `android/app/src/main/res/values/strings.xml` → `expo_runtime_version` | **OTA 가 조용히 안 먹음** |
+
+`AndroidManifest.xml` 의 `expo.modules.updates.*`(ENABLED·EXPO_UPDATE_URL·채널 헤더)는
+한 번 넣으면 바뀌지 않는다. 네이티브 모듈을 추가·제거했을 때만 `runtimeVersion` 을 올린다.
+
+### OTA (expo-updates)
+
+- 채널은 `eas.json` 의 빌드 프로필에 있다(`production`/`preview`/`development`)
+- **OTA 는 1.3.3(versionCode 19)부터 동작한다.** 그 이전 버전 사용자는 스토어로 한 번 올라와야 한다
+- **OTA 로 내보내는 범위**: 문구·스타일·명백한 JS 버그픽스까지. 로직 변경은 스토어로 간다
+  (깨진 번들이 나가면 이미 받은 사용자는 다음 확인 때까지 깨진 채로 남는다 — 심사가 걸러주지 않는다)
+- 네이티브 모듈이 바뀌면 OTA 로 못 보낸다. 반드시 스토어 빌드다
+
 상세 가이드: `.claude/SKILL.md` 참조

@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { commonServer } from '../services/commonServer/client';
+import { commonServer, ensureDeviceSession } from '../services/commonServer/client';
 import { noticeService } from '../services/noticeService';
 import type { AnnouncementItem, Bootstrap } from '../services/commonServer/types';
 
@@ -38,9 +38,15 @@ export function BootstrapProvider({ children }: { children: React.ReactNode }) {
 
     (async () => {
       // 저장소와 서버는 서로 기다릴 이유가 없다.
+      //
+      // ensureDeviceSession 도 여기 병렬로 둔다. fetchBootstrap 과 POST /v1/devices 는
+      // 양쪽 다 서버에 활성 일자를 남기고(하루에 몇 번 찍혀도 1회로 처리되는 멱등 연산),
+      // 순서를 맞출 이유가 없다 — 직렬로 바꾸면 부팅만 느려진다.
+      // 결과는 쓰지 않는다. 실패해도(오프라인·웹) 문의가 익명으로 접수될 뿐 앱은 그대로 돈다.
       const [result, stored] = await Promise.all([
         commonServer.fetchBootstrap(),
         noticeService.getReadIds(),
+        ensureDeviceSession(),
       ]);
       if (!alive) return;
 
