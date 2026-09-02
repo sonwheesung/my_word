@@ -61,9 +61,17 @@ npm start
 |---|---|
 | `npm start` | Metro 개발 서버 (포트 **8081** — 기본값) |
 | `npm run android` / `ios` / `web` | 플랫폼별 실행 |
-| `npm test` | Jest (`__tests__/` 9개 스위트) |
+| `npm test` | Jest (`__tests__/` 9개 스위트 · 141개) |
+| `npm run check:tests` | 🔴 **테스트가 실제로 돌았는지** — 개수 바닥값 + 알려진 고장 대조. `npm test` 가 초록인 것만으로는 부족하다(아래) |
 | `npm run lint` | ESLint |
 | `npx tsc --noEmit` | 🔴 **타입 체크 — 모든 변경 후 필수** |
+
+🔴 **`npm test` 의 초록을 믿지 말 것 — `npm run check:tests` 를 본다.**
+스위트가 **로드 단계에서 죽으면** 그 안의 테스트는 실패가 아니라 **세어지지도 않는다.**
+2026-09-01 에 목이 빠져 7개 스위트가 죽었을 때 jest 는 `Tests: 26 passed, 26 total` 로 찍었고,
+**26/26 전부 통과처럼 보였다.** 140 → 26 으로 줄어든 그 숫자를 아무도 대조하지 않아
+**1.3.3 이 테스트 3분의 2가 죽은 채로 프로덕션에 나갔다.**
+새 `expo-*` 모듈을 import 하면 `jest.setup.js` 에 목을 더해야 한다는 뜻이기도 하다.
 
 ⚠ **Expo Go 로는 전부 안 돌아간다.** 광고·인앱결제·SecureStore 는 네이티브 모듈이라
 **development build** 가 필요하다. Expo Go 에서는 그 기능들이 방어 코드로 비활성된다.
