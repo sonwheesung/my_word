@@ -9,5 +9,18 @@
   "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "puppeteer"
-  ]
+  ],
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'COMPACTION COMPLETE: the detailed docs are gone from context. Run the reload-docs skill before continuing. My Word specifics it covers: .claude/SKILL.md is a 842-line rules DOCUMENT (not a tool definition) so do not skip it; docs/*.html (privacy-policy, terms-of-service) are the PUBLISHED legal source of truth and a *.md glob misses them; android/ is gitignored so version/runtimeVersion/R8 settings exist only on disk and expo prebuild destroys them. Re-read version/release/emulator-claim state from files before stating it -- never from memory.'"
+          }
+        ]
+      }
+    ]
+  }
 }
