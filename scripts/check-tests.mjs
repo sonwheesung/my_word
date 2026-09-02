@@ -38,7 +38,11 @@ const KNOWN_BROKEN = new Map([
   [
     '__tests__/App.test.tsx',
     'preset 이 react-native 라 Expo 네이티브 모듈을 모른다. App 이 전 화면을 끌어와 ' +
-      'expo-clipboard·expo-iap 까지 만난다. 해법은 jest-expo preset 도입(회귀 위험 검토 필요) — jest.setup.js 말미 참조',
+      'expo-clipboard·expo-iap 까지 만난다. 해법은 jest-expo preset 도입(회귀 위험 검토 필요) — jest.setup.js 말미 참조. ' +
+      '🔴 살릴 때 함께 고칠 것: 이 스위트의 유일한 테스트(`renders correctly`)에 **단언이 하나도 없다**. ' +
+      'RN 템플릿 기본 스모크라 렌더가 throw 하면 잡지만, **빈 화면은 통과시킨다** — ' +
+      '`.agents/tester.md` TEST-5 가 "빈 화면 감지 시 즉시 FAIL" 이라고 정한 것과 어긋난다. ' +
+      '살아나는 순간 MIN_PASSING 만 +1 되고 검증은 0 이므로, 되살릴 때 화면 텍스트를 실제로 단언하게 고친다.',
   ],
 ]);
 
