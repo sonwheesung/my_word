@@ -1,7 +1,8 @@
 // 공통 서버 클라이언트 SDK — 타입.
 //
-// ⚠️ 원본: common_server/client/types.ts 에서 복사 (2026-09-01, SDK_VERSION 2026-09-01.2).
+// ⚠️ 원본: common_server/client/types.ts 에서 복사 (2026-09-02, SDK_VERSION 2026-09-02).
 //    이 파일은 손으로 고치지 말 것 — 서버 계약이 바뀌면 원본을 갱신하고 다시 복사한다.
+//    (앱 4~5개 규모엔 monorepo·npm 패키지 오버헤드가 이득보다 크다는 판단)
 //
 // 이 폴더는 각 앱의 `src/services/commonServer/`로 **복사해서** 쓴다(앱 4~5개 규모에선 monorepo·npm 패키지
 // 오버헤드가 이득보다 크다). 복사본에는 어느 버전에서 가져왔는지 주석을 남긴다.

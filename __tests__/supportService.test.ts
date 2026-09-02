@@ -110,13 +110,26 @@ describe('supportService — 실패 처리', () => {
   });
 
   it('그 밖의 실패 응답은 error 로 묶는다', async () => {
-    for (const status of [400, 500, 503]) {
+    for (const status of [400, 500]) {
       mockFetch.mockResolvedValue({ ok: false, status });
       expect(await supportService.sendInquiry('bug', '서버 오류 확인용 문의')).toEqual({
         ok: false,
         reason: 'error',
       });
     }
+  });
+
+  // 503 은 SDK 의 mapFail 이 not-configured 로 따로 뺀다 — "서버가 아직 못 여는 상태"이지
+  // 앱 잘못이 아니고 재시도가 의미 있다. 화면도 그에 맞는 문구를 골라야 하므로 error 와 섞지 않는다.
+  // ⚠ 이 기대는 원래 위 루프에 503 이 섞여 있어 error 를 요구했는데, SDK 계약과 어긋난 채로
+  //   **스위트가 로드조차 안 돼(2026-09-01 목 누락) 아무도 못 봤다.** 계약의 정본은 SDK 다.
+  it('503 은 not-configured 로 구분한다 (서버가 아직 못 여는 상태)', async () => {
+    mockFetch.mockResolvedValue({ ok: false, status: 503 });
+
+    expect(await supportService.sendInquiry('bug', '서버 준비중 확인용 문의')).toEqual({
+      ok: false,
+      reason: 'not-configured',
+    });
   });
 
   it('네트워크 예외는 offline 로 흡수하고 throw 하지 않는다', async () => {

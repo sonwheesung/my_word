@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { AppState } from 'react-native';
 import { commonServer, ensureDeviceSession } from '../services/commonServer/client';
 import { noticeService } from '../services/noticeService';
 import type { AnnouncementItem, Bootstrap } from '../services/commonServer/types';
@@ -59,6 +60,24 @@ export function BootstrapProvider({ children }: { children: React.ReactNode }) {
       // 조회 도중 언마운트되면 상태를 건드리지 않는다
       alive = false;
     };
+  }, []);
+
+  useEffect(() => {
+    // 웜 스타트 하트비트 — 포그라운드로 돌아올 때마다 활성 신호를 보낸다(SDK 2026-09-02).
+    //
+    // 위 부팅 조회는 **JS 프로세스당 1회**다. 그런데 RN 에서 홈 버튼은 프로세스를 죽이지 않으므로,
+    // 앱을 껐다 켜지 않고 계속 쓰는 사용자는 활성 집계에 한 번도 안 잡혔다 —
+    // 자주 쓰는 사용자일수록 덜 세는, 방향이 거꾸로인 오차였다.
+    //
+    // 🔴 `.catch()` 를 붙이지 않는다. heartbeat 은 계약상 **절대 reject 하지 않는다**
+    //    (네트워크 오류·타임아웃·미설정·세션 없음·쿨다운·파싱 실패를 전부 삼킨다).
+    //    리스너 콜백은 동기라 여기서 새어 나간 rejection 은 잡을 곳이 없고,
+    //    그대로 ErrorBoundary 에 걸려 **오프라인에서 오류 화면**이 된다.
+    // 쿨다운 5분도 SDK 안에 있다 — 여기서 디바운스를 다시 만들지 않는다.
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void commonServer.heartbeat();
+    });
+    return () => sub.remove();
   }, []);
 
   const announcements = useMemo(() => boot?.announcements ?? [], [boot]);
