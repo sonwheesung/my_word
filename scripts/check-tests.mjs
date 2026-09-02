@@ -20,8 +20,14 @@
  */
 import { execFileSync } from 'node:child_process';
 
-/** 지금 실제로 도는 개수. 검사를 추가하면 함께 올린다. */
-const MIN_TESTS = 141;
+/**
+ * 지금 실제로 **통과하는** 개수. 검사를 추가하면 함께 올린다.
+ *
+ * 🔴 `numTotalTests` 가 아니라 `numPassedTests` 를 잰다. jest 는 **스킵된 테스트도 total 에 센다** —
+ *    누가 `.skip` 하나를 붙이면 total 은 그대로, 실패는 0 이라 바닥값을 그냥 통과한다.
+ *    "안 도는 것이 늘었는데 더 초록이 되는" 바로 그 자리다. passed 는 스킵도 로드 실패도 함께 깎인다.
+ */
+const MIN_PASSING = 141;
 const MIN_SUITES = 9;
 
 /**
@@ -66,9 +72,11 @@ const broken = r.testResults
 const unexpected = broken.filter((p) => !KNOWN_BROKEN.has(p));
 const healed = [...KNOWN_BROKEN.keys()].filter((p) => !broken.includes(p));
 
-if (r.numTotalTests < MIN_TESTS) {
+const skipped = (r.numPendingTests ?? 0) + (r.numTodoTests ?? 0);
+
+if (r.numPassedTests < MIN_PASSING) {
   fail(
-    `테스트가 줄었다 — ${r.numTotalTests}개 (최소 ${MIN_TESTS}). ` +
+    `통과한 테스트가 줄었다 — ${r.numPassedTests}개 (최소 ${MIN_PASSING}). ` +
       '스위트가 로드 단계에서 죽으면 그 테스트는 세어지지도 않는다. 목이 빠졌는지 본다.',
   );
 }
@@ -76,6 +84,15 @@ if (r.numTotalTestSuites < MIN_SUITES) {
   fail(`스위트가 줄었다 — ${r.numTotalTestSuites}개 (최소 ${MIN_SUITES}).`);
 }
 if (r.numFailedTests > 0) fail(`실패한 테스트 ${r.numFailedTests}개.`);
+// 🔴 스킵은 "실패가 아니다"라서 조용하다 — 그래서 명시적으로 막는다. 지금 이 저장소에
+//    정당한 조건부 스킵은 하나도 없다(환경변수로 갈리는 검사가 없다). 나중에 생기면
+//    개수로 봐주지 말고 **이름으로** 등록하는 쪽으로 바꾼다(KNOWN_BROKEN 과 같은 이유).
+if (skipped > 0) {
+  fail(
+    `스킵된 테스트 ${skipped}개 — 스킵은 실패로 잡히지 않고 total 에는 그대로 남는다. ` +
+      '되살리거나, 정당한 조건부 스킵이면 이 스크립트에 이름으로 등록한다.',
+  );
+}
 for (const p of unexpected) fail(`알려지지 않은 스위트가 죽었다 — ${p}`);
 
 if (healed.length) {
@@ -88,6 +105,7 @@ if (healed.length) {
 const ok = process.exitCode !== 1;
 console.log(
   `${ok ? '\x1b[32mALL PASS\x1b[0m' : '\x1b[31mFAILED\x1b[0m'}  ` +
-    `테스트 ${r.numTotalTests}/${MIN_TESTS} · 스위트 ${r.numPassedTestSuites}/${r.numTotalTestSuites} 통과` +
+    `통과 ${r.numPassedTests}/${MIN_PASSING} · 스위트 ${r.numPassedTestSuites}/${r.numTotalTestSuites}` +
+    (skipped ? ` · \x1b[33m스킵 ${skipped}\x1b[0m` : '') +
     (KNOWN_BROKEN.size ? ` · 알려진 고장 ${KNOWN_BROKEN.size}개` : ''),
 );
