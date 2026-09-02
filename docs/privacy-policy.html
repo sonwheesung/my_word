@@ -154,7 +154,7 @@
 
         <h2>1. 개인정보의 수집 및 이용 목적</h2>
         <p>My Word(이하 "앱")는 사용자의 단어 학습을 돕기 위한 목적으로 개발된 애플리케이션입니다. 본 앱은 별도의 회원가입 없이 사용 가능하며, 계정을 만들거나 이름·이메일·전화번호 등 사용자를 식별할 수 있는 정보를 수집하지 않습니다.</p>
-        <p>학습 데이터는 기기 안에만 저장됩니다. 다만 사용자가 <strong>직접 실행한 경우에 한해</strong> 아래 두 기능에서 외부로 데이터가 전송됩니다: 단어 검색(제5항), 문의하기(제6항). 이와 별개로 앱을 실행할 때마다 공지사항과 최신 버전을 확인하기 위한 조회 요청이 발생하며, 이때 제6-2항의 기기 식별자가 함께 전송됩니다. 자세한 내용은 제6항에 적었습니다.</p>
+        <p>학습 데이터는 기기 안에만 저장됩니다. 다만 사용자가 <strong>직접 실행한 경우에 한해</strong> 아래 두 기능에서 외부로 데이터가 전송됩니다: 단어 검색(제5항), 문의하기(제6항). 이와 별개로 앱을 실행할 때와 앱이 다시 화면 앞으로 올라올 때, 공지사항·최신 버전 확인과 이용 통계를 위한 요청이 발생하며, 이때 제6-2항의 기기 식별자가 함께 전송됩니다. 자세한 내용은 제6항에 적었습니다.</p>
         <p>또한 본 앱은 유료 상품(평생 광고 제거)의 인앱 결제를 제공하며, 이 경우에도 결제 정보는 Google Play가 처리할 뿐 본 앱이 수집하거나 저장하지 않습니다. 자세한 내용은 제7항을 참고해 주세요.</p>
 
         <h2>2. 기기에만 저장되는 데이터</h2>
@@ -187,7 +187,7 @@
         <p>아래 세 기능은 같은 서버(이하 "문의 접수 서버")를 이용합니다.</p>
 
         <h3>6-1. 공지사항 및 버전 확인</h3>
-        <p>앱을 실행할 때마다 새 공지사항과 최신 버전이 있는지 확인하는 <strong>조회 요청</strong>이 한 번 발생합니다. 이때 서버로 보내는 것은 <strong>앱 버전, 기기 종류(Android / iOS), 그리고 제6-2항의 기기 식별자</strong>입니다. 기기 식별자는 서비스를 이용한 기기 수를 날짜별로 집계하는 데 쓰이며, 같은 기기가 하루에 여러 번 실행해도 하루 1회로만 기록합니다. 학습 데이터는 포함되지 않습니다. 공지를 읽었는지 여부도 서버로 보내지 않고 기기 안에만 기록합니다.</p>
+        <p>앱을 실행할 때마다 새 공지사항과 최신 버전이 있는지 확인하는 <strong>조회 요청</strong>이 한 번 발생합니다. 또한 다른 앱을 쓰다가 돌아오는 등 <strong>앱이 다시 화면 앞으로 올라올 때</strong>에도 서비스를 이용 중이라는 사실을 알리는 요청이 발생하며, 이 요청은 <strong>최소 5분 간격</strong>으로만 보냅니다. 두 경우 모두 서버로 보내는 것은 <strong>앱 버전, 기기 종류(Android / iOS), 그리고 제6-2항의 기기 식별자</strong>입니다. 기기 식별자는 서비스를 이용한 기기 수를 날짜별로 집계하는 데 쓰이며, 같은 기기가 하루에 여러 번 보내더라도 하루 1회로만 기록합니다. 학습 데이터는 포함되지 않습니다. 공지를 읽었는지 여부도 서버로 보내지 않고 기기 안에만 기록합니다.</p>
         <p>다만 모든 인터넷 요청이 그렇듯 서버 접근 기록에 IP 주소가 남을 수 있습니다. 이 기록은 서비스 운영·장애 대응 목적으로만 이용합니다.</p>
 
         <h3>6-2. 문의하기</h3>
@@ -283,7 +283,7 @@
         </div>
 
         <!-- 시행일 2026-08-17 = 본 문서가 GitHub Pages 에 게시된 날. 약관 제3조가 "게시함으로써 효력이 발생한다" 고 정하고 있고, 유료 상품은 그 이후에 판매를 시작하므로 순서가 맞다. -->
-        <p class="date">최초 시행일: 2026년 4월 10일<br>개정 시행일: 2026년 9월 1일 (문의 답변 전달을 위한 기기 식별자 수집 개시에 따른 제6-1·6-2항 개정 및 제1·9·10·11·12항 반영, 문의 보관 기간을 실제 운영과 일치하도록 1년 → 3년으로 정정, 제13항 변경 고지 방식 정비)<br>개정 시행일: 2026년 8월 17일 (인앱 결제 도입에 따른 제1·4항 변경 및 제7항 신설, 제8항 보완, 문의 이메일 변경, 사업자 정보 추가, 제9항 아동 연령 기준 국가별 병기, 개인정보 보호책임자 지정, 제4항 광고 식별자 거부 방법 안내 추가, 제10항 정보주체의 권리·제11항 안전성 확보조치·제12항 국외 이전 신설)</p>
+        <p class="date">최초 시행일: 2026년 4월 10일<br>개정 시행일: 2026년 9월 2일 (활성 집계 시점 확대에 따른 제1·6-1항 개정 &mdash; <strong>수집하는 항목은 달라지지 않았고</strong>, 요청이 발생하는 시점에 &ldquo;앱이 다시 화면 앞으로 올라올 때&rdquo;(최소 5분 간격)가 추가되었습니다)<br>개정 시행일: 2026년 9월 1일 (문의 답변 전달을 위한 기기 식별자 수집 개시에 따른 제6-1·6-2항 개정 및 제1·9·10·11·12항 반영, 문의 보관 기간을 실제 운영과 일치하도록 1년 → 3년으로 정정, 제13항 변경 고지 방식 정비)<br>개정 시행일: 2026년 8월 17일 (인앱 결제 도입에 따른 제1·4항 변경 및 제7항 신설, 제8항 보완, 문의 이메일 변경, 사업자 정보 추가, 제9항 아동 연령 기준 국가별 병기, 개인정보 보호책임자 지정, 제4항 광고 식별자 거부 방법 안내 추가, 제10항 정보주체의 권리·제11항 안전성 확보조치·제12항 국외 이전 신설)</p>
         </div>
         <!-- =================== 한국어 끝 =================== -->
 
@@ -298,7 +298,7 @@
 
         <h2>1. Purpose of Collection and Use of Personal Information</h2>
         <p>My Word (the "App") is an application developed to help users learn vocabulary. The App can be used without any sign-up; it does not create accounts and does not collect information that can identify a user, such as name, email address, or phone number.</p>
-        <p>Learning data is stored only on your device. However, <strong>only where you yourself initiate them</strong>, the following two features transmit data externally: word search (Section 5) and Contact Us (Section 6). Separately, each time the App is launched, a lookup request is made in order to check for notices and the latest version; this is described in Section 6.</p>
+        <p>Learning data is stored only on your device. However, <strong>only where you yourself initiate them</strong>, the following two features transmit data externally: word search (Section 5) and Contact Us (Section 6). Separately, a request is made when the App is launched and when the App is brought back to the foreground, in order to check for notices and the latest version and to record that the service is being used; this is described in Section 6.</p>
         <p>In addition, the App offers an in-app purchase of a paid product (Lifetime Ad Removal). Even in that case, payment information is handled solely by Google Play and is neither collected nor stored by the App. Please refer to Section 7 for details.</p>
 
         <h2>2. Data Stored Only on the Device</h2>
@@ -331,7 +331,7 @@
         <p>The following three features use the same server (the "inquiry server").</p>
 
         <h3>6-1. Notices and Version Check</h3>
-        <p>Each time the App is launched, one <strong>lookup request</strong> is made to check whether a new notice or a newer version exists. What is sent to the server at that time is <strong>the app version, the device type (Android / iOS), and the device identifier described in Section 6-2</strong>. The device identifier is used to count how many devices used the service on each date; multiple launches by the same device on the same day are recorded only once. No learning data is included. Whether you have read a notice is also not sent to the server and is recorded only on the device.</p>
+        <p>Each time the App is launched, one <strong>lookup request</strong> is made to check whether a new notice or a newer version exists. In addition, <strong>when the App is brought back to the foreground</strong> &mdash; for example when you return to it after using another app &mdash; a request is made to record that the service is being used; such requests are sent <strong>no more often than once every five minutes</strong>. In both cases, what is sent to the server is <strong>the app version, the device type (Android / iOS), and the device identifier described in Section 6-2</strong>. The device identifier is used to count how many devices used the service on each date; multiple requests from the same device on the same day are recorded only once. No learning data is included. Whether you have read a notice is also not sent to the server and is recorded only on the device.</p>
         <p>However, as is the case with every internet request, your IP address may remain in the server access logs. These logs are used only for the purposes of operating the service and responding to incidents.</p>
 
         <h3>6-2. Contact Us</h3>
@@ -427,7 +427,7 @@
         </div>
 
         <!-- 시행일 2026-08-17 = 본 문서가 GitHub Pages 에 게시된 날. 약관 제3조가 "게시함으로써 효력이 발생한다" 고 정하고 있고, 유료 상품은 그 이후에 판매를 시작하므로 순서가 맞다. -->
-        <p class="date">Initial effective date: April 10, 2026<br>Amended effective date: September 1, 2026 (amendment of Sections 6-1 and 6-2 following the start of device-identifier collection for delivering replies to inquiries, consequential changes to Sections 1, 9, 10, 11 and 12, correction of the inquiry retention period from one year to three years to match actual operation, and revision of the change-notification method in Section 13)<br>Amended effective date: August 17, 2026 (amendment of Sections 1 and 4 and addition of Section 7 following the introduction of in-app purchases, supplementation of Section 8, change of the inquiry email address, addition of business information, per-country age thresholds in Section 9, designation of a Personal Information Protection Officer, addition of advertising-identifier opt-out guidance to Section 4, and addition of Section 10 (rights of data subjects), Section 11 (security measures) and Section 12 (overseas transfers))</p>
+        <p class="date">Initial effective date: April 10, 2026<br>Amended effective date: September 2, 2026 (amendment of Sections 1 and 6-1 following the extension of when activity is recorded &mdash; <strong>the items collected are unchanged</strong>; requests are now also made when the App is brought back to the foreground, no more often than once every five minutes)<br>Amended effective date: September 1, 2026 (amendment of Sections 6-1 and 6-2 following the start of device-identifier collection for delivering replies to inquiries, consequential changes to Sections 1, 9, 10, 11 and 12, correction of the inquiry retention period from one year to three years to match actual operation, and revision of the change-notification method in Section 13)<br>Amended effective date: August 17, 2026 (amendment of Sections 1 and 4 and addition of Section 7 following the introduction of in-app purchases, supplementation of Section 8, change of the inquiry email address, addition of business information, per-country age thresholds in Section 9, designation of a Personal Information Protection Officer, addition of advertising-identifier opt-out guidance to Section 4, and addition of Section 10 (rights of data subjects), Section 11 (security measures) and Section 12 (overseas transfers))</p>
         </div>
         <!-- =================== English 끝 =================== -->
     </div>
