@@ -70,12 +70,35 @@ ls "$CLAIMS"/*.lock          # 약속
 
 R8 은 **크래시가 아니라 조용한 기능 실종**으로 깨진다. 릴리스 빌드에서만 재현된다.
 
-- [ ] 부팅 로그에 `[commonServer] 기기 세션` 이 찍히나 → `expo-secure-store`·`expo-crypto` 생존
-- [ ] 관리자 콘솔 사용자 탭에 `device` 주체가 느나 → 등록이 실제로 서버에 닿았나
-- [ ] 문의 전송 후 작성자가 **익명이 아닌지** → 세션이 실려 나갔나
-- [ ] 배너 광고가 뜨나 → `react-native-google-mobile-ads`
-- [ ] 앱을 껐다 켜서 세션이 **복원**되나(재등록이 아니라) → SecureStore 영속화
-- [ ] 설정에 표시되는 버전이 맞나 → `expo-constants`
+🔴 **로그로 검증하지 말 것 — 릴리스 빌드는 `__DEV__` 가 false 라 `[commonServer]` 류가 아예 안 찍힌다.**
+2026-09-02 에 이 체크리스트의 1번이 그렇게 적혀 있어서 첫 항목부터 막혔다. **디버그에서 만든 절차를
+릴리스에 그대로 들고 간 것**이다 — 검증 방법이 검증 대상과 안 맞으면 "확인 못 함"이 "이상 없음"으로 새기 쉽다.
+
+→ `adb root` 로 **실물을 본다**(공용 AVD 는 `google_apis` 이미지라 된다). `MSYS_NO_PATHCONV=1` 을 붙일 것
+(안 붙이면 git-bash 가 `/data/...` 를 `C:/Files/Git/data/...` 로 바꿔 조용히 빈 결과가 나온다 — 실제로 당함).
+
+```bash
+export MSYS_NO_PATHCONV=1
+"$ADB" -s "$S" root; sleep 3
+"$ADB" -s "$S" shell "ls /data/data/com.myword.front/shared_prefs/"
+# 🔴 키 이름만 본다. 값(기기 식별자·세션 토큰)은 자격증명이라 절대 찍지 않는다
+"$ADB" -s "$S" shell "grep -o 'name=\"[^\"]*\"' /data/data/com.myword.front/shared_prefs/SecureStore.xml"
+```
+
+- [ ] `SecureStore.xml` 에 `myword_device_id` + `cs_session_myword` → `expo-secure-store`·`expo-crypto` 생존
+- [ ] `dev.expo.EASSharedPreferences.xml` 이 있나 → 🔴 **`expo-updates` 생존.** 이게 죽으면
+      **다음 OTA 로 그걸 고칠 수단이 없다** — 스스로를 고칠 수 없는 유일한 모듈이라 매번 잰다
+- [ ] `admob.xml` 이 있나 → `react-native-google-mobile-ads` 초기화됨
+      (배너가 화면에 안 떠도 R8 실패가 아니다 — 에뮬레이터는 광고가 안 채워질 수 있다)
+- [ ] 홈 화면 벨에 **안읽음 점**이 뜨나 → `fetchBootstrap` 성공(서버 경로 생존)
+- [ ] 앱을 껐다 켜서 세션 키가 **남아 있나** → 재등록이 아니라 복원
+- [ ] 설정 하단 버전 표기가 `app.json` 과 같나 → `expo-constants`
+- [ ] 설정에 `광고 제거`·`구매 복원` 이 보이나 → `expo-iap`
+
+⚠ **하트비트 도달은 로컬에서 판정할 수 없다.** 토큰 슬라이딩 갱신을 오라클로 쓰면 안 된다 —
+서버 `shouldRenew` 가 30일 기준이라 **갓 발급된 토큰은 성공해도 안 바뀐다**(2026-09-02 확인).
+번들에 실렸는지까지만 로컬에서 보고(`unzip -p <apk> assets/index.android.bundle | grep -c v1/heartbeat`),
+**도달 여부는 공통서버 세션에 묻는다.**
 
 하나라도 어긋나면 `android/app/proguard-rules.pro` 에 keep 을 **좁게** 추가한다.
 🚫 `com.facebook.react.**` 통째 keep 금지 — 난독화율이 바닥이 되어 R8 을 켠 의미가 사라진다.
