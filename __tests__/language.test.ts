@@ -31,6 +31,7 @@ describe('isSupportedLanguage', () => {
   it('지원 목록만 통과시킨다', () => {
     expect(isSupportedLanguage('ko')).toBe(true);
     expect(isSupportedLanguage('en')).toBe(true);
+    expect(isSupportedLanguage('ja')).toBe(true);
     for (const v of ['de', 'KO', 'ko-KR', '', null, undefined, 42, {}]) {
       expect(isSupportedLanguage(v)).toBe(false);
     }

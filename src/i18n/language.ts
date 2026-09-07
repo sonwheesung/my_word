@@ -14,7 +14,7 @@ import { LANGUAGE_KEY } from '../constants/appConfig';
  * 지원 목록에 언어를 추가하면 그 언어 사용자는 기기 설정만으로 자동 적용된다.
  */
 
-export const SUPPORTED_LANGUAGES = ['ko', 'en'] as const;
+export const SUPPORTED_LANGUAGES = ['ko', 'en', 'ja'] as const;
 export type AppLanguage = (typeof SUPPORTED_LANGUAGES)[number];
 
 /** 지원하지 않는 기기 언어일 때 쓰는 값 */
@@ -24,6 +24,7 @@ export const FALLBACK_LANGUAGE: AppLanguage = 'en';
 export const LANGUAGE_LABEL: Readonly<Record<AppLanguage, string>> = {
   ko: '한국어',
   en: 'English',
+  ja: '日本語',
 };
 
 // 웹 환경 localStorage 폴백
