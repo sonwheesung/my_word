@@ -64,6 +64,7 @@ npm start
 | `npm run android` / `ios` / `web` | 플랫폼별 실행 |
 | `npm test` | Jest (`__tests__/` 11개 스위트 · 169개) |
 | `npm run check:tests` | 🔴 **테스트가 실제로 돌았는지** — 개수 바닥값 + 알려진 고장 대조. `npm test` 가 초록인 것만으로는 부족하다(아래) |
+| `npm run check:licenses` | 🔴 **게시 중인 오픈소스 고지가 지금 설치본과 맞는지** — 의존성을 바꾼 날 조용히 거짓이 된다 |
 | `npm run lint` | ESLint |
 | `npx tsc --noEmit` | 🔴 **타입 체크 — 모든 변경 후 필수** |
 
@@ -191,8 +192,10 @@ eas update --branch production --message "무엇을 바꿨나"
 
 - [개인정보처리방침](https://sonwheesung.github.io/my_word/privacy-policy.html) · [이용약관](https://sonwheesung.github.io/my_word/terms-of-service.html) · [오픈소스 라이선스](https://sonwheesung.github.io/my_word/open-source-licenses.html)
 
-⚠ **의존성을 추가·변경하면 `node scripts/generate-oss-licenses.js` 를 다시 돌려 커밋한다.**
+🔴 **의존성을 추가·변경하면 `node scripts/generate-oss-licenses.js` 를 다시 돌려 커밋·푸시한다.**
 안 돌리면 고지가 조용히 거짓이 되고, **고지의 거짓은 라이선스 위반**이다.
+**두 번 당했다**(2026-09-02 · 09-07) — 두 번 다 "다시 돌려라"라고 적혀 있었는데도 놓쳤다.
+그래서 지금은 기계가 잡는다: **`npm run check:licenses` 를 스토어에 올리기 전에 돌린다.**
 
 ---
 
