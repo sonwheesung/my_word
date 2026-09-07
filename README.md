@@ -41,7 +41,7 @@ R8 은 **크래시가 아니라 조용한 기능 실종**으로 깨진다(모듈
 | 네이티브 | **New Architecture** (`newArchEnabled=true`) · Hermes · edge-to-edge |
 | 저장소 | AsyncStorage (웹은 localStorage) — **서버 없음** |
 | 화면 방향 | 세로 고정 |
-| 다국어 | `i18next` + `react-i18next` — 한국어 · English |
+| 다국어 | `i18next` + `react-i18next` — 한국어 · English · 日本語 |
 | 광고 | `react-native-google-mobile-ads` (AdMob) |
 | 인앱결제 | `expo-iap` — 평생 광고 제거 (`remove_ads`, 관리형 상품) |
 | 알림 | `expo-notifications` — **로컬 전용**(서버·FCM 없음). 하루 안 쓰면 정해진 시각에 |
@@ -62,7 +62,7 @@ npm start
 |---|---|
 | `npm start` | Metro 개발 서버 (포트 **8081** — 기본값) |
 | `npm run android` / `ios` / `web` | 플랫폼별 실행 |
-| `npm test` | Jest (`__tests__/` 12개 스위트 · 188개) |
+| `npm test` | Jest (`__tests__/` 13개 스위트 · 199개) |
 | `npm run check:tests` | 🔴 **테스트가 실제로 돌았는지** — 개수 바닥값 + 알려진 고장 대조. `npm test` 가 초록인 것만으로는 부족하다(아래) |
 | `npm run check:licenses` | 🔴 **게시 중인 오픈소스 고지가 지금 설치본과 맞는지** — 의존성을 바꾼 날 조용히 거짓이 된다 |
 | `npm run lint` | ESLint |
@@ -101,7 +101,7 @@ src/
 ├── constants/             appConfig · adConfig · partOfSpeech
 ├── contexts/              Bootstrap(공지·버전) · Purchase(광고제거) · Theme · Notification(학습 알림)
 ├── hooks/                 useInterstitialAd · useToast
-├── i18n/                  🔴 **한국어 원문이 곧 키다** — locales/en.json 만 있다
+├── i18n/                  🔴 **한국어 원문이 곧 키다** — locales/{en,ja}.json (ko 는 키가 원문이라 파일 없음)
 ├── screens/               13개 (아래)
 ├── services/              word · category · quiz · dictionary · share · support · notice · version · notification
 │                          backup(순수 로직) · backupFile(파일 입출력 — 네이티브는 여기만)
