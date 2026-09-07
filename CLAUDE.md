@@ -124,6 +124,8 @@
 | `AndroidManifest.xml` | `expo.modules.notifications.default_notification_icon`·`_color` (+FCM 쌍) | 알림 아이콘이 **흰 사각형 덩어리**가 된다 |
 | `res/drawable-*/notification_icon.png` (5종) | 24dp×배율 흰 실루엣 | 〃 |
 | `res/values/colors.xml` | `notification_icon_color` | 알림 강조색이 빠진다 |
+| `android/app/build.gradle` | `proguardFiles ... "proguard-android-**optimize**.txt"` | R8 최적화가 다시 꺼진다(기본판엔 `-dontoptimize` 가 있다) |
+| `android/gradle.properties` | `android.enableShrinkResourcesInReleaseBuilds=true` | 리소스 축소가 꺼진다 |
 
 🔴 **알림 리소스는 `expo-notifications` 의 config plugin 이 만들어야 하는 것인데, 이 프로젝트는
 `prebuild` 를 돌리지 않으므로 플러그인이 실행되지 않는다.** `app.json` 의 plugins 항목만 보고

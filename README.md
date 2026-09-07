@@ -62,7 +62,7 @@ npm start
 |---|---|
 | `npm start` | Metro 개발 서버 (포트 **8081** — 기본값) |
 | `npm run android` / `ios` / `web` | 플랫폼별 실행 |
-| `npm test` | Jest (`__tests__/` 11개 스위트 · 169개) |
+| `npm test` | Jest (`__tests__/` 12개 스위트 · 188개) |
 | `npm run check:tests` | 🔴 **테스트가 실제로 돌았는지** — 개수 바닥값 + 알려진 고장 대조. `npm test` 가 초록인 것만으로는 부족하다(아래) |
 | `npm run check:licenses` | 🔴 **게시 중인 오픈소스 고지가 지금 설치본과 맞는지** — 의존성을 바꾼 날 조용히 거짓이 된다 |
 | `npm run lint` | ESLint |
@@ -104,6 +104,7 @@ src/
 ├── i18n/                  🔴 **한국어 원문이 곧 키다** — locales/en.json 만 있다
 ├── screens/               13개 (아래)
 ├── services/              word · category · quiz · dictionary · share · support · notice · version · notification
+│                          backup(순수 로직) · backupFile(파일 입출력 — 네이티브는 여기만)
 │   └── commonServer/      ⚠ 공통 서버 SDK — **손으로 고치지 말 것**(원본에서 재복사)
 ├── types/
 └── utils/                 storage · date · text · speech · notificationSchedule
@@ -133,6 +134,8 @@ src/
 | `@my_word_next_id` | 전역 ID 카운터 |
 | `@my_word_language` · `@my_word_read_notices` · `@my_word_ad_free` | 설정·캐시 |
 | `@my_word_notify_enabled` · `@my_word_notify_time` · `@my_word_notify_prompted` | 학습 알림 설정 |
+| 〃 | 🔴 **백업이 담는 범위** — 단어·카테고리·퀴즈결과·`@my_word_next_id`·설정.
+`@my_word_ad_free`(구매 캐시)와 `myword_device_id`(자격증명)는 **일부러 뺀다** |
 | `myword_device_id` | 🔴 **SecureStore** — 문의 답변용 식별자(AsyncStorage 아님) |
 
 상세는 [`docs/data-model.md`](docs/data-model.md).
