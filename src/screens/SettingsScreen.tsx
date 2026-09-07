@@ -27,6 +27,10 @@ import {
 } from '../constants/appConfig';
 import ScreenHeader from '../components/ScreenHeader';
 import TimePickerSheet from '../components/TimePickerSheet';
+import RestoreConfirmSheet from '../components/RestoreConfirmSheet';
+import { backupFile } from '../services/backupFile';
+import { backupService, type BackupFile, type BackupError, type BackupSummary } from '../services/backupService';
+import * as Updates from 'expo-updates';
 import { formatTime, type TimeOfDay } from '../utils/notificationSchedule';
 import { changeAppLanguage } from '../i18n';
 import { LANGUAGE_LABEL, SUPPORTED_LANGUAGES, getCurrentLanguage, type AppLanguage } from '../i18n/language';
@@ -59,6 +63,10 @@ export default function SettingsScreen({ onBack, onSupport, onNotices }: Setting
   const notify = useNotification();
   const [showTimePicker, setShowTimePicker] = useState(false);
   const notifyBusyRef = useRef(false);
+  const dataBusyRef = useRef(false);
+  const [restoreCandidate, setRestoreCandidate] = useState<{ data: BackupFile; fileName: string } | null>(null);
+  const [currentSummary, setCurrentSummary] = useState<BackupSummary | null>(null);
+  const [restoreBusy, setRestoreBusy] = useState(false);
 
   const handleLanguageChange = async (next: AppLanguage) => {
     if (next === language) return;
@@ -95,6 +103,88 @@ export default function SettingsScreen({ onBack, onSupport, onNotices }: Setting
    *
    * 브라우저가 없거나 열기에 실패해도 앱이 죽지 않도록 감싼다.
    */
+  /** 검사에서 걸린 이유를 사용자 말로 옮긴다. 이유마다 할 수 있는 일이 다르다 */
+  const describeBackupError = (reason: BackupError): string => {
+    switch (reason) {
+      case 'newer-schema':
+        // 유일하게 사용자가 고칠 수 있는 경우 — 앱을 올리면 읽을 수 있다
+        return t('더 새로운 버전에서 만든 백업이에요. 앱을 업데이트해 주세요');
+      case 'corrupt':
+        return t('백업 파일이 손상됐어요');
+      default:
+        return t('My Word 백업 파일이 아니에요');
+    }
+  };
+
+  const handleExportBackup = async () => {
+    if (dataBusyRef.current) return;
+    dataBusyRef.current = true;
+    try {
+      const result = await backupFile.exportToFile();
+      if (result.status === 'shared') {
+        showToast(t('백업 파일을 만들었어요'), 'success');
+      } else if (result.status === 'unsupported') {
+        showToast(t('이 기기에서는 파일 공유를 쓸 수 없어요'), 'info');
+      }
+      // 'error' 에는 사용자가 공유 시트를 그냥 닫은 경우도 섞인다 — 조용히 끝낸다
+    } finally {
+      dataBusyRef.current = false;
+    }
+  };
+
+  /** 파일을 고르고 검사까지 한다. 복원은 확인을 받은 뒤에 한다 */
+  const handlePickBackup = async () => {
+    if (dataBusyRef.current) return;
+    dataBusyRef.current = true;
+    try {
+      const picked = await backupFile.pickAndParse();
+      if (picked.status === 'canceled') return;
+      if (picked.status === 'invalid') {
+        showToast(describeBackupError(picked.reason), 'error');
+        return;
+      }
+      if (picked.status !== 'picked') {
+        showToast(t('파일을 읽지 못했어요'), 'error');
+        return;
+      }
+
+      const current = backupService.summarize(await backupService.create());
+      // 🔴 잃을 것이 없으면 묻지 않는다(새 기기·초기화 직후). 확인 화면은 "무엇을 잃는지"를
+      //    보여 주려고 있는 것이라, 잃을 게 없는데 띄우면 방해일 뿐이다.
+      if (current.words === 0 && current.categories === 0 && current.quizResults === 0) {
+        await runRestore(picked.data);
+        return;
+      }
+      setCurrentSummary(current);
+      setRestoreCandidate({ data: picked.data, fileName: picked.fileName });
+    } finally {
+      dataBusyRef.current = false;
+    }
+  };
+
+  const runRestore = async (data: BackupFile) => {
+    setRestoreBusy(true);
+    try {
+      // 🔴 되돌릴 수 없는 작업 직전의 유일한 방어선. 실패해도 복원 자체는 막지 않는다.
+      await backupFile.writeSafetyCopy();
+      await backupService.restore(data);
+
+      // 저장소가 통째로 바뀌었으므로 화면·컨텍스트가 들고 있는 값이 전부 낡았다.
+      // 번들을 다시 올려 모두가 저장소를 새로 읽게 한다.
+      try {
+        await Updates.reloadAsync();
+      } catch {
+        // 개발 클라이언트 등 다시 시작이 안 되는 환경 — 사용자에게 맡긴다
+        showToast(t('복원했어요. 앱을 다시 실행해 주세요'), 'success');
+      }
+    } catch {
+      showToast(t('복원하지 못했어요'), 'error');
+    } finally {
+      setRestoreBusy(false);
+      setRestoreCandidate(null);
+    }
+  };
+
   /**
    * 알림 토글.
    *
@@ -289,6 +379,44 @@ export default function SettingsScreen({ onBack, onSupport, onNotices }: Setting
           </View>
         )}
 
+        {/* 데이터 — 웹에는 파일 공유·문서 선택기가 없어 섹션째 감춘다 */}
+        {backupFile.isSupported() && (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('데이터')}</Text>
+            <View style={[styles.notifyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <TouchableOpacity
+                onPress={handleExportBackup}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                style={styles.notifyRow}
+              >
+                <View style={styles.notifyLabel}>
+                  <Text style={[styles.linkTitle, { color: colors.text }]}>{t('백업 파일 만들기')}</Text>
+                  <Text style={[styles.linkSubtitle, { color: colors.textTertiary }]}>
+                    {t('단어 · 카테고리 · 퀴즈 기록을 파일 하나로 저장해요')}
+                  </Text>
+                </View>
+                <MaterialIcons name="save-alt" size={22} color={colors.primary} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handlePickBackup}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                style={[styles.notifyTimeRow, { borderTopColor: colors.borderLight }]}
+              >
+                <View style={styles.notifyLabel}>
+                  <Text style={[styles.linkTitle, { color: colors.text }]}>{t('백업에서 복원')}</Text>
+                  <Text style={[styles.linkSubtitle, { color: colors.textTertiary }]}>
+                    {t('지금 기기의 데이터를 백업 시점으로 되돌려요')}
+                  </Text>
+                </View>
+                <MaterialIcons name="settings-backup-restore" size={22} color={colors.primary} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
         {/* 소식 */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('소식')}</Text>
@@ -452,6 +580,18 @@ export default function SettingsScreen({ onBack, onSupport, onNotices }: Setting
           </View>
         </View>
       </ScrollView>
+
+      <RestoreConfirmSheet
+        visible={restoreCandidate !== null}
+        current={currentSummary}
+        incoming={restoreCandidate ? backupService.summarize(restoreCandidate.data) : null}
+        fileName={restoreCandidate?.fileName ?? ''}
+        busy={restoreBusy}
+        onCancel={() => setRestoreCandidate(null)}
+        onConfirm={() => {
+          if (restoreCandidate) void runRestore(restoreCandidate.data);
+        }}
+      />
 
       <TimePickerSheet
         visible={showTimePicker}

@@ -101,6 +101,63 @@ jest.mock('expo-notifications', () => ({
   },
 }));
 
+// 백업/복원이 쓰는 파일 모듈 셋. 전부 expo-modules-core 를 끌어오므로 목이 없으면
+// 이것을 import 하는 스위트가 **로드 단계에서 죽고**, jest 는 그것을 실패가 아니라
+// "없는 테스트"로 세어 초록으로 보여 준다 — 오늘만 두 번 같은 자리를 밟았다.
+//
+// ⚠ backupService(순수 로직)는 이 셋을 **import 하지 않는다.** 파일 입출력은 backupFile 로
+//   갈라 놨고, 그래서 핵심 검증("복원 후 통계가 같은가")은 이 목들과 무관하게 돈다.
+//   여기 목은 화면을 렌더하는 스위트를 위한 것이다.
+jest.mock('expo-file-system', () => {
+  // 메모리 파일 시스템. 실제 디스크 동작은 검증 대상이 아니고,
+  // 검증하는 것은 "무엇을 쓰고 무엇을 읽으려 했는가"다.
+  const files = new Map();
+  class File {
+    constructor(...parts) {
+      this.uri = parts.map((p) => (typeof p === 'string' ? p : p.uri)).join('/');
+    }
+    get exists() {
+      return files.has(this.uri);
+    }
+    create() {
+      files.set(this.uri, '');
+    }
+    write(content) {
+      files.set(this.uri, String(content));
+    }
+    async text() {
+      return files.get(this.uri) ?? '';
+    }
+    delete() {
+      files.delete(this.uri);
+    }
+  }
+  return {
+    __esModule: true,
+    File,
+    Directory: class Directory {},
+    Paths: { cache: { uri: 'file:///cache' }, document: { uri: 'file:///document' } },
+  };
+});
+
+// expo-updates — 설정 화면이 복원 뒤 번들을 다시 올리려고 부른다.
+// 목이 없으면 설정 화면을 렌더하는 스위트가 로드 단계에서 죽는다.
+jest.mock('expo-updates', () => ({
+  __esModule: true,
+  reloadAsync: jest.fn(async () => undefined),
+}));
+
+jest.mock('expo-sharing', () => ({
+  __esModule: true,
+  isAvailableAsync: jest.fn(async () => true),
+  shareAsync: jest.fn(async () => undefined),
+}));
+
+jest.mock('expo-document-picker', () => ({
+  __esModule: true,
+  getDocumentAsync: jest.fn(async () => ({ canceled: true, assets: null })),
+}));
+
 // ─────────────────────────────────────────────────────────────────────────────
 // ⏸ 여기까지가 목으로 닫은 범위다 — `App.test.tsx` 하나는 **아직 로드가 안 된다.**
 //
