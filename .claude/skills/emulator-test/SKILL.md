@@ -100,5 +100,33 @@ export MSYS_NO_PATHCONV=1
 번들에 실렸는지까지만 로컬에서 보고(`unzip -p <apk> assets/index.android.bundle | grep -c v1/heartbeat`),
 **도달 여부는 공통서버 세션에 묻는다.**
 
+### 알림(1.4.0~)은 `shared_prefs` 로 못 잰다 — **예약을 직접 본다**
+
+`expo-notifications` 는 자기 상태를 `shared_prefs` 에 남기지 않는다. 화면에서 토글이 켜지는 것도
+증거가 아니다(저장소에 `true` 를 쓴 것일 뿐, 예약이 걸렸는지는 말해 주지 않는다).
+**AlarmManager 에 실제로 잡혔는지**가 유일한 실물 증거다.
+
+```bash
+export MSYS_NO_PATHCONV=1
+"$ADB" -s "$S" shell "dumpsys alarm | grep -c com.myword.front"   # 예약 개수
+"$ADB" -s "$S" shell "dumpsys alarm | grep -A2 com.myword.front | head -20"
+```
+
+- [ ] 설정 → 학습 알림 ON → 권한 대화상자가 뜨나 → 허용 후 **예약이 0이 아닌가**
+- [ ] 시각을 바꾸면 예약 시각이 따라 바뀌나
+- [ ] 토글 OFF → 예약이 **0**이 되나
+- [ ] 🔴 **기기를 재부팅해도 예약이 남아 있나** — 안드로이드는 재부팅 시 알람을 지운다.
+      라이브러리가 `RECEIVE_BOOT_COMPLETED` 리시버로 되살리게 돼 있지만 **R8 이 그 리시버를
+      지웠는지는 재부팅해 봐야만 안다.** 크래시가 아니라 조용한 실종이라 눈으로 못 본다
+- [ ] 알림 문구에 **아직 안 푼 단어**가 나오나(단어 2개를 넣고 하나만 퀴즈를 풀어 확인)
+- [ ] 앱을 열었다 닫으면 예약이 **다시 걸리나**(취소 후 재예약이므로 개수가 유지돼야 한다)
+
+⚡ 시각을 기다리지 않고 보려면 **에뮬레이터 시계를 앞당긴다**(`adb shell date` 는 부정확 알람에
+안 먹을 수 있다). 가장 확실한 것은 설정에서 **알림 시각을 몇 분 뒤로 잡는 것**이다.
+
+🚫 **알림 아이콘이 흰 사각형으로 뜨면 R8 문제가 아니다** — `drawable-*/notification_icon.png`
+   가 없는 것이다(prebuild 를 돌리지 않아 config plugin 이 실행되지 않는다).
+   `node scripts/generate-notification-icon.js` 로 만든다.
+
 하나라도 어긋나면 `android/app/proguard-rules.pro` 에 keep 을 **좁게** 추가한다.
 🚫 `com.facebook.react.**` 통째 keep 금지 — 난독화율이 바닥이 되어 R8 을 켠 의미가 사라진다.

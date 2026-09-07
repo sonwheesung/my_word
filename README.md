@@ -44,6 +44,7 @@ R8 은 **크래시가 아니라 조용한 기능 실종**으로 깨진다(모듈
 | 다국어 | `i18next` + `react-i18next` — 한국어 · English |
 | 광고 | `react-native-google-mobile-ads` (AdMob) |
 | 인앱결제 | `expo-iap` — 평생 광고 제거 (`remove_ads`, 관리형 상품) |
+| 알림 | `expo-notifications` — **로컬 전용**(서버·FCM 없음). 하루 안 쓰면 정해진 시각에 |
 | OTA | `expo-updates` — **1.3.3(versionCode 19)부터 동작** |
 | Node | >= 18 |
 
@@ -61,7 +62,7 @@ npm start
 |---|---|
 | `npm start` | Metro 개발 서버 (포트 **8081** — 기본값) |
 | `npm run android` / `ios` / `web` | 플랫폼별 실행 |
-| `npm test` | Jest (`__tests__/` 9개 스위트 · 141개) |
+| `npm test` | Jest (`__tests__/` 11개 스위트 · 169개) |
 | `npm run check:tests` | 🔴 **테스트가 실제로 돌았는지** — 개수 바닥값 + 알려진 고장 대조. `npm test` 가 초록인 것만으로는 부족하다(아래) |
 | `npm run lint` | ESLint |
 | `npx tsc --noEmit` | 🔴 **타입 체크 — 모든 변경 후 필수** |
@@ -92,19 +93,19 @@ docs/                      설계 문서 + 게시되는 법적 고지(.html)
 .claude/
   SKILL.md                 🔴 코딩 규칙 본문 842줄 (스킬이 아니라 문서다)
   skills/                  emulator-test · i18n-layout-audit · reload-docs
-scripts/                   아이콘·스토어 애셋·오픈소스 고지 생성기
+scripts/                   아이콘·알림 아이콘·스토어 애셋·오픈소스 고지 생성기 + 테스트 가드
 src/
 ├── components/            AdBanner · BottomSheet · BlockingGate · Toast · UpdateModal 등 8개
 │                          (`.web.tsx` 는 웹 전용 대체 구현)
 ├── constants/             appConfig · adConfig · partOfSpeech
-├── contexts/              Bootstrap(공지·버전) · Purchase(광고제거) · Theme
+├── contexts/              Bootstrap(공지·버전) · Purchase(광고제거) · Theme · Notification(학습 알림)
 ├── hooks/                 useInterstitialAd · useToast
 ├── i18n/                  🔴 **한국어 원문이 곧 키다** — locales/en.json 만 있다
 ├── screens/               13개 (아래)
-├── services/              word · category · quiz · dictionary · share · support · notice · version
+├── services/              word · category · quiz · dictionary · share · support · notice · version · notification
 │   └── commonServer/      ⚠ 공통 서버 SDK — **손으로 고치지 말 것**(원본에서 재복사)
 ├── types/
-└── utils/                 storage · date · text · speech
+└── utils/                 storage · date · text · speech · notificationSchedule
 ```
 
 **라우팅에 React Navigation 을 쓰지 않는다.** `App.tsx` 의 `useState<Screen>` 하나로 전환하고,
@@ -130,6 +131,7 @@ src/
 | `@my_word_categories` · `@my_word_words` · `@my_word_quiz_results` | 본체 |
 | `@my_word_next_id` | 전역 ID 카운터 |
 | `@my_word_language` · `@my_word_read_notices` · `@my_word_ad_free` | 설정·캐시 |
+| `@my_word_notify_enabled` · `@my_word_notify_time` · `@my_word_notify_prompted` | 학습 알림 설정 |
 | `myword_device_id` | 🔴 **SecureStore** — 문의 답변용 식별자(AsyncStorage 아님) |
 
 상세는 [`docs/data-model.md`](docs/data-model.md).
