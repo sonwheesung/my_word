@@ -236,6 +236,32 @@ export const quizResultStorage = {
   },
 };
 
+// --- 백업/복원용 원시 접근 ---
+//
+// 🔴 backupService 가 AsyncStorage 를 직접 잡지 않고 이 문을 지나게 한다.
+//    이 파일의 storageImpl 은 **웹에서 localStorage 로 갈아탄다** — 직접 잡으면 그 분기를
+//    한 번 더 베끼게 되고, 언젠가 한쪽만 고쳐져 웹에서만 백업이 깨진다.
+
+/** 백업이 담는 저장소 키. `@my_word_ad_free`(구매 캐시)와 SecureStore 키는 **일부러 없다** */
+export const BACKUP_KEYS = {
+  categories: CATEGORIES_KEY,
+  words: WORDS_KEY,
+  quizResults: QUIZ_RESULTS_KEY,
+  nextId: NEXT_ID_KEY,
+} as const;
+
+export async function readRaw(key: string): Promise<string | null> {
+  try {
+    return await storageImpl.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+export async function writeRaw(key: string, value: string): Promise<void> {
+  await storageImpl.setItem(key, value);
+}
+
 // --- 전체 초기화 (디버깅/리셋용) ---
 
 export async function clearAllData(): Promise<void> {

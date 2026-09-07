@@ -3,8 +3,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import type { ThemeColors } from '../constants/themes';
 import { getThemeById, DEFAULT_THEME_ID } from '../constants/themes';
+import { THEME_KEY } from '../constants/appConfig';
 
-const THEME_STORAGE_KEY = '@my_word_theme';
+// 키 정의는 constants/appConfig.ts 로 옮겼다 — 백업/복원이 같은 값을 봐야 한다
+const THEME_STORAGE_KEY = THEME_KEY;
 
 const isWeb = Platform.OS === 'web';
 const storageImpl = isWeb

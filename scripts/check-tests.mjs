@@ -27,8 +27,8 @@ import { execFileSync } from 'node:child_process';
  *    누가 `.skip` 하나를 붙이면 total 은 그대로, 실패는 0 이라 바닥값을 그냥 통과한다.
  *    "안 도는 것이 늘었는데 더 초록이 되는" 바로 그 자리다. passed 는 스킵도 로드 실패도 함께 깎인다.
  */
-const MIN_PASSING = 169;
-const MIN_SUITES = 11;
+const MIN_PASSING = 188;
+const MIN_SUITES = 12;
 
 /**
  * 로드가 안 되는 것을 아는 스위트. **여기 없는 스위트가 죽으면 FAIL 이다.**

@@ -18,6 +18,11 @@ export const STORE_URL = Platform.select({
 export const VERSION_SKIP_KEY = '@my_word_skipped_version';
 // 읽은 공지 id 목록 (서버에 읽음을 보내지 않는다 — 익명 유지)
 export const NOTICE_READ_KEY = '@my_word_read_notices';
+// 사용자가 고른 색상 테마.
+// ⚠ 원래 ThemeContext 안에 혼자 있었다 — 백업이 이 키를 읽어야 해서 다른 키들과 같은 자리로 옮겼다.
+//   값은 그대로다(`@my_word_theme`). 운영 중인 앱이라 키 문자열은 바꾸지 않는다.
+export const THEME_KEY = '@my_word_theme';
+
 // 사용자가 고른 앱 언어. 없으면 기기 언어를 따른다
 export const LANGUAGE_KEY = '@my_word_language';
 // 광고 제거를 구매했는가.
