@@ -146,5 +146,39 @@ export MSYS_NO_PATHCONV=1
    가 없는 것이다(prebuild 를 돌리지 않아 config plugin 이 실행되지 않는다).
    `node scripts/generate-notification-icon.js` 로 만든다.
 
+### 리소스 축소(1.5.0~)를 켠 뒤 — **파일명으로 리소스를 검증하지 마라**
+
+`shrinkResources` 를 켜면 APK 안 리소스 **이름이 난독화된다**(`res/-B.png`, `res/0c.9.png`).
+`unzip -l app.apk | grep notification_icon` 은 **0개**를 낸다 — 지워진 것이 아니라 이름이 바뀐 것이다.
+
+```bash
+# ID 매핑을 본다(이름은 리소스 테이블에 남는다)
+AAPT=$(ls "$LOCALAPPDATA/Android/Sdk/build-tools/"*/aapt2.exe | tail -1)
+"$AAPT" dump resources <apk> | grep -E "drawable/notification_icon|color/notification_icon_color"
+"$AAPT" dump xmltree --file AndroidManifest.xml <apk> | grep -A1 default_notification
+```
+→ 매니페스트 meta-data 의 `@0x…` 와 위 resource id 가 같아야 한다.
+**그래도 최종 판정은 알림을 터뜨려 눈으로 본다.**
+
+### 테스트 데이터는 sqlite3 로 심는다 (UI 로 만들면 오래 걸린다)
+
+AsyncStorage 는 `databases/RKStorage` 의 `catalystLocalStorage(key,value)` 다.
+**여러 날에 걸친 날짜**를 넣어야 스트릭·히트맵이 살아나고, 그래야 백업 검증이 의미가 있다.
+
+```bash
+"$ADB" -s "$S" shell am force-stop com.myword.front       # 앱이 덮어쓰지 않게 먼저 멈춘다
+"$ADB" -s "$S" push seed.sql /data/local/tmp/seed.sql
+"$ADB" -s "$S" shell "sqlite3 /data/data/com.myword.front/databases/RKStorage < /data/local/tmp/seed.sql"
+```
+
+### 백업 파일은 공유 시트 **전에** 캐시에 쓰인다 — 실물을 읽을 수 있다
+
+```bash
+"$ADB" -s "$S" shell "ls -la /data/data/com.myword.front/cache/*.json"
+"$ADB" -s "$S" shell "cat /data/data/com.myword.front/cache/myword-backup-*.json" > backup.json
+```
+복원 테스트는 이 파일을 `/sdcard/Download/` 로 push 하면 문서 선택기에 바로 뜬다.
+🔴 **금지 키가 안 담겼는지 여기서 본다** — `ad_free`(결제 우회) · `myword_device_id`(자격증명).
+
 하나라도 어긋나면 `android/app/proguard-rules.pro` 에 keep 을 **좁게** 추가한다.
 🚫 `com.facebook.react.**` 통째 keep 금지 — 난독화율이 바닥이 되어 R8 을 켠 의미가 사라진다.
