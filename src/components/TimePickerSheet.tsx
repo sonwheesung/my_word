@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
@@ -36,6 +36,16 @@ export default function TimePickerSheet({ visible, value, onClose, onConfirm }: 
   const [hour, setHour] = useState(value.hour);
   const [minute, setMinute] = useState(value.minute);
 
+  // 🔴 목록은 맨 위에서 시작한다 — 선택된 항목이 20시면 사용자는 **지금 몇 시로 돼 있는지
+  //    스크롤해야만 알 수 있다.** 열릴 때 선택된 줄로 스크롤해 준다.
+  //    줄 높이를 계산해서 곱하지 않는다(패딩·글꼴이 바뀌면 조용히 어긋난다) —
+  //    선택된 줄이 스스로 보고한 y 를 쓴다.
+  const hourListRef = useRef<ScrollView>(null);
+  const minuteListRef = useRef<ScrollView>(null);
+  const hourY = useRef(0);
+  const minuteY = useRef(0);
+  const pendingScroll = useRef(false);
+
   // 시트를 다시 열 때마다 **현재 저장된 값**에서 시작해야 한다.
   // 안 맞춰 주면 지난번에 고르다 만 값이 남아 있어 "내가 고른 적 없는 시각"이 확인된다.
   useEffect(() => {
@@ -44,7 +54,18 @@ export default function TimePickerSheet({ visible, value, onClose, onConfirm }: 
     // 5분 단위 목록에 없는 값이 저장돼 있을 수 있다(예전 버전·손으로 고친 값).
     // 가장 가까운 눈금으로 내려 맞춘다 — 목록에 없는 값은 아무것도 선택되지 않은 것처럼 보인다.
     setMinute(Math.min(55, Math.round(value.minute / MINUTE_STEP) * MINUTE_STEP));
+    // 실제 스크롤은 자식이 배치된 뒤에야 할 수 있다(onContentSizeChange 에서 처리).
+    pendingScroll.current = true;
   }, [visible, value.hour, value.minute]);
+
+  /** 목록 내용이 배치된 직후 한 번만 — 그 뒤 사용자가 스크롤한 위치를 빼앗지 않는다 */
+  const scrollToSelected = () => {
+    if (!pendingScroll.current) return;
+    pendingScroll.current = false;
+    // 선택된 줄이 맨 위에 딱 붙으면 "위에 더 있다"는 것이 안 보인다. 한 줄쯤 위를 남긴다.
+    hourListRef.current?.scrollTo({ y: Math.max(0, hourY.current - 56), animated: false });
+    minuteListRef.current?.scrollTo({ y: Math.max(0, minuteY.current - 56), animated: false });
+  };
 
   const preview = useMemo(() => formatTime({ hour, minute }), [hour, minute]);
 
@@ -53,10 +74,15 @@ export default function TimePickerSheet({ visible, value, onClose, onConfirm }: 
     selected: boolean,
     onPress: () => void,
     key: string | number,
+    onSelectedLayout: (y: number) => void,
   ) => (
     <TouchableOpacity
       key={key}
       onPress={onPress}
+      onLayout={(e) => {
+        // 선택된 줄만 위치를 보고한다. 전부 보고하면 매 렌더마다 24번씩 부른다.
+        if (selected) onSelectedLayout(e.nativeEvent.layout.y);
+      }}
       activeOpacity={0.7}
       accessibilityRole="button"
       accessibilityState={{ selected }}
@@ -89,11 +115,15 @@ export default function TimePickerSheet({ visible, value, onClose, onConfirm }: 
           <View style={styles.column}>
             <Text style={[styles.columnLabel, { color: colors.textTertiary }]}>{t('시')}</Text>
             <ScrollView
+              ref={hourListRef}
               style={[styles.list, { backgroundColor: colors.surface }]}
               showsVerticalScrollIndicator={false}
+              onContentSizeChange={scrollToSelected}
             >
               {HOURS.map((h) =>
-                renderOption(String(h).padStart(2, '0'), h === hour, () => setHour(h), h),
+                renderOption(String(h).padStart(2, '0'), h === hour, () => setHour(h), h, (y) => {
+                  hourY.current = y;
+                }),
               )}
             </ScrollView>
           </View>
@@ -101,11 +131,15 @@ export default function TimePickerSheet({ visible, value, onClose, onConfirm }: 
           <View style={styles.column}>
             <Text style={[styles.columnLabel, { color: colors.textTertiary }]}>{t('분')}</Text>
             <ScrollView
+              ref={minuteListRef}
               style={[styles.list, { backgroundColor: colors.surface }]}
               showsVerticalScrollIndicator={false}
+              onContentSizeChange={scrollToSelected}
             >
               {MINUTES.map((m) =>
-                renderOption(String(m).padStart(2, '0'), m === minute, () => setMinute(m), m),
+                renderOption(String(m).padStart(2, '0'), m === minute, () => setMinute(m), m, (y) => {
+                  minuteY.current = y;
+                }),
               )}
             </ScrollView>
           </View>

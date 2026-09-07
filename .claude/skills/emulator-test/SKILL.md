@@ -102,14 +102,22 @@ export MSYS_NO_PATHCONV=1
 
 ### 알림(1.4.0~)은 `shared_prefs` 로 못 잰다 — **예약을 직접 본다**
 
-`expo-notifications` 는 자기 상태를 `shared_prefs` 에 남기지 않는다. 화면에서 토글이 켜지는 것도
-증거가 아니다(저장소에 `true` 를 쓴 것일 뿐, 예약이 걸렸는지는 말해 주지 않는다).
+`expo.modules.notifications.SharedPreferencesNotificationsStore.xml` 에 예약이 남긴 하지만
+**그 파일은 "OS 에 알람이 걸렸다"를 뜻하지 않는다** — 라이브러리가 재부팅 복원용으로 적어 두는
+자기 장부일 뿐이고, R8 이 스케줄링 경로를 깨도 장부는 그대로 써진다. 화면에서 토글이 켜지는 것도
+증거가 아니다(저장소에 `true` 를 쓴 것일 뿐이다).
 **AlarmManager 에 실제로 잡혔는지**가 유일한 실물 증거다.
 
 ```bash
 export MSYS_NO_PATHCONV=1
-"$ADB" -s "$S" shell "dumpsys alarm | grep -c com.myword.front"   # 예약 개수
-"$ADB" -s "$S" shell "dumpsys alarm | grep -A2 com.myword.front | head -20"
+# ① 개수 — 🔴 `grep -c` 로 세지 말 것. dumpsys 는 같은 태그를 "App Alarm history" ·
+#    "Allow while idle history" 절에도 다시 찍어 **실제보다 두 배가 나온다**(2026-09-07 실측:
+#    예약 7개인데 14가 나왔다). 이 줄이 정본이다:
+"$ADB" -s "$S" shell "dumpsys alarm | grep 'Pending alarms per uid'"
+"$ADB" -s "$S" shell "dumpsys package com.myword.front | grep -m1 userId"   # u0aNNN 대조용
+
+# ② 언제로 잡혔나 — 태그 바로 아래 두 줄에만 origWhen 이 있어 history 절이 안 섞인다
+"$ADB" -s "$S" shell "dumpsys alarm | grep -A2 'expo.modules.notifications.NOTIFICATION_EVENT'"   | grep -o 'origWhen=[0-9-]* [0-9:.]*'
 ```
 
 - [ ] 설정 → 학습 알림 ON → 권한 대화상자가 뜨나 → 허용 후 **예약이 0이 아닌가**
@@ -121,8 +129,18 @@ export MSYS_NO_PATHCONV=1
 - [ ] 알림 문구에 **아직 안 푼 단어**가 나오나(단어 2개를 넣고 하나만 퀴즈를 풀어 확인)
 - [ ] 앱을 열었다 닫으면 예약이 **다시 걸리나**(취소 후 재예약이므로 개수가 유지돼야 한다)
 
-⚡ 시각을 기다리지 않고 보려면 **에뮬레이터 시계를 앞당긴다**(`adb shell date` 는 부정확 알람에
-안 먹을 수 있다). 가장 확실한 것은 설정에서 **알림 시각을 몇 분 뒤로 잡는 것**이다.
+⚡ **시각을 기다리지 않고 터뜨리는 법** (2026-09-07 실측으로 정리):
+
+1. `adb shell date ...` **만으로는 안 터진다.** AlarmManager 는 RTC 알람도 내부적으로 경과시간
+   기준으로 들고 있어, 시계만 바꾸면 기준이 그대로다. `am broadcast -a android.intent.action.TIME_SET`
+   을 함께 쏴야 다시 잰다.
+2. 가장 깔끔한 방법은 **자정 직전으로 맞추고 알림 시각을 `00:00` 으로 두는 것**이다.
+   예약은 "내일부터"라 23:57 로 맞추면 첫 알람이 **3분 뒤**가 된다.
+
+🚫 **시계를 앞뒤로 옮기면 유령 중복이 생긴다 — 앱 버그로 오해하지 말 것.**
+   밀려 있던 옛 알람이 `TIME_SET` 순간에 한꺼번에 터진다. 실제로 같은 문구가 2개 쌓였는데,
+   `dumpsys notification --noredact` 의 `mCreationTimeMs` 두 개가 **시계를 옮긴 순간**과
+   **진짜 알람 시각**으로 갈려 있어서 구분됐다. 중복이 보이면 그 값부터 본다.
 
 🚫 **알림 아이콘이 흰 사각형으로 뜨면 R8 문제가 아니다** — `drawable-*/notification_icon.png`
    가 없는 것이다(prebuild 를 돌리지 않아 config plugin 이 실행되지 않는다).
