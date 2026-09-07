@@ -22,6 +22,11 @@ const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const MINUTE_STEP = 5;
 const MINUTES = Array.from({ length: 60 / MINUTE_STEP }, (_, i) => i * MINUTE_STEP);
 
+/** 줄 사이 간격 = styles.option 의 marginVertical × 2. 스타일과 **함께** 고쳐야 한다 */
+const ROW_GAP = 4;
+/** 목록 위쪽 안쪽 여백 = styles.list 의 paddingVertical */
+const LIST_PADDING = SPACING.xs;
+
 interface TimePickerSheetProps {
   visible: boolean;
   value: TimeOfDay;
@@ -36,15 +41,18 @@ export default function TimePickerSheet({ visible, value, onClose, onConfirm }: 
   const [hour, setHour] = useState(value.hour);
   const [minute, setMinute] = useState(value.minute);
 
-  // 🔴 목록은 맨 위에서 시작한다 — 선택된 항목이 20시면 사용자는 **지금 몇 시로 돼 있는지
-  //    스크롤해야만 알 수 있다.** 열릴 때 선택된 줄로 스크롤해 준다.
-  //    줄 높이를 계산해서 곱하지 않는다(패딩·글꼴이 바뀌면 조용히 어긋난다) —
-  //    선택된 줄이 스스로 보고한 y 를 쓴다.
+  // 🔴 목록은 맨 위에서 시작한다 — 21시로 설정돼 있어도 화면에는 00 부터 보여서, 사용자는
+  //    **지금 몇 시로 돼 있는지 스크롤해야만 알 수 있다.** 열릴 때 선택된 줄로 스크롤해 준다.
+  //
+  //    ⚠ 처음엔 "선택된 줄이 onLayout 으로 보고한 y 를 onContentSizeChange 에서 쓴다"로 짰는데
+  //      **에뮬레이터에서 안 먹었다.** 네이티브 레이아웃 콜백과 effect 의 도착 순서가 보장되지
+  //      않아, 스크롤 요청 플래그가 세워지기 전에 콜백이 지나가 버린다.
+  //      그래서 **순서에 기대지 않는다** — 줄 높이만 한 번 재고 인덱스로 곱해 위치를 직접 낸다.
+  //      줄은 전부 같은 스타일이라 높이가 같고, 높이를 상수로 박지 않으므로 글꼴이 바뀌어도 따라간다.
   const hourListRef = useRef<ScrollView>(null);
   const minuteListRef = useRef<ScrollView>(null);
-  const hourY = useRef(0);
-  const minuteY = useRef(0);
-  const pendingScroll = useRef(false);
+  /** 줄 하나의 높이(마진 제외). 첫 줄이 배치될 때 한 번만 받는다 */
+  const itemHeight = useRef(0);
 
   // 시트를 다시 열 때마다 **현재 저장된 값**에서 시작해야 한다.
   // 안 맞춰 주면 지난번에 고르다 만 값이 남아 있어 "내가 고른 적 없는 시각"이 확인된다.
@@ -53,19 +61,31 @@ export default function TimePickerSheet({ visible, value, onClose, onConfirm }: 
     setHour(value.hour);
     // 5분 단위 목록에 없는 값이 저장돼 있을 수 있다(예전 버전·손으로 고친 값).
     // 가장 가까운 눈금으로 내려 맞춘다 — 목록에 없는 값은 아무것도 선택되지 않은 것처럼 보인다.
-    setMinute(Math.min(55, Math.round(value.minute / MINUTE_STEP) * MINUTE_STEP));
-    // 실제 스크롤은 자식이 배치된 뒤에야 할 수 있다(onContentSizeChange 에서 처리).
-    pendingScroll.current = true;
-  }, [visible, value.hour, value.minute]);
+    const snappedMinute = Math.min(55, Math.round(value.minute / MINUTE_STEP) * MINUTE_STEP);
+    setMinute(snappedMinute);
 
-  /** 목록 내용이 배치된 직후 한 번만 — 그 뒤 사용자가 스크롤한 위치를 빼앗지 않는다 */
-  const scrollToSelected = () => {
-    if (!pendingScroll.current) return;
-    pendingScroll.current = false;
-    // 선택된 줄이 맨 위에 딱 붙으면 "위에 더 있다"는 것이 안 보인다. 한 줄쯤 위를 남긴다.
-    hourListRef.current?.scrollTo({ y: Math.max(0, hourY.current - 56), animated: false });
-    minuteListRef.current?.scrollTo({ y: Math.max(0, minuteY.current - 56), animated: false });
-  };
+    // 줄 높이는 배치가 끝나야 알 수 있다. 아직이면 다음 프레임에 다시 본다(최대 10프레임 ≈ 160ms).
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let tries = 0;
+    const tick = () => {
+      if (itemHeight.current > 0) {
+        const pitch = itemHeight.current + ROW_GAP;
+        // 선택된 줄이 맨 위에 딱 붙으면 "위에 더 있다"는 것이 안 보인다. 한 줄쯤 위를 남긴다.
+        const offset = (index: number) => Math.max(0, LIST_PADDING + (index - 1) * pitch);
+        hourListRef.current?.scrollTo({ y: offset(value.hour), animated: false });
+        minuteListRef.current?.scrollTo({ y: offset(snappedMinute / MINUTE_STEP), animated: false });
+        return;
+      }
+      if (tries < 10) {
+        tries += 1;
+        timer = setTimeout(tick, 16);
+      }
+    };
+    timer = setTimeout(tick, 0);
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [visible, value.hour, value.minute]);
 
   const preview = useMemo(() => formatTime({ hour, minute }), [hour, minute]);
 
@@ -74,15 +94,19 @@ export default function TimePickerSheet({ visible, value, onClose, onConfirm }: 
     selected: boolean,
     onPress: () => void,
     key: string | number,
-    onSelectedLayout: (y: number) => void,
+    isFirst: boolean,
   ) => (
     <TouchableOpacity
       key={key}
       onPress={onPress}
-      onLayout={(e) => {
-        // 선택된 줄만 위치를 보고한다. 전부 보고하면 매 렌더마다 24번씩 부른다.
-        if (selected) onSelectedLayout(e.nativeEvent.layout.y);
-      }}
+      onLayout={
+        isFirst
+          ? (e) => {
+              // 줄은 전부 같은 스타일이므로 첫 줄 하나만 재면 된다.
+              itemHeight.current = e.nativeEvent.layout.height;
+            }
+          : undefined
+      }
       activeOpacity={0.7}
       accessibilityRole="button"
       accessibilityState={{ selected }}
@@ -118,12 +142,9 @@ export default function TimePickerSheet({ visible, value, onClose, onConfirm }: 
               ref={hourListRef}
               style={[styles.list, { backgroundColor: colors.surface }]}
               showsVerticalScrollIndicator={false}
-              onContentSizeChange={scrollToSelected}
             >
-              {HOURS.map((h) =>
-                renderOption(String(h).padStart(2, '0'), h === hour, () => setHour(h), h, (y) => {
-                  hourY.current = y;
-                }),
+              {HOURS.map((h, i) =>
+                renderOption(String(h).padStart(2, '0'), h === hour, () => setHour(h), h, i === 0),
               )}
             </ScrollView>
           </View>
@@ -134,12 +155,9 @@ export default function TimePickerSheet({ visible, value, onClose, onConfirm }: 
               ref={minuteListRef}
               style={[styles.list, { backgroundColor: colors.surface }]}
               showsVerticalScrollIndicator={false}
-              onContentSizeChange={scrollToSelected}
             >
-              {MINUTES.map((m) =>
-                renderOption(String(m).padStart(2, '0'), m === minute, () => setMinute(m), m, (y) => {
-                  minuteY.current = y;
-                }),
+              {MINUTES.map((m, i) =>
+                renderOption(String(m).padStart(2, '0'), m === minute, () => setMinute(m), m, i === 0),
               )}
             </ScrollView>
           </View>

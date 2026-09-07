@@ -17,8 +17,8 @@ import { formatTime, parseTime, type TimeOfDay } from '../utils/notificationSche
  * 🔴 BootstrapContext 에 얹지 않는다. 그쪽 책임은 "공통 서버 부팅 조회 1회"이고,
  *    알림은 서버와 아무 상관이 없다. 한 컨텍스트에 두면 서버가 죽었을 때 알림까지 끌려간다.
  *
- * 재예약 시점은 **포그라운드 복귀할 때마다**다. 앱을 열수록 첫 알림이 내일로 밀리므로
- * "하루 안 쓰면 온다"가 성립한다(자세한 이유는 utils/notificationSchedule.ts).
+ * 재예약은 **앱이 포그라운드로 올라올 때와 떠날 때** 한다. 앱을 열수록 첫 알림이 내일로
+ * 밀리므로 "하루 안 쓰면 온다"가 성립한다(자세한 이유는 utils/notificationSchedule.ts).
  */
 
 interface NotificationValue {
@@ -121,7 +121,11 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     //    리스너 콜백은 동기라 여기서 새어 나간 rejection 은 잡을 곳이 없고, 그대로
     //    ErrorBoundary 에 걸려 **오류 화면**이 된다(BootstrapContext 의 하트비트와 같은 이유).
     const sub = AppState.addEventListener('change', (state) => {
-      if (state !== 'active') return;
+      // 🔴 앱을 **떠날 때도** 다시 건다. 포그라운드 복귀만 잡으면, 단어를 전부 지우고 앱을 닫은
+      //    사용자에게 **이미 없는 단어를 부르는 알림**이 최대 7번 간다 — 다시 열기 전에는
+      //    고칠 기회가 없기 때문이다. 떠나는 순간의 상태로 예약을 맞춰 두면 그 구멍이 닫힌다.
+      //    ('inactive' 는 iOS 에서 전화·알림센터로도 잠깐 뜨므로 제외한다)
+      if (state !== 'active' && state !== 'background') return;
       if (!enabledRef.current) return;
       void notificationService.reschedule(timeRef.current);
     });
