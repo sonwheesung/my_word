@@ -22,7 +22,10 @@ const { execSync } = require('child_process');
 
 const ROOT = path.join(__dirname, '..');
 const NODE_MODULES = path.join(ROOT, 'node_modules');
-const OUT = path.join(ROOT, 'docs', 'open-source-licenses.html');
+// 기본 출력은 게시본이다. `OSS_OUT` 으로 덮어쓸 수 있는 이유는 하나 —
+// scripts/check-licenses.mjs 가 **임시 파일로 생성해 게시본과 비교**하기 위해서다.
+// 가드가 이 파일의 선정 규칙을 베끼면 두 기준이 갈라져 오경보가 난다(실제로 그렇게 만들었다가 버렸다).
+const OUT = process.env.OSS_OUT || path.join(ROOT, 'docs', 'open-source-licenses.html');
 
 /* 앱 버전의 진실은 app.json 이다. package.json 의 version 은 0.0.1 로 방치돼 있어
    그것을 쓰면 "My Word 0.0.1 기준" 이라는 거짓 문구가 찍힌다. */

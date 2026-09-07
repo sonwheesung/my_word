@@ -10,7 +10,8 @@
     "web": "expo start --web",
     "lint": "eslint .",
     "test": "jest",
-    "check:tests": "node scripts/check-tests.mjs"
+    "check:tests": "node scripts/check-tests.mjs",
+    "check:licenses": "node scripts/check-licenses.mjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
