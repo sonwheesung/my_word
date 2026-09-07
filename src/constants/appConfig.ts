@@ -25,6 +25,29 @@ export const LANGUAGE_KEY = '@my_word_language';
 //   부팅 직후 Play 조회가 끝나기 전까지 광고가 번쩍이는 것을 막으려고 둔다.
 export const AD_FREE_KEY = '@my_word_ad_free';
 
+// --- 학습 리마인더 알림 ---
+// 하루 동안 앱을 안 쓰면 정해진 시각에 알려 준다. **전부 기기 안에서 예약되는 로컬 알림**이고
+// 서버·FCM·푸시토큰을 쓰지 않는다(앱의 "백엔드 없음" 구조를 그대로 둔다).
+export const NOTIFY_ENABLED_KEY = '@my_word_notify_enabled';
+/** "HH:mm" 24시간 표기. 숫자 두 개로 나눠 두면 한쪽만 저장되는 상태가 생긴다 */
+export const NOTIFY_TIME_KEY = '@my_word_notify_time';
+/** 퀴즈를 처음 끝냈을 때의 권유를 이미 띄웠나. 거절한 사람에게 두 번 묻지 않기 위해 */
+export const NOTIFY_PROMPTED_KEY = '@my_word_notify_prompted';
+
+// 기본 20:00.
+// 🔴 21:00 이 아닌 이유: 정보통신망법 §50③ 이 **21:00~08:00** 에 전자적 전송매체로 영리목적
+//    광고성 정보를 보내려면 별도 동의를 받으라고 한다. 우리 알림은 서버가 보내는 것이 아니라
+//    기기 안에서 만들어지고, 사용자가 스스로 켠 학습 리마인더라 적용 대상으로 보기 어렵다.
+//    그래도 **기본값을 하필 그 시간대 시작점에 두면** 공짜로 논쟁을 산다. 20:00 이면 사라진다.
+//    (사용자가 직접 야간 시각을 고르는 것은 막지 않는다 — 자기 기기의 자기 알람이다)
+export const NOTIFY_DEFAULT_TIME = '20:00';
+
+/** 한 번에 며칠치를 미리 걸어 두나. 이만큼 연속으로 안 열면 알림이 멈춘다(떠난 사용자에게 계속 보내지 않는다) */
+export const NOTIFY_DAYS_AHEAD = 7;
+
+/** 안드로이드 알림 채널 id. 한 번 만들면 이름·중요도를 코드로 바꿔도 OS 가 무시하므로 신중히 정한다 */
+export const NOTIFY_CHANNEL_ID = 'study-reminder';
+
 // --- SecureStore 키 (AsyncStorage 아님) ---
 // 문의를 이 기기에 귀속시키는 무작위 UUID. 최초 실행 때 한 번 만들고 그 뒤로 바뀌지 않는다.
 // ⚠ 이 값을 아는 사람이 이 기기의 문의를 읽을 수 있다 — 자격증명이라 위 키들과 달리

@@ -72,6 +72,35 @@ jest.mock('@expo/vector-icons', () => {
   return new Proxy({ __esModule: true }, { get: (t, k) => (k in t ? t[k] : Icon) });
 });
 
+// expo-notifications 도 같은 사슬이다(expo-modules-core → EventEmitter undefined).
+// 여기서 목이 빠지면 이걸 import 하는 스위트가 **로드 단계에서 통째로 죽고**, jest 는 그것을
+// 실패가 아니라 "없는 테스트"로 세어 초록으로 보여 준다 — 위 2026-09-01 사고와 똑같은 자리다.
+//
+// 실제 예약 동작은 검증 대상이 아니다(OS 가 하는 일이다). 검증하는 것은 **무엇을 몇 개
+// 예약하려 했는가**라, 호출을 기록하는 jest.fn 으로 충분하다.
+// ⚠ enum 값은 라이브러리 실제 값과 맞춰 뒀다 — 지어내면 "우리 목만 아는 값"을 검증하게 된다.
+jest.mock('expo-notifications', () => ({
+  __esModule: true,
+  setNotificationHandler: jest.fn(),
+  setNotificationChannelAsync: jest.fn(async () => null),
+  getPermissionsAsync: jest.fn(async () => ({ status: 'granted' })),
+  requestPermissionsAsync: jest.fn(async () => ({ status: 'granted' })),
+  scheduleNotificationAsync: jest.fn(async () => 'notification-id'),
+  cancelAllScheduledNotificationsAsync: jest.fn(async () => undefined),
+  getAllScheduledNotificationsAsync: jest.fn(async () => []),
+  AndroidImportance: { UNKNOWN: 0, UNSPECIFIED: 1, NONE: 2, MIN: 3, LOW: 4, DEFAULT: 5, HIGH: 6 },
+  AndroidNotificationVisibility: { UNKNOWN: 0, PUBLIC: 1, PRIVATE: 2, SECRET: 3 },
+  SchedulableTriggerInputTypes: {
+    CALENDAR: 'calendar',
+    DAILY: 'daily',
+    DATE: 'date',
+    MONTHLY: 'monthly',
+    TIME_INTERVAL: 'timeInterval',
+    WEEKLY: 'weekly',
+    YEARLY: 'yearly',
+  },
+}));
+
 // ─────────────────────────────────────────────────────────────────────────────
 // ⏸ 여기까지가 목으로 닫은 범위다 — `App.test.tsx` 하나는 **아직 로드가 안 된다.**
 //

@@ -95,3 +95,6 @@ web-build/
 keystore.properties
 credentials.json
 .gstack/
+
+# 릴리스 빌드 로그 (R8 검증 때 남는다)
+build-*.log

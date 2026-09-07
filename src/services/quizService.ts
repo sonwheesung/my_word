@@ -49,6 +49,14 @@ export interface DailyActivity {
   quizCount: number;
 }
 
+/** 알림 문구에 넣을 단어 한 개. 화면에 쓰는 값이 아니라 **알림 본문에 그대로 들어갈 문자열**이다 */
+export interface ReminderWord {
+  wordId: number;
+  word: string;
+  /** 뜻이 여러 개면 첫 번째만. 없으면 빈 문자열 */
+  meaning: string;
+}
+
 export interface MyPageStats {
   totalWordCount: number;
   totalQuizCount: number;
@@ -280,5 +288,59 @@ export const quizService = {
       totalActiveDays: activities.length,
       activities,
     };
+  },
+
+  /**
+   * 학습 리마인더 알림에 넣을 단어를 **약한 것부터** 뽑는다.
+   *
+   * 🔴 `getWordQuizStats()` 를 재사용하면 안 된다. 그 함수는 **퀴즈 결과에서 출발**해
+   *    결과가 있는 단어만 담는다 — 그래서 **한 번도 안 푼 단어가 아예 안 들어 있다.**
+   *    여기서 제일 알려 주고 싶은 것이 바로 그 단어들이라, 저장된 단어에서 출발해 뒤집는다.
+   *
+   * 순서:
+   *   ① 퀴즈에 한 번도 안 나온 단어 — 오래 전에 넣고 방치한 것부터(createdAt 오름차순)
+   *   ② 푼 적 있는 단어 — 정답률 낮은 순, 같으면 푼 횟수가 적은 순
+   *
+   * 며칠치를 한 번에 예약하므로 **서로 다른 단어**가 필요하다. 매일 같은 단어가 오면 무시당한다.
+   */
+  async getReminderWords(limit: number): Promise<ReminderWord[]> {
+    if (limit <= 0) return [];
+
+    const [allWords, allResults] = await Promise.all([
+      wordStorage.getAll(),
+      quizResultStorage.getAll(),
+    ]);
+    // 단어가 없으면 알릴 것도 없다. "복습하세요"만 오는 빈 앱은 알림을 끄게 만든다.
+    if (allWords.length === 0) return [];
+
+    const statsMap = new Map<number, { correct: number; total: number }>();
+    for (const r of allResults) {
+      const stats = statsMap.get(r.wordId) || { correct: 0, total: 0 };
+      stats.total++;
+      if (r.isCorrect) stats.correct++;
+      statsMap.set(r.wordId, stats);
+    }
+
+    const never = allWords.filter((w) => !statsMap.has(w.wordId));
+    // 무작위로 섞지 않는다 — 예약할 때마다 결과가 달라지면 테스트도 못 하고,
+    // "오래 방치한 단어부터"가 사용자에게도 더 말이 된다.
+    never.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+
+    const quizzed = allWords
+      .filter((w) => statsMap.has(w.wordId))
+      .map((w) => {
+        // 위에서 has 로 걸렀으므로 존재한다. 그래도 undefined 접근을 만들지 않는다.
+        const s = statsMap.get(w.wordId) || { correct: 0, total: 0 };
+        return { word: w, accuracy: s.total > 0 ? (s.correct / s.total) * 100 : 0, total: s.total };
+      })
+      .sort((a, b) => a.accuracy - b.accuracy || a.total - b.total || a.word.wordId - b.word.wordId)
+      .map((entry) => entry.word);
+
+    return [...never, ...quizzed].slice(0, limit).map((w) => ({
+      wordId: w.wordId,
+      word: w.word,
+      // 뜻이 비어 있는 단어도 저장될 수 있다(가져오기 경로). 배열 접근 전에 길이를 본다.
+      meaning: w.meanings.length > 0 ? w.meanings[0] : '',
+    }));
   },
 };
