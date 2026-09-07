@@ -410,5 +410,21 @@
   "힌디어": "Hindi",
   "힌트 보기": "Show hint",
   "힌트: {{count}}자_one": "Hint: {{count}} character",
-  "힌트: {{count}}자_other": "Hint: {{count}} characters"
+  "힌트: {{count}}자_other": "Hint: {{count}} characters",
+  "학습 알림": "Study Reminders",
+  "알림 받기": "Get reminders",
+  "하루 동안 앱을 열지 않으면 알려 드려요": "We'll remind you after a day away",
+  "알림 시각": "Reminder time",
+  "시": "Hour",
+  "분": "Minute",
+  "오늘 단어 복습할까요?": "Ready for a quick review?",
+  "{{word}} — {{meaning}}, 기억나세요?": "{{word}} — {{meaning}}. Remember it?",
+  "{{word}}, 기억나세요?": "{{word}} — remember it?",
+  "기기 설정에서 알림을 허용해 주세요": "Please allow notifications in your device settings",
+  "알림 설정을 바꾸지 못했어요": "Couldn't change the notification setting",
+  "알림 시각을 저장하지 못했어요": "Couldn't save the reminder time",
+  "복습 알림을 받아 볼까요?": "Want review reminders?",
+  "하루 동안 앱을 열지 않으면 {{time}} 에 알려 드려요. 아직 안 풀어 본 단어나 자주 틀린 단어를 골라서요.": "If you don't open the app for a day, we'll nudge you at {{time}} with a word you haven't quizzed yet or often get wrong.",
+  "언제든 설정에서 끄거나 시각을 바꿀 수 있어요": "You can turn it off or change the time in Settings anytime",
+  "괜찮아요": "No thanks"
 }

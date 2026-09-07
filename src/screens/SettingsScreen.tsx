@@ -7,6 +7,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Linking,
+  Switch,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -14,6 +15,7 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from '../contexts/ThemeContext';
 import { useBootstrap } from '../contexts/BootstrapContext';
 import { usePurchase } from '../contexts/PurchaseContext';
+import { useNotification } from '../contexts/NotificationContext';
 import { useToast } from '../hooks/useToast';
 import Toast from '../components/Toast';
 import { THEMES } from '../constants/themes';
@@ -24,6 +26,8 @@ import {
   OPEN_SOURCE_LICENSES_URL,
 } from '../constants/appConfig';
 import ScreenHeader from '../components/ScreenHeader';
+import TimePickerSheet from '../components/TimePickerSheet';
+import { formatTime, type TimeOfDay } from '../utils/notificationSchedule';
 import { changeAppLanguage } from '../i18n';
 import { LANGUAGE_LABEL, SUPPORTED_LANGUAGES, getCurrentLanguage, type AppLanguage } from '../i18n/language';
 
@@ -52,6 +56,9 @@ export default function SettingsScreen({ onBack, onSupport, onNotices }: Setting
   const [language, setLanguage] = useState<AppLanguage>(() => getCurrentLanguage());
   const { adFree, ready, price, busy, buy, restore } = usePurchase();
   const { toast, showToast, hideToast } = useToast();
+  const notify = useNotification();
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const notifyBusyRef = useRef(false);
 
   const handleLanguageChange = async (next: AppLanguage) => {
     if (next === language) return;
@@ -88,6 +95,38 @@ export default function SettingsScreen({ onBack, onSupport, onNotices }: Setting
    *
    * 브라우저가 없거나 열기에 실패해도 앱이 죽지 않도록 감싼다.
    */
+  /**
+   * 알림 토글.
+   *
+   * 켤 때만 권한을 묻는다 — 사용자가 스스로 켠 순간이라 맥락이 있고, 거절률이 가장 낮다.
+   * 거절당하면 토글을 켜지 않는다. 켠 척해 두면 알림이 왜 안 오는지 알 길이 없다.
+   */
+  const handleToggleNotify = async (next: boolean) => {
+    // 스위치를 빠르게 여러 번 누르면 권한 대화상자가 겹쳐 뜬다
+    if (notifyBusyRef.current) return;
+    notifyBusyRef.current = true;
+    try {
+      const applied = await notify.setEnabled(next);
+      if (next && !applied) {
+        // 안드로이드는 한 번 거절당하면 앱이 다시 묻지 못한다 — 시스템 설정으로 보내는 수밖에 없다
+        showToast(t('기기 설정에서 알림을 허용해 주세요'), 'info');
+      }
+    } catch {
+      showToast(t('알림 설정을 바꾸지 못했어요'), 'error');
+    } finally {
+      notifyBusyRef.current = false;
+    }
+  };
+
+  const handleConfirmTime = async (next: TimeOfDay) => {
+    setShowTimePicker(false);
+    try {
+      await notify.setTime(next);
+    } catch {
+      showToast(t('알림 시각을 저장하지 못했어요'), 'error');
+    }
+  };
+
   const openingLegalRef = useRef(false);
 
   const openLegalDocument = async (url: string) => {
@@ -204,6 +243,51 @@ export default function SettingsScreen({ onBack, onSupport, onNotices }: Setting
             })}
           </View>
         </View>
+
+        {/* 학습 알림 — 웹에는 이 기능이 없어 섹션째 감춘다 */}
+        {notify.supported && (
+          <View style={styles.section}>
+            {/* 🔴 제목을 t('알림') 로 쓰면 안 된다 — 그 키는 이미 퀴즈 화면의 Alert 제목이라
+                영어가 "Notice" 로 나온다. 키가 곧 한국어 원문이라 한 단어를 두 뜻으로 못 쓴다 */}
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('학습 알림')}</Text>
+            <View style={[styles.notifyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View style={styles.notifyRow}>
+                <View style={styles.notifyLabel}>
+                  <Text style={[styles.linkTitle, { color: colors.text }]}>{t('알림 받기')}</Text>
+                  <Text style={[styles.linkSubtitle, { color: colors.textTertiary }]}>
+                    {t('하루 동안 앱을 열지 않으면 알려 드려요')}
+                  </Text>
+                </View>
+                <Switch
+                  value={notify.enabled}
+                  onValueChange={handleToggleNotify}
+                  disabled={!notify.loaded}
+                  trackColor={{ false: colors.border, true: colors.primaryLight }}
+                  thumbColor={notify.enabled ? colors.primary : colors.textTertiary}
+                  accessibilityLabel={t('알림 받기')}
+                />
+              </View>
+
+              {/* 시각은 켜져 있을 때만 보인다 — 꺼 둔 채로 시각을 고르게 하면 알림이 온다고 오해한다 */}
+              {notify.enabled && (
+                <TouchableOpacity
+                  onPress={() => setShowTimePicker(true)}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  style={[styles.notifyTimeRow, { borderTopColor: colors.borderLight }]}
+                >
+                  <Text style={[styles.linkTitle, { color: colors.text }]}>{t('알림 시각')}</Text>
+                  <View style={styles.linkRight}>
+                    <Text style={[styles.priceText, { color: colors.primaryStrong }]}>
+                      {formatTime(notify.time)}
+                    </Text>
+                    <MaterialIcons name="chevron-right" size={22} color={colors.textTertiary} />
+                  </View>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        )}
 
         {/* 소식 */}
         <View style={styles.section}>
@@ -369,6 +453,13 @@ export default function SettingsScreen({ onBack, onSupport, onNotices }: Setting
         </View>
       </ScrollView>
 
+      <TimePickerSheet
+        visible={showTimePicker}
+        value={notify.time}
+        onClose={() => setShowTimePicker(false)}
+        onConfirm={handleConfirmTime}
+      />
+
       <Toast
         message={toast.message}
         type={toast.type}
@@ -434,6 +525,28 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  notifyCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+  },
+  notifyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    gap: 12,
+  },
+  notifyLabel: {
+    flex: 1,
+  },
+  notifyTimeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    borderTopWidth: 1,
   },
   linkRow: {
     flexDirection: 'row',

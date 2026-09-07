@@ -19,6 +19,8 @@ import type { QuizStatistics, MyPageStats } from '../services/quizService';
 import AdBanner from '../components/AdBanner';
 import { useTheme } from '../contexts/ThemeContext';
 import { useBootstrap } from '../contexts/BootstrapContext';
+import { useNotification } from '../contexts/NotificationContext';
+import NotificationPromptSheet from '../components/NotificationPromptSheet';
 import { SPACING } from '../constants/design';
 
 interface HomeScreenProps {
@@ -69,6 +71,7 @@ export default function HomeScreen({
   // 상태바 높이는 기기마다 다르다. 56 으로 박아 두면 노치·펀치홀 기기에서 어긋난다
   const insets = useSafeAreaInsets();
   const { unreadCount } = useBootstrap();
+  const notify = useNotification();
   const [summary, setSummary] = useState<HomeSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -95,6 +98,17 @@ export default function HomeScreen({
   useEffect(() => {
     loadSummary();
   }, [loadSummary]);
+
+  /**
+   * 알림 권유를 띄울 때.
+   *
+   * **퀴즈를 한 번이라도 끝낸 사람에게만** 보여 준다 — 아직 안 써 본 사람에게 "복습을 알려
+   * 줄까요?"는 무슨 말인지 알 수 없다. 퀴즈 결과 화면에서 홈으로 돌아오면 이 화면이 다시
+   * 마운트되며 summary 를 새로 읽으므로, 첫 퀴즈 직후에 자연스럽게 걸린다.
+   * (결과 화면에 두지 않은 이유는 NotificationPromptSheet 주석 참조 — 전면 광고와 겹친다)
+   */
+  const showNotifyPrompt =
+    !loading && summary !== null && summary.totalQuizCount > 0 && notify.shouldPrompt;
 
   const handlePress = useCallback((key: string) => {
     switch (key) {
@@ -267,6 +281,8 @@ export default function HomeScreen({
 
       {/* 하단 광고 — 스크롤과 무관하게 화면 아래에 고정된다 */}
       <AdBanner />
+
+      <NotificationPromptSheet visible={showNotifyPrompt} />
     </View>
   );
 }

@@ -20,6 +20,7 @@ import UpdateModal from './src/components/UpdateModal';
 import BlockingGate from './src/components/BlockingGate';
 import { ThemeProvider } from './src/contexts/ThemeContext';
 import { BootstrapProvider, useBootstrap } from './src/contexts/BootstrapContext';
+import { NotificationProvider } from './src/contexts/NotificationContext';
 import { PurchaseProvider } from './src/contexts/PurchaseContext';
 import { versionService, isBlocking } from './src/services/versionService';
 import type { GateDecision } from './src/services/versionService';
@@ -367,16 +368,19 @@ export default function App() {
   return (
     <ThemeProvider>
       <BootstrapProvider>
-        <SafeAreaProvider>
-          <ErrorBoundary>
-            {/* 광고 노출 여부를 정하므로 화면보다 위에 둔다. 실패해도 children 은 그대로 그린다 */}
-            <PurchaseProvider>
-              <SafeAreaView style={{ flex: 1 }} edges={['bottom']}>
-                <AppContent />
-              </SafeAreaView>
-            </PurchaseProvider>
-          </ErrorBoundary>
-        </SafeAreaProvider>
+        {/* 서버와 무관한 로컬 알림 설정. Bootstrap 과 형제 관계이고 서로를 기다리지 않는다 */}
+        <NotificationProvider>
+          <SafeAreaProvider>
+            <ErrorBoundary>
+              {/* 광고 노출 여부를 정하므로 화면보다 위에 둔다. 실패해도 children 은 그대로 그린다 */}
+              <PurchaseProvider>
+                <SafeAreaView style={{ flex: 1 }} edges={['bottom']}>
+                  <AppContent />
+                </SafeAreaView>
+              </PurchaseProvider>
+            </ErrorBoundary>
+          </SafeAreaProvider>
+        </NotificationProvider>
       </BootstrapProvider>
     </ThemeProvider>
   );
