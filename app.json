@@ -2,8 +2,8 @@
   "expo": {
     "name": "My Word",
     "slug": "my-word-front",
-    "version": "1.4.0",
-    "runtimeVersion": "1.4.0",
+    "version": "1.6.0",
+    "runtimeVersion": "1.6.0",
     "updates": {
       "url": "https://u.expo.dev/4b78845e-3f18-437c-ad1b-edd7e72bdc5f",
       "checkAutomatically": "ON_LOAD",
@@ -25,7 +25,7 @@
     },
     "android": {
       "package": "com.myword.front",
-      "versionCode": 20,
+      "versionCode": 21,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#8CC5A0"
