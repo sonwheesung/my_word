@@ -35,8 +35,9 @@ description: My Word 를 안드로이드 에뮬레이터에 올려 화면을 보
 
 ## 🔴 이 PC 에서 실제로 당한 것
 
-**0. 🔴 AVD 가 아직 없다.** 공용 풀을 쓰던 동안 이 프로젝트 전용 AVD 를 만든 적이 없다.
-`ANDROID_AVD_HOME` 을 빼먹으면 기본값이 C: 다 — **정책이 깨지는 유일한 방식이 그것이다**:
+**0. AVD 는 2026-09-08 에 만들었다** (`D:\emulators\my_word` · 포트 5576 · android-35).
+다시 만들 일이 생기면 아래 그대로다. `ANDROID_AVD_HOME` 을 빼먹으면 기본값이 C: 다 —
+**정책이 깨지는 유일한 방식이 그것이다**:
 
 ```bash
 export ANDROID_AVD_HOME='D:\emulators\my_word'
