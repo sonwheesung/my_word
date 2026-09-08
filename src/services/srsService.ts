@@ -223,6 +223,26 @@ export function forecast(
   return plan;
 }
 
+/**
+ * 방금 푼 답들을 **증분으로** 반영해도 되는가.
+ *
+ * 🔴 이것을 안 보고 `loadStore` 를 거치면 답이 두 번 세어진다. 실제로 그렇게 만들었다가
+ *    에뮬레이터에서 잡았다(2026-09-08): 결과를 먼저 저장하면 `loadStore` 가 어긋남을 보고
+ *    **새 답까지 포함해 재생**하는데, 그 위에 다시 `applyAnswer` 를 얹었다.
+ *    `reps` 가 한 판에 2씩 올라 만기가 실제보다 짧아졌다 — 크래시가 아니라 숫자만 틀렸다.
+ *
+ * 판정은 하나다: **저장본이 이 답들을 아직 못 본 상태인가.**
+ * 아니면(이미 포함됐거나·어긋났거나) 증분을 포기하고 재생에 맡긴다. 재생은 언제나 정답이다.
+ */
+export function canApplyIncrementally(
+  saved: SrsStore | null,
+  answerCount: number,
+  resultCount: number,
+): boolean {
+  if (!saved) return false;
+  return saved.builtFrom + answerCount === resultCount;
+}
+
 /** 저장소에서 읽은 것을 저장본으로 받아들일 수 있는지. 조금이라도 이상하면 null → 재생된다 */
 export function parseStore(raw: string | null): SrsStore | null {
   if (!raw) return null;
@@ -281,6 +301,15 @@ async function loadStore(todayKey: string): Promise<{ store: SrsStore; words: Wo
   return { store: rebuilt, words };
 }
 
+/** 저장본을 버린다. 파생값이라 잃을 것이 없고, 다음 조회가 이력에서 다시 만든다 */
+async function discard(): Promise<void> {
+  try {
+    await writeRaw(SRS_KEY, '');
+  } catch {
+    // 못 지워도 어긋난 상태이므로 어차피 다음 조회 때 재생된다
+  }
+}
+
 async function persist(store: SrsStore): Promise<void> {
   try {
     await writeRaw(SRS_KEY, JSON.stringify(store));
@@ -331,14 +360,25 @@ export const srsService = {
     if (answers.length === 0) return;
     try {
       const todayKey = todayOf(now);
-      const { store } = await loadStore(todayKey);
-      let next = store;
+      // 🔴 loadStore 를 쓰지 않는다 — 그 안의 재생이 방금 저장된 답을 이미 먹었을 수 있다.
+      //    날것으로 읽고 **직접 판정한다.**
+      const [results, raw] = await Promise.all([quizResultStorage.getAll(), readRaw(SRS_KEY)]);
+      const saved = parseStore(raw);
+
+      if (!canApplyIncrementally(saved, answers.length, results.length)) {
+        // 증분이 안전하지 않다 → 저장본을 버린다. 다음 조회가 이력에서 재생하면 그게 정답이다.
+        await discard();
+        return;
+      }
+
+      let next = saved as SrsStore;
       for (const a of answers) {
         next = applyAnswer(next, a.wordId, a.isCorrect, todayKey);
       }
       await persist(next);
     } catch {
-      // 반영에 실패해도 퀴즈 결과 자체는 이미 저장됐다. 다음 조회 때 재생되어 따라잡는다
+      // 반영에 실패해도 퀴즈 결과 자체는 이미 저장됐다. 저장본만 버리면 다음 조회가 따라잡는다
+      await discard();
     }
   },
 
@@ -373,10 +413,6 @@ export const srsService = {
 
   /** 저장본을 버린다. 다음 조회 때 이력에서 다시 만들어진다 */
   async invalidate(): Promise<void> {
-    try {
-      await writeRaw(SRS_KEY, '');
-    } catch {
-      // 무시 — 어긋나면 어차피 재생된다
-    }
+    await discard();
   },
 };

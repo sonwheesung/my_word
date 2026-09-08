@@ -11,6 +11,7 @@ import {
   SRS_STORE_VERSION,
   applyAnswer,
   buildStore,
+  canApplyIncrementally,
   forecast,
   nextDueKey,
   parseStore,
@@ -334,5 +335,33 @@ describe('알림 예보 — 그 시각에 앱이 없어도 되게 미리 굽는�
 
   it('0일치를 물으면 빈 예보다', () => {
     expect(forecast(words, store, TODAY, 0)).toEqual([]);
+  });
+});
+
+describe('🔴 증분 반영 판정 — 답이 두 번 세어지지 않게', () => {
+  // 2026-09-08 에뮬레이터에서 실제로 잡은 결함의 회귀 테스트.
+  // 결과를 먼저 저장하면 재생이 새 답까지 먹는데, 그 위에 증분을 또 얹어 reps 가 2씩 올랐다.
+  // 크래시가 아니라 만기만 짧아져서 **화면으로도 안 보였다** — 저장본을 뜯어봐야 보였다.
+  const store = (builtFrom: number): SrsStore => ({ v: SRS_STORE_VERSION, builtFrom, cards: {} });
+
+  it('저장본이 이 답들을 아직 못 봤을 때만 증분한다', () => {
+    // 이력 12건 중 7건까지 반영된 저장본 + 새 답 5개 = 딱 맞는다
+    expect(canApplyIncrementally(store(7), 5, 12)).toBe(true);
+  });
+
+  it('🔴 저장본이 이미 그 답들을 포함하면 증분하지 않는다', () => {
+    // 재생이 12건을 전부 먹은 상태. 여기에 5개를 더 얹으면 두 번 세어진다
+    expect(canApplyIncrementally(store(12), 5, 12)).toBe(false);
+  });
+
+  it('그 밖에 어긋난 경우도 전부 증분하지 않는다', () => {
+    expect(canApplyIncrementally(null, 5, 12)).toBe(false);   // 저장본 없음
+    expect(canApplyIncrementally(store(3), 5, 12)).toBe(false); // 사이에 뭔가 있었다
+    expect(canApplyIncrementally(store(20), 5, 12)).toBe(false); // 복원 등으로 이력이 줄었다
+  });
+
+  it('아직 저장 전에 불려도 증분하지 않는다(순서에 기대지 않는다)', () => {
+    // 결과 7건 그대로 · 저장본 7 · 새 답 5 → 7+5 ≠ 7 이므로 재생에 맡긴다
+    expect(canApplyIncrementally(store(7), 5, 7)).toBe(false);
   });
 });

@@ -393,9 +393,9 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
         setIsSubmitting(false);
         try {
           await quizService.saveQuizResults(updatedResults);
-          // ⚠ 순서가 있다 — 결과를 저장한 **뒤에** 복습 일정을 반영한다.
-          //   뒤집으면 결과 개수와 srs 의 builtFrom 이 어긋나 다음 조회 때 통째로 재생된다.
-          //   (틀리지는 않지만 헛일이다)
+          // 결과를 저장한 뒤에 반영한다. srsService 가 **순서에 기대지 않게** 되어 있으므로
+          // 뒤집혀도 틀리지는 않는다(저장본을 버리고 다음 조회가 재생한다).
+          // ⚠ 처음엔 여기 주석이 사실과 반대였고, 그 때문에 답이 두 번 세어졌다(2026-09-08).
           await srsService.recordAnswers(
             updatedResults.map((r) => ({ wordId: r.wordId, isCorrect: r.isCorrect })),
           );
