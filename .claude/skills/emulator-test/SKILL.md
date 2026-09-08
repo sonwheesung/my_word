@@ -19,11 +19,19 @@ description: My Word 를 안드로이드 에뮬레이터에 올려 화면을 보
 | | 값 |
 |---|---|
 | 패키지 | `com.myword.front` |
-| 해상도 | 1080 × 2400 (`screencap` 좌표 기준) |
+| 해상도 | **1080 × 2400 고정** (`screencap` 좌표 기준) — 아래 🔴 |
 | 릴리스 빌드 | `cd android && ./gradlew assembleRelease` → `app/build/outputs/apk/release/app-release.apk` |
 | AVD · 포트 | `my_word` · **5576** (`DEV_ALLOCATION.md` §3 배정) · 저장 위치 `D:\emulators\my_word` |
 | 디버그 빌드 | `npx expo run:android --device my_word` (+ Metro 별도) |
 | 서명 | `keystore.properties`(레포 루트, gitignore) 자동 적용. 운영키 SHA-256 `EE:68:31:DB:…:86:1F:5B` |
+
+🔴 **해상도를 1080×2400 에 고정한다 — 자유가 없어서가 아니다.**
+공용 풀을 쓰던 동안은 프로필을 고를 수 없었지만, 이제 자기 AVD 라 바꿀 **자유는 생겼다.**
+그런데 바꾸면 안 된다: **스토어 스크린샷의 크롭 좌표가 이 해상도에 묶여 있다**
+(`store-assets/{ko,en,ja}-1080/` 는 상태바 138px·제스처바 119px 를 잘라 1080×1920 으로 맞춘
+것이다 — Play 는 화면비 2:1 을 넘는 원본을 거부한다). 프로필을 바꾸면 그 좌표가 **조용히**
+틀어지고, 그건 스토어에 나가는 이미지라 대가가 크다.
+→ 바꾸려면 크롭 좌표를 **같이** 바꾼다. `-no-window` 는 이유가 다르다(이 PC 의 Qt 창 문제, 아래 1번).
 
 ## 🔴 이 PC 에서 실제로 당한 것
 
