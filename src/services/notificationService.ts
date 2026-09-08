@@ -3,7 +3,7 @@ import { Platform } from 'react-native';
 
 import i18n from '../i18n';
 import { NOTIFY_CHANNEL_ID, NOTIFY_DAYS_AHEAD } from '../constants/appConfig';
-import { quizService } from './quizService';
+import { srsService } from './srsService';
 import { computeSlots, type TimeOfDay } from '../utils/notificationSchedule';
 
 /**
@@ -145,9 +145,12 @@ export const notificationService = {
         return 0;
       }
 
-      const words = await quizService.getReminderWords(NOTIFY_DAYS_AHEAD);
-      // 단어가 하나도 없으면 알릴 내용이 없다. 빈 앱에 오는 "복습하세요"는 알림을 끄게 만든다.
-      if (words.length === 0) {
+      // 날짜별로 그날 만기가 되는 단어 수를 미리 센다.
+      // 🔴 그 시각에는 앱이 떠 있지 않아 조건을 그때 판단할 수 없다 — 예약하는 순간에
+      //    구워 넣는 수밖에 없다. 만기일이 이미 정해져 있어서 미래 날짜를 지금 셀 수 있다.
+      const plan = await srsService.getReminderPlan(NOTIFY_DAYS_AHEAD);
+      // 볼 것이 하루도 없으면 알릴 내용이 없다. 빈 앱에 오는 "복습하세요"는 알림을 끄게 만든다.
+      if (plan.every((day) => day.count === 0)) {
         await this.cancelAll();
         return 0;
       }
@@ -156,16 +159,16 @@ export const notificationService = {
       await this.cancelAll();
 
       const slots = computeSlots(new Date(), time, NOTIFY_DAYS_AHEAD);
-      const title = i18n.t('오늘 단어 복습할까요?');
 
       let scheduled = 0;
       for (let i = 0; i < slots.length; i++) {
-        // 단어가 예약 일수보다 적으면 돌려 쓴다. 2개뿐이라고 알림을 2번만 보내는 것보다 낫다.
-        const pick = words[i % words.length];
+        const day = plan[i];
+        // 그날 볼 것이 없으면 **거르고 넘어간다.** 예약 개수가 슬롯 수보다 적어질 수 있다.
+        if (!day || day.count === 0) continue;
         await Notifications.scheduleNotificationAsync({
           content: {
-            title,
-            body: buildBody(pick.word, pick.meaning),
+            title: i18n.t('오늘 복습할 단어 {{count}}개', { count: day.count }),
+            body: buildBody(day.word, day.meaning),
           },
           trigger: {
             type: Notifications.SchedulableTriggerInputTypes.DATE,

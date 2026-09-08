@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
+import { srsService } from '../services/srsService';
 import { categoryService } from '../services/categoryService';
 import type { Category } from '../types/word';
 import Toast from '../components/Toast';
@@ -25,7 +26,7 @@ interface QuizSetupScreenProps {
   onStartQuiz: (categoryId: number, mode: QuizMode, wordCount: number, direction: QuizDirection, answerType: QuizAnswerType) => void;
 }
 
-export type QuizMode = 'random' | 'recent' | 'weak' | 'mixed';
+export type QuizMode = 'random' | 'recent' | 'weak' | 'mixed' | 'review';
 export type QuizDirection = 'word_to_meaning' | 'meaning_to_word';
 export type QuizAnswerType = 'subjective' | 'multiple_choice';
 
@@ -34,6 +35,8 @@ const QUIZ_MODES: Array<{ value: QuizMode; label: string; description: string }>
   { value: 'recent', label: '최신순', description: '최근에 추가한 단어 위주로 출제' },
   { value: 'weak', label: '취약한 단어', description: '틀린 단어 위주로 출제' },
   { value: 'mixed', label: '여러 형태', description: '다양한 문제 유형으로 출제' },
+  // 간격 반복이 정한 순서로 낸다. "많이 틀린 단어"(weak)와 다르다 — 이쪽은 **언제** 볼지를 본다
+  { value: 'review', label: '복습할 단어', description: '지금 복습할 때가 된 단어부터' },
 ];
 
 const QUIZ_DIRECTIONS: Array<{ value: QuizDirection; label: string; description: string }> = [
@@ -54,6 +57,8 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
   const { toast, showToast, hideToast } = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
+  // 카테고리별 만기 수. 고르기 **전에** 어디에 밀렸는지 보이게 한다
+  const [dueByCategory, setDueByCategory] = useState<Record<number, number>>({});
   const [selectedMode, setSelectedMode] = useState<QuizMode>('random');
   const [selectedDirection, setSelectedDirection] = useState<QuizDirection>('word_to_meaning');
   const [selectedAnswerType, setSelectedAnswerType] = useState<QuizAnswerType>('subjective');
@@ -90,6 +95,22 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
 
   const selectedCategory = categories.find((c) => c.categoryId === selectedCategoryId);
   const availableWordCount = selectedCategory?.wordCount ?? 0;
+  const selectedDueCount = selectedCategoryId === null ? 0 : dueByCategory[selectedCategoryId] ?? 0;
+
+  useEffect(() => {
+    let alive = true;
+    srsService
+      .getDueSummary()
+      .then((summary) => {
+        if (alive) setDueByCategory(summary.byCategory);
+      })
+      .catch(() => {
+        // 만기를 못 읽어도 설정 화면은 그대로 쓸 수 있어야 한다
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const handleCategorySelect = (categoryId: number) => {
     setSelectedCategoryId(categoryId);
@@ -173,6 +194,11 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
               {selectedCategory && (
                 <Text style={[styles.selectorWordCount, { color: colors.textSecondary }]}>
                   {t('{{count}}개 단어', { count: availableWordCount })}
+                  {selectedDueCount > 0 && (
+                    <Text style={{ color: colors.primary }}>
+                      {t(' · 복습 {{count}}', { count: selectedDueCount })}
+                    </Text>
+                  )}
                 </Text>
               )}
             </View>

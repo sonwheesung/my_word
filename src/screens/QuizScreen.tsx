@@ -25,7 +25,7 @@ import { normalizeForCompare } from '../utils/text';
 import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
 
-export type QuizMode = 'random' | 'recent' | 'weak' | 'mixed';
+export type QuizMode = 'random' | 'recent' | 'weak' | 'mixed' | 'review';
 type QuizAnswerType = 'subjective' | 'multiple_choice';
 
 type QuizType = 'word_to_meaning' | 'meaning_to_word' | 'example_to_meaning' | 'translation_to_example';
@@ -132,6 +132,18 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
             const needed = wordCount - selectedWords.length;
             selectedWords = [...selectedWords, ...shuffleArray(remaining).slice(0, needed)];
           }
+        }
+      } else if (mode === 'review') {
+        // 간격 반복이 정한 순서. 고른 카테고리 안에서만 본다 —
+        // 홈 배너의 횡단 큐와 다른 점이 이것이다.
+        const dueIds = await srsService.getDueWordIds(wordCount, categoryId);
+        selectedWords = dueIds
+          .map((id) => words.find((w) => w.wordId === id))
+          .filter((w): w is Word => w !== undefined);
+        if (selectedWords.length === 0) {
+          // 만기가 하나도 없으면 빈 화면 대신 평소처럼 낸다. "오늘 볼 것 없음"으로
+          // 퀴즈를 막으면 사용자가 스스로 더 공부하려는 것을 앱이 거절하는 꼴이다.
+          selectedWords = shuffleArray([...words]).slice(0, Math.min(wordCount, words.length));
         }
       } else if (mode === 'mixed') {
         selectedWords = shuffleArray([...words]).slice(0, Math.min(wordCount, words.length));

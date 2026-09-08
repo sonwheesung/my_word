@@ -19,7 +19,7 @@ import {
   type Grade,
   type SrsCard,
 } from '../utils/srs';
-import { daysBetween, formatLocalDate, isDateKey, toLocalDateKey } from '../utils/date';
+import { addDays, daysBetween, formatLocalDate, isDateKey, toLocalDateKey } from '../utils/date';
 import { SRS_KEY } from '../constants/appConfig';
 import { quizResultStorage, wordStorage, readRaw, writeRaw } from '../utils/storage';
 
@@ -60,6 +60,14 @@ export interface HistoryEntry {
   takenAt: string;
 }
 
+/** 알림 한 건에 들어갈 내용. 날짜별로 하나씩 만든다 */
+export interface ReminderDay {
+  /** 그날까지 만기가 되는 단어 수. 0이면 그날은 **예약하지 않는다** */
+  count: number;
+  word: string;
+  meaning: string;
+}
+
 export interface DueSummary {
   /** 오늘 볼 단어 수(한 번도 안 푼 단어 포함) */
   total: number;
@@ -68,8 +76,6 @@ export interface DueSummary {
   /** 만기가 0일 때 다음으로 볼 날. 볼 것이 하나도 없으면 null */
   nextDue: string | null;
 }
-
-const emptyStore = (): SrsStore => ({ v: SRS_STORE_VERSION, builtFrom: 0, cards: {} });
 
 function gradeOf(isCorrect: boolean): Grade {
   return isCorrect ? GRADE_RECALLED : GRADE_FORGOT;
@@ -195,6 +201,28 @@ export function summarize(words: WordRef[], store: SrsStore, todayKey: string): 
   };
 }
 
+/**
+ * 앞으로 `days` 일 동안 날짜별 만기 수.
+ *
+ * 알림은 **미리 구워 둬야 한다** — 그 시각에 앱이 떠 있지 않으므로 조건을 그때 판단할 수
+ * 없다. 만기일이 이미 정해져 있어서 미래 날짜의 수를 지금 셀 수 있다는 점이 여기서 값을 한다.
+ *
+ * 그 사이에 복습을 하면 수가 달라지지만, 앱을 열면 전부 취소하고 다시 굽는다.
+ */
+export function forecast(
+  words: WordRef[],
+  store: SrsStore,
+  todayKey: string,
+  days: number,
+): Array<{ dayKey: string; dueIds: number[] }> {
+  const plan: Array<{ dayKey: string; dueIds: number[] }> = [];
+  for (let i = 1; i <= days; i++) {
+    const dayKey = addDays(todayKey, i);
+    plan.push({ dayKey, dueIds: selectDue(words, store, dayKey) });
+  }
+  return plan;
+}
+
 /** 저장소에서 읽은 것을 저장본으로 받아들일 수 있는지. 조금이라도 이상하면 null → 재생된다 */
 export function parseStore(raw: string | null): SrsStore | null {
   if (!raw) return null;
@@ -311,6 +339,35 @@ export const srsService = {
       await persist(next);
     } catch {
       // 반영에 실패해도 퀴즈 결과 자체는 이미 저장됐다. 다음 조회 때 재생되어 따라잡는다
+    }
+  },
+
+  /**
+   * 학습 알림이 쓸 날짜별 예약 내용.
+   *
+   * 만기가 0인 날은 `count: 0` 으로 돌려준다 — 부르는 쪽이 그날을 건너뛴다.
+   * 볼 것이 없는데 "복습하세요"가 오면 사람은 알림을 끈다.
+   */
+  async getReminderPlan(days: number, now?: Date): Promise<ReminderDay[]> {
+    if (days <= 0) return [];
+    try {
+      const todayKey = todayOf(now);
+      const [{ store, words }, all] = await Promise.all([loadStore(todayKey), wordStorage.getAll()]);
+      const byId = new Map(all.map((w) => [w.wordId, w]));
+
+      return forecast(words, store, todayKey, days).map(({ dueIds }, index) => {
+        if (dueIds.length === 0) return { count: 0, word: '', meaning: '' };
+        // 날마다 다른 단어를 보여 준다. 같은 단어가 7일 내내 오면 알림이 배경이 된다
+        const pick = byId.get(dueIds[index % dueIds.length]);
+        return {
+          count: dueIds.length,
+          word: pick?.word ?? '',
+          // 뜻이 비어 있는 단어도 저장될 수 있다(가져오기 경로). 배열 접근 전에 길이를 본다
+          meaning: pick && pick.meanings.length > 0 ? pick.meanings[0] : '',
+        };
+      });
+    } catch {
+      return [];
     }
   },
 

@@ -448,5 +448,8 @@
   "되돌릴 수 없어서, 복원 직전에 현재 상태를 파일로 한 벌 남겨 둡니다": "It can't be undone, so we save a copy of the current state just before restoring.",
   "복원": "Restore",
   "오늘 복습할 단어 {{count}}개_one": "Review {{count}} word today",
-  "오늘 복습할 단어 {{count}}개_other": "Review {{count}} words today"
+  "오늘 복습할 단어 {{count}}개_other": "Review {{count}} words today",
+  "복습할 단어": "Due for review",
+  "지금 복습할 때가 된 단어부터": "Words it's time to review first",
+  " · 복습 {{count}}": " · {{count}} due"
 }

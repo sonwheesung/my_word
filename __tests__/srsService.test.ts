@@ -11,6 +11,7 @@ import {
   SRS_STORE_VERSION,
   applyAnswer,
   buildStore,
+  forecast,
   nextDueKey,
   parseStore,
   selectDue,
@@ -290,5 +291,48 @@ describe('저장본 읽기 — 이상하면 버린다(재생이 되살린다)', 
     });
     const parsed = parseStore(mixed);
     expect(Object.keys(parsed!.cards)).toEqual(['1']);
+  });
+});
+
+describe('알림 예보 — 그 시각에 앱이 없어도 되게 미리 굽는다', () => {
+  const words = [w(1), w(2), w(3)];
+  //  1 → 만기 09-04 (오늘 이미 지남)
+  //  2 → 만기 09-15 (09-04 에 두 번째로 맞혀 11일)
+  //  3 → 한 번도 안 품 → 언제나 만기
+  const store = buildStore(
+    words,
+    [h(1, true, '2026-09-01'), h(2, true, '2026-09-01'), h(2, true, '2026-09-04')],
+    TODAY,
+  );
+
+  it('날짜별로 하루씩, 내일부터 센다', () => {
+    const plan = forecast(words, store, TODAY, 3);
+    expect(plan.map((d) => d.dayKey)).toEqual(['2026-09-09', '2026-09-10', '2026-09-11']);
+  });
+
+  it('만기 수는 날이 갈수록 줄지 않는다', () => {
+    // 복습을 안 하면 만기는 쌓이기만 한다. 줄어든다면 계산이 틀린 것이다.
+    const plan = forecast(words, store, TODAY, 14);
+    for (let i = 1; i < plan.length; i++) {
+      expect(plan[i].dueIds.length).toBeGreaterThanOrEqual(plan[i - 1].dueIds.length);
+    }
+  });
+
+  it('🔴 아직 만기가 아닌 단어는 그날이 되어야 들어온다', () => {
+    const plan = forecast(words, store, TODAY, 8);
+    // 09-15 는 오늘(09-08)로부터 7일 뒤 = plan[6]
+    expect(plan[5].dueIds).not.toContain(2); // 09-14
+    expect(plan[6].dueIds).toContain(2); // 09-15
+  });
+
+  it('볼 것이 하나도 없는 날은 빈 목록이다', () => {
+    // 단어 하나, 오늘 막 풀어서 만기가 3일 뒤 → 내일·모레는 비어 있다
+    const one = buildStore([w(1)], [h(1, true, TODAY)], TODAY);
+    const plan = forecast([w(1)], one, TODAY, 4);
+    expect(plan.map((d) => d.dueIds.length)).toEqual([0, 0, 1, 1]);
+  });
+
+  it('0일치를 물으면 빈 예보다', () => {
+    expect(forecast(words, store, TODAY, 0)).toEqual([]);
   });
 });
