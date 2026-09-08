@@ -53,6 +53,12 @@ export const NOTIFY_DAYS_AHEAD = 7;
 /** 안드로이드 알림 채널 id. 한 번 만들면 이름·중요도를 코드로 바꿔도 OS 가 무시하므로 신중히 정한다 */
 export const NOTIFY_CHANNEL_ID = 'study-reminder';
 
+// --- 간격 반복(SRS) ---
+// 단어별 다음 복습일. 🔴 **파생값이라 백업에 담지 않는다** — words + quizResults 로 언제든
+//    다시 만들어진다(이 앱이 통계를 저장하지 않고 매번 파생하는 것과 같은 이유).
+//    저장하는 이유는 오직 속도이고, 이력과 어긋나면 말없이 재생된다.
+export const SRS_KEY = '@my_word_srs';
+
 // --- SecureStore 키 (AsyncStorage 아님) ---
 // 문의를 이 기기에 귀속시키는 무작위 UUID. 최초 실행 때 한 번 만들고 그 뒤로 바뀌지 않는다.
 // ⚠ 이 값을 아는 사람이 이 기기의 문의를 읽을 수 있다 — 자격증명이라 위 키들과 달리

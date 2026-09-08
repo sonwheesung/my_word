@@ -13,18 +13,16 @@ import {
   DESIRED_RETENTION,
   GRADE_FORGOT,
   GRADE_RECALLED,
-  addDays,
-  dateKeyOf,
-  daysBetween,
   dueKeyAfter,
   firstReview,
   intervalDays,
   nextReview,
   normalizeCard,
   retrievability,
-  toDateKey,
   type SrsCard,
 } from '../src/utils/srs';
+// 날짜 키 산술은 스트릭 집계가 이미 쓰던 곳에 있다. 만기 계산이 그것을 그대로 쓰므로 여기서 함께 지킨다.
+import { addDays, daysBetween, formatLocalDate, isDateKey, toLocalDateKey } from '../src/utils/date';
 
 describe('① 정의 — 모델이 스스로 모순되지 않는다', () => {
   it('안정도만큼 지났을 때 떠올릴 확률은 정확히 0.9 다', () => {
@@ -218,23 +216,27 @@ describe('방어 — 저장소에서 무엇이 와도 만기가 멈추지 않는
   });
 });
 
-describe('날짜 — 로컬 자정 기준', () => {
+describe('날짜 — 로컬 자정 기준 (utils/date)', () => {
   it('로컬 날짜를 쓴다(UTC 가 아니다)', () => {
     // 로컬 23시 30분은 아직 그날이다. toISOString() 을 쓰면 하루가 밀린다.
     const late = new Date(2026, 8, 8, 23, 30);
-    expect(toDateKey(late)).toBe('2026-09-08');
+    expect(formatLocalDate(late)).toBe('2026-09-08');
     const early = new Date(2026, 8, 8, 0, 15);
-    expect(toDateKey(early)).toBe('2026-09-08');
+    expect(formatLocalDate(early)).toBe('2026-09-08');
   });
 
   it('한 자리 월·일을 0 으로 채운다', () => {
-    expect(toDateKey(new Date(2026, 0, 5, 12))).toBe('2026-01-05');
+    expect(formatLocalDate(new Date(2026, 0, 5, 12))).toBe('2026-01-05');
   });
 
-  it('깨진 ISO 는 null 이다', () => {
-    expect(dateKeyOf('nope')).toBeNull();
-    expect(dateKeyOf('')).toBeNull();
-    expect(dateKeyOf('2026-09-08T03:00:00.000Z')).not.toBeNull();
+  it('🔴 깨진 ISO 는 날짜 키가 아니다 — 만기 계산에 넣기 전에 걸러야 한다', () => {
+    // toLocalDateKey 는 파싱 실패 시 null 이 아니라 **원본 앞부분**을 돌려준다.
+    // 그대로 만기로 저장하면 형식이 깨진 키가 저장소에 남는다.
+    expect(isDateKey(toLocalDateKey('2026-09-08T03:00:00.000Z'))).toBe(true);
+    expect(isDateKey(toLocalDateKey('nope'))).toBe(false);
+    expect(isDateKey(toLocalDateKey(''))).toBe(false);
+    expect(isDateKey('2026-9-8')).toBe(false);
+    expect(isDateKey(null)).toBe(false);
   });
 
   it('일수 차이를 센다', () => {

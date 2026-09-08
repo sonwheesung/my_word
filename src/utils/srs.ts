@@ -19,6 +19,8 @@
  *   분산은 srsService 가 **단어 id 로 결정적으로** 처리한다.
  */
 
+import { addDays } from './date';
+
 /**
  * 채점 등급. FSRS 는 1~4(Again/Hard/Good/Easy)를 쓰지만 이 앱의 퀴즈는 **정답/오답 2단계**다.
  * 값을 1·3 으로 둔 것은 FSRS 공식을 그대로 쓰기 위해서다(2·4 는 안 나온다).
@@ -213,51 +215,9 @@ export function normalizeCard(raw: unknown): SrsCard | null {
   };
 }
 
-// ── 날짜 ────────────────────────────────────────────────────────────
-// 만기는 **시각이 아니라 날짜**로 다룬다("오늘 복습할 단어"이지 "14시 32분에 복습할 단어"가
-// 아니다). 로컬 자정 기준의 'YYYY-MM-DD' 문자열을 쓰면 사전순 비교가 곧 날짜 비교가 되고,
-// 백업이 날짜를 원본 그대로 담는 규칙과도 어긋나지 않는다.
-
-/** Date → 로컬 기준 'YYYY-MM-DD'. `toISOString()` 은 UTC 라 자정 부근에서 하루가 어긋난다 */
-export function toDateKey(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
-
-/** ISO 문자열(저장된 takenAt·createdAt) → 로컬 날짜 키. 파싱에 실패하면 null */
-export function dateKeyOf(iso: string): string | null {
-  const parsed = new Date(iso);
-  return Number.isNaN(parsed.getTime()) ? null : toDateKey(parsed);
-}
-
-function keyToUtcNoon(key: string): number | null {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(key);
-  if (!m) return null;
-  // 정오로 두면 서머타임 전환일에도 하루가 밀리지 않는다
-  return Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12);
-}
-
-/** 두 날짜 키 사이의 일수. 형식이 깨졌으면 0(= 같은 날로 취급, 안전한 쪽) */
-export function daysBetween(fromKey: string, toKey: string): number {
-  const a = keyToUtcNoon(fromKey);
-  const b = keyToUtcNoon(toKey);
-  if (a === null || b === null) return 0;
-  return Math.round((b - a) / 86400000);
-}
-
-/** 날짜 키에 일수를 더한다 */
-export function addDays(key: string, days: number): string {
-  const base = keyToUtcNoon(key);
-  if (base === null || !Number.isFinite(days)) return key;
-  const moved = new Date(base + Math.round(days) * 86400000);
-  // UTC 정오에서 만든 값이라 로컬 날짜가 밀리지 않도록 UTC 성분을 그대로 읽는다
-  const y = moved.getUTCFullYear();
-  const m = String(moved.getUTCMonth() + 1).padStart(2, '0');
-  const d = String(moved.getUTCDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
+// ── 만기일 ────────────────────────────────────────────────────────
+// 날짜 키의 정의와 산술은 utils/date.ts 에 있다 — 스트릭 집계가 이미 같은 규칙을 쓰고 있고,
+// 사본을 만들면 언젠가 한쪽만 고쳐진다.
 
 /** 복습한 날 + 간격 = 다음 만기일 */
 export function dueKeyAfter(reviewedOn: string, card: SrsCard): string {

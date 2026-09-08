@@ -1,4 +1,4 @@
-import { APP_VERSION, LANGUAGE_KEY, NOTICE_READ_KEY, NOTIFY_ENABLED_KEY, NOTIFY_PROMPTED_KEY, NOTIFY_TIME_KEY, THEME_KEY } from '../constants/appConfig';
+import { APP_VERSION, LANGUAGE_KEY, NOTICE_READ_KEY, NOTIFY_ENABLED_KEY, NOTIFY_PROMPTED_KEY, NOTIFY_TIME_KEY, SRS_KEY, THEME_KEY } from '../constants/appConfig';
 import { BACKUP_KEYS, readRaw, writeRaw } from '../utils/storage';
 import type { Category, Word } from '../types/word';
 import type { StoredQuizResult } from '../utils/storage';
@@ -247,6 +247,11 @@ export const backupService = {
     await writeRaw(BACKUP_KEYS.words, JSON.stringify(backup.words));
     await writeRaw(BACKUP_KEYS.quizResults, JSON.stringify(backup.quizResults));
     await writeRaw(BACKUP_KEYS.nextId, String(backup.nextId));
+
+    // 🔴 복습 스케줄을 버린다. 백업에 담지 않는 파생값이라 이력에서 다시 만들어진다.
+    //    srsService 는 "결과 개수가 다르면 재생"으로 스스로 고치지만, **개수만 같고 내용이
+    //    다른** 백업을 복원하면 그 검사를 통과해 낡은 만기가 살아남는다. 여기서 끊는다.
+    await writeRaw(SRS_KEY, '');
 
     // 설정은 없으면 건드리지 않는다 — 옛 백업에 없는 항목 때문에 현재 설정이 지워지면 안 된다.
     const s = backup.settings;
