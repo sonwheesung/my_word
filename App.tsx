@@ -75,7 +75,10 @@ function AppContent() {
   const [quizDirection, setQuizDirection] = useState<QuizDirection>('word_to_meaning');
   const [quizAnswerType, setQuizAnswerType] = useState<QuizAnswerType>('subjective');
   const [quizResults, setQuizResults] = useState<QuizResult[]>([]);
+  // 특정 단어 목록으로 퀴즈를 낼 때 쓴다 — 오답 재도전과 **복습 큐**가 같은 통로를 쓴다
   const [retryWordIds, setRetryWordIds] = useState<number[] | undefined>(undefined);
+  // 퀴즈를 어디서 시작했나. 나갈 때 돌아갈 곳이 다르다(설정 화면 vs 홈)
+  const [quizFrom, setQuizFrom] = useState<'setup' | 'home'>('setup');
 
   // 공지 화면에서 돌아갈 곳(홈 또는 설정) — 진입점이 두 개라 따로 기억한다
   const [noticeFrom, setNoticeFrom] = useState<Screen>('home');
@@ -228,6 +231,8 @@ function AppContent() {
       <QuizSetupScreen
         onBack={() => setCurrentScreen('home')}
         onStartQuiz={(categoryId, mode, wordCount, direction, answerType) => {
+          setQuizFrom('setup');
+          setRetryWordIds(undefined);
           setQuizCategoryId(categoryId);
           setQuizMode(mode);
           setQuizWordCount(wordCount);
@@ -239,10 +244,11 @@ function AppContent() {
     );
   }
 
-  if (currentScreen === 'quiz' && quizCategoryId) {
+  // 복습 큐는 카테고리를 가로지르므로 quizCategoryId 가 null 이다 — 단어 목록만 있으면 낼 수 있다
+  if (currentScreen === 'quiz' && (quizCategoryId !== null || retryWordIds)) {
     return (
       <QuizScreen
-        categoryId={quizCategoryId}
+        categoryId={quizCategoryId ?? undefined}
         mode={quizMode}
         wordCount={retryWordIds ? retryWordIds.length : quizWordCount}
         direction={quizDirection}
@@ -255,7 +261,7 @@ function AppContent() {
         }}
         onExit={() => {
           setRetryWordIds(undefined);
-          setCurrentScreen('quizSetup');
+          setCurrentScreen(quizFrom === 'home' ? 'home' : 'quizSetup');
         }}
       />
     );
@@ -324,6 +330,15 @@ function AppContent() {
           setCurrentScreen('addWord');
         }}
         onStartQuiz={() => setCurrentScreen('quizSetup')}
+        onStartReview={(wordIds) => {
+          setQuizFrom('home');
+          setQuizCategoryId(null); // 전 카테고리 횡단
+          setRetryWordIds(wordIds);
+          setQuizMode('random');
+          setQuizDirection('word_to_meaning');
+          setQuizAnswerType('multiple_choice');
+          setCurrentScreen('quiz');
+        }}
         onViewStatistics={() => setCurrentScreen('statistics')}
         onMyPage={() => setCurrentScreen('myPage')}
         onSettings={() => setCurrentScreen('settings')}

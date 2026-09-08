@@ -446,5 +446,7 @@
   "단어 {{words}} · 카테고리 {{categories}} · 퀴즈 {{quizzes}}": "{{words}} words · {{categories}} categories · {{quizzes}} quizzes",
   "복원하면 지금 기기의 데이터는 사라집니다": "Restoring erases this device's data",
   "되돌릴 수 없어서, 복원 직전에 현재 상태를 파일로 한 벌 남겨 둡니다": "It can't be undone, so we save a copy of the current state just before restoring.",
-  "복원": "Restore"
+  "복원": "Restore",
+  "오늘 복습할 단어 {{count}}개_one": "Review {{count}} word today",
+  "오늘 복습할 단어 {{count}}개_other": "Review {{count}} words today"
 }

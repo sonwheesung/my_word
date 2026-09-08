@@ -16,6 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
 import { quizService } from '../services/quizService';
 import type { QuizStatistics, MyPageStats } from '../services/quizService';
+import { srsService } from '../services/srsService';
 import AdBanner from '../components/AdBanner';
 import { useTheme } from '../contexts/ThemeContext';
 import { useBootstrap } from '../contexts/BootstrapContext';
@@ -27,6 +28,8 @@ interface HomeScreenProps {
   onNavigateToManageWords: () => void;
   onAddWord: () => void;
   onStartQuiz: () => void;
+  /** 복습 배너. 만기인 단어 id 를 그대로 넘겨 카테고리를 가로질러 출제한다 */
+  onStartReview: (wordIds: number[]) => void;
   onViewStatistics: () => void;
   onMyPage: () => void;
   onManageCategories: () => void;
@@ -41,6 +44,9 @@ interface HomeSummary {
   totalQuizCount: number;
   streakDays: number;
 }
+
+/** 복습 배너를 눌렀을 때 한 번에 내는 문제 수. 만기가 23개여도 10개씩 나눠 푼다 */
+const REVIEW_SESSION_SIZE = 10;
 
 const PRIMARY_MENU = [
   { key: 'startQuiz', icon: 'school' as const, title: '학습하기', subtitle: '퀴즈로 단어 복습' },
@@ -60,6 +66,7 @@ export default function HomeScreen({
   onNavigateToManageWords,
   onAddWord,
   onStartQuiz,
+  onStartReview,
   onViewStatistics,
   onMyPage,
   onManageCategories,
@@ -73,14 +80,22 @@ export default function HomeScreen({
   const { unreadCount } = useBootstrap();
   const notify = useNotification();
   const [summary, setSummary] = useState<HomeSummary | null>(null);
+  const [dueCount, setDueCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  // 배너를 연타해도 퀴즈가 두 번 시작되지 않게 한다
+  const [startingReview, setStartingReview] = useState(false);
 
   const loadSummary = useCallback(async () => {
     try {
-      const [stats, myPage]: [QuizStatistics, MyPageStats] = await Promise.all([
-        quizService.getStatistics(),
-        quizService.getMyPageStats(),
-      ]);
+      // 🔴 만기 계산은 여기서 처음 일어난다 — 부팅 경로가 아니다.
+      //    저장본이 없거나 이력과 어긋나면 이 안에서 재생되므로, 앱 시작을 막지 않는다.
+      const [stats, myPage, due]: [QuizStatistics, MyPageStats, Awaited<ReturnType<typeof srsService.getDueSummary>>] =
+        await Promise.all([
+          quizService.getStatistics(),
+          quizService.getMyPageStats(),
+          srsService.getDueSummary(),
+        ]);
+      setDueCount(due.total);
       setSummary({
         totalWords: stats.totalWordCount,
         totalCategories: stats.totalCategoryCount,
@@ -89,6 +104,7 @@ export default function HomeScreen({
         streakDays: myPage.streakDays,
       });
     } catch {
+      setDueCount(0);
       setSummary({ totalWords: 0, totalCategories: 0, accuracy: 0, totalQuizCount: 0, streakDays: 0 });
     } finally {
       setLoading(false);
@@ -120,6 +136,30 @@ export default function HomeScreen({
       case 'myPage': return onMyPage();
     }
   }, [onAddWord, onNavigateToManageWords, onManageCategories, onStartQuiz, onViewStatistics, onMyPage]);
+
+  /**
+   * 복습 배너를 눌렀을 때. 만기 단어를 여기서 뽑아 넘긴다.
+   *
+   * 배너의 숫자(23)를 다 내지 않고 **한 세션 분량만** 낸다 — 23문제를 강제하면 그게 숙제다.
+   * 풀고 돌아오면 화면이 다시 마운트되며 배너 숫자가 줄어 있다.
+   */
+  const handleStartReview = useCallback(async () => {
+    if (startingReview) return;
+    setStartingReview(true);
+    try {
+      const ids = await srsService.getDueWordIds(REVIEW_SESSION_SIZE);
+      if (ids.length === 0) {
+        // 다른 기기에서 풀었거나 단어를 지운 사이에 비었을 수 있다. 조용히 숫자만 맞춘다
+        setDueCount(0);
+        return;
+      }
+      onStartReview(ids);
+    } catch {
+      // 만기를 못 뽑아도 홈은 그대로 둔다
+    } finally {
+      setStartingReview(false);
+    }
+  }, [startingReview, onStartReview]);
 
   const getStreakMessage = (streak: number): string => {
     if (streak === 0) return t('오늘 첫 학습을 시작해보세요!');
@@ -214,19 +254,52 @@ export default function HomeScreen({
           </View>
         )}
 
-        {/* 연속 학습 배너 */}
+        {/*
+          연속 학습 / 복습 배너 — **한 자리를 나눠 쓴다.**
+
+          🔴 배너를 하나 더 쌓지 않는 이유: 스트릭 문구는 바로 위 통계의 "연속 학습 N일"과
+             같은 정보라 이미 중복이다. 그 자리를 복습이 쓰면 홈 높이가 그대로다.
+          🔴 만기가 없을 때 자리를 비우지 않는 이유: "어제는 있었는데?"가 되어 기능을 못 찾거나
+             버그로 읽힌다. 늘 같은 자리에 있고 문구만 바뀐다.
+        */}
         {!loading && summary && (summary.totalWords > 0 || summary.totalQuizCount > 0) && (
-          <View style={styles.streakBanner}>
-            <MaterialIcons
-              name={summary.streakDays > 0 ? 'local-fire-department' : 'lightbulb-outline'}
-              size={18}
-              color="rgba(255,255,255,0.9)"
-              style={{ marginRight: 8 }}
-            />
-            <Text style={styles.streakText}>
-              {getStreakMessage(summary.streakDays)}
-            </Text>
-          </View>
+          // ⚠ 퀴즈를 한 번이라도 끝낸 사람에게만 복습 배너를 보인다.
+          //   아직 안 풀어 본 사람에게 "복습할 단어 20개"는 말이 안 되고(복습할 것이 없다),
+          //   첫 실행 안내 "오늘 첫 학습을 시작해보세요!"를 덮어 버린다.
+          //   (알림 권유가 같은 조건을 쓰는 것과 같은 이유다)
+          dueCount > 0 && summary.totalQuizCount > 0 ? (
+            <TouchableOpacity
+              style={[styles.streakBanner, styles.reviewBanner]}
+              onPress={handleStartReview}
+              disabled={startingReview}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel={t('오늘 복습할 단어 {{count}}개', { count: dueCount })}
+            >
+              <MaterialIcons
+                name="menu-book"
+                size={18}
+                color="rgba(255,255,255,0.9)"
+                style={{ marginRight: 8 }}
+              />
+              <Text style={styles.streakText}>
+                {t('오늘 복습할 단어 {{count}}개', { count: dueCount })}
+              </Text>
+              <MaterialIcons name="chevron-right" size={18} color="rgba(255,255,255,0.75)" />
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.streakBanner}>
+              <MaterialIcons
+                name={summary.streakDays > 0 ? 'local-fire-department' : 'lightbulb-outline'}
+                size={18}
+                color="rgba(255,255,255,0.9)"
+                style={{ marginRight: 8 }}
+              />
+              <Text style={styles.streakText}>
+                {getStreakMessage(summary.streakDays)}
+              </Text>
+            </View>
+          )
         )}
       </LinearGradient>
 
@@ -419,6 +492,10 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 14,
     marginTop: 14,
+  },
+  // 누를 수 있다는 것만 배경 한 단계로 알린다. 나머지 치수는 streakBanner 를 그대로 쓴다
+  reviewBanner: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
   },
   streakText: {
     fontSize: 13,

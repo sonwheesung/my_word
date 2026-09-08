@@ -16,6 +16,7 @@ import { SPACING } from '../constants/design';
 import { MaterialIcons } from '@expo/vector-icons';
 import { wordService } from '../services/wordService';
 import { quizService } from '../services/quizService';
+import { srsService } from '../services/srsService';
 import { useInterstitialAd } from '../hooks/useInterstitialAd';
 import type { Word } from '../types/word';
 import { useTheme } from '../contexts/ThemeContext';
@@ -50,7 +51,8 @@ interface QuizResult {
 type QuizDirection = 'word_to_meaning' | 'meaning_to_word';
 
 interface QuizScreenProps {
-  categoryId: number;
+  /** 생략하면 전 카테고리에서 낸다(복습 큐가 그렇게 부른다) */
+  categoryId?: number;
   mode: QuizMode;
   wordCount: number;
   direction: QuizDirection;
@@ -379,6 +381,12 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
         setIsSubmitting(false);
         try {
           await quizService.saveQuizResults(updatedResults);
+          // ⚠ 순서가 있다 — 결과를 저장한 **뒤에** 복습 일정을 반영한다.
+          //   뒤집으면 결과 개수와 srs 의 builtFrom 이 어긋나 다음 조회 때 통째로 재생된다.
+          //   (틀리지는 않지만 헛일이다)
+          await srsService.recordAnswers(
+            updatedResults.map((r) => ({ wordId: r.wordId, isCorrect: r.isCorrect })),
+          );
         } catch (error) {
           console.warn('퀴즈 결과 저장 실패:', error);
         }
