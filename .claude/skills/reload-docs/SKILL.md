@@ -66,7 +66,7 @@ android/app/proguard-rules.pro                    # expo.modules.** keep
 |---|---|---|
 | **앱 버전 / OTA 런타임** | `app.json` + 위 네이티브 3파일 | 손 동기화라 한쪽만 올라가 있을 수 있다 |
 | **게시·심사 상태** | Play 콘솔 (문서 아님) · `common/CLOSED_TESTING.md` §0 | 심사는 세션 중에 통과된다 |
-| **에뮬레이터 점유** | `common/.emulator-claims/*.lock` + `adb devices` | **다른 프로젝트가 세션 중에 잡고 놓는다.** 파일은 약속이고 `adb` 가 진실이다 |
+| **에뮬레이터 정책·포트** | `common/EMULATOR_POOL.md` · `DEV_ALLOCATION.md` §3 | 3주에 두 번 바뀌었다(공용 풀 → 프로젝트별 외장). **값을 기억하지 말고 그때 읽는다** |
 | 사업자·법적 상호 | `common/BUSINESS_INFO.md` | 기억으로 쓰면 상호를 틀린다 |
 
 🔴 **"남은 것" · "다음 할 일" 같은 표를 쓸 때 자가 점검한다** — 각 줄이 *방금 읽은 파일*에서 나왔나,

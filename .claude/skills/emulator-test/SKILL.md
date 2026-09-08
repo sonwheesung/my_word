@@ -1,13 +1,18 @@
 ---
 name: emulator-test
-description: My Word 를 안드로이드 에뮬레이터에 올려 화면을 보며 터치로 검증한다 ("에뮬레이터 테스트", "에뮬로 띄워서 확인", "실기기처럼 눌러봐", "E2E 돌려줘", "릴리스 빌드로 확인"). 공용 2대를 클레임 걸고 빌려 쓰며, 이 PC 고유의 창 오류·Metro 함정·오프라인 검증 제약을 담고 있다. 단위/타입 검사만 필요하면 `npx tsc --noEmit` 로 충분하니 부르지 않는다.
+description: My Word 를 안드로이드 에뮬레이터에 올려 화면을 보며 터치로 검증한다 ("에뮬레이터 테스트", "에뮬로 띄워서 확인", "실기기처럼 눌러봐", "E2E 돌려줘", "릴리스 빌드로 확인"). 이 프로젝트 전용 AVD(`my_word` · 포트 5576 · 외장 D:)를 쓰며, 이 PC 고유의 창 오류·Metro 함정·오프라인 검증 제약을 담고 있다. 단위/타입 검사만 필요하면 `npx tsc --noEmit` 로 충분하니 부르지 않는다.
 ---
 
 # emulator-test (My Word 판)
 
 > **방법은 공용 스킬에 있다** — `C:\project\common\.claude\skills\emulator-test\SKILL.md`
-> (클레임 절차 · 보고-판단-탭 루프 · 좌표 환산 · uiautomator bounds · 사전조건 7항목).
+> (보고-판단-탭 루프 · 좌표 환산 · uiautomator bounds · 사전조건).
+> **AVD 정책과 포트의 정본은 따로다** — `C:\project\common\EMULATOR_POOL.md` · `DEV_ALLOCATION.md` §3.
 > 이 문서는 **My Word 의 구체값과 이 PC 에서 실제로 당한 것**만 적는다. 방법을 여기 베끼지 않는다 — 베끼면 갈라진다.
+>
+> 🔴 **2026-09-08 에 정책이 바뀌었다** — ~~공용 2대(common_1·common_2) + 선점(클레임)~~ 폐지.
+> 프로젝트마다 자기 AVD 를 **외장 D:** 에 둔다. 정책이 3주에 두 번 바뀌었으니 **값을 여기 베끼지 말고
+> 위 정본을 보라.** 아래 표의 AVD 이름·포트도 그 표에서 배정받은 것을 적어 둔 것뿐이다.
 
 ## 구체값
 
@@ -16,20 +21,39 @@ description: My Word 를 안드로이드 에뮬레이터에 올려 화면을 보
 | 패키지 | `com.myword.front` |
 | 해상도 | 1080 × 2400 (`screencap` 좌표 기준) |
 | 릴리스 빌드 | `cd android && ./gradlew assembleRelease` → `app/build/outputs/apk/release/app-release.apk` |
-| 디버그 빌드 | `npx expo run:android --device common_1` (+ Metro 별도) |
+| AVD · 포트 | `my_word` · **5576** (`DEV_ALLOCATION.md` §3 배정) · 저장 위치 `D:\emulators\my_word` |
+| 디버그 빌드 | `npx expo run:android --device my_word` (+ Metro 별도) |
 | 서명 | `keystore.properties`(레포 루트, gitignore) 자동 적용. 운영키 SHA-256 `EE:68:31:DB:…:86:1F:5B` |
 
 ## 🔴 이 PC 에서 실제로 당한 것
 
-**1. 창 모드로 안 뜬다.** 그냥 띄우면 `Critical: Failed to load opengl32sw` 로 즉시 죽는다.
-AVD 문제가 아니라 Qt 창 문제다. **headless 로 띄운다** — 규약 옵션과 함께:
+**0. 🔴 AVD 가 아직 없다.** 공용 풀을 쓰던 동안 이 프로젝트 전용 AVD 를 만든 적이 없다.
+`ANDROID_AVD_HOME` 을 빼먹으면 기본값이 C: 다 — **정책이 깨지는 유일한 방식이 그것이다**:
 
 ```bash
-"$EMU" -avd common_1 -port 5580 -no-snapshot -no-snapshot-save \
+export ANDROID_AVD_HOME='D:\emulators\my_word'
+mkdir -p "/d/emulators/my_word"
+avdmanager create avd -n my_word -k "system-images;android-35;google_apis;x86_64" -d pixel_6
+```
+
+시스템 이미지는 C: 에 공유로 남는다 — 외장에 가는 건 userdata 뿐이라 중복되지 않는다.
+
+**1. 창 모드로 안 뜬다.** 그냥 띄우면 `Critical: Failed to load opengl32sw` 로 즉시 죽는다.
+AVD 문제가 아니라 Qt 창 문제다. **headless 로 띄운다**:
+
+```bash
+export ANDROID_AVD_HOME='D:\emulators\my_word'
+"$EMU" -avd my_word -port 5576 -no-snapshot -no-snapshot-save \
        -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
 ```
 
 창이 없어도 `screencap` · `input tap` 은 그대로 된다.
+🔴 `-no-snapshot-save` 를 빼지 않는다 — 2026-09-01 에 2.6G, 09-02 에 두 대 합쳐 5.2G 가 그렇게 쌓였다.
+
+**1-1. 🔴 외장은 7.8배 느리다 — 실패가 아니라 느린 것이다.**
+콜드 부팅 **259초**(내장 33초) · Expo Go 설치 94초(내장 6초). 부팅이 4분을 넘겨도 정상이니
+죽은 줄 알고 죽이지 않는다. 대신 **화면을 여러 번 볼 작업이면 에뮬을 켜 둔 채 Metro 만 재시작한다** —
+2분짜리가 20분이 되는 자리가 그것이다.
 
 **2. 에뮬레이터·Metro 를 파이프로 받으면 죽는다.** `| tail -30` 을 붙이면 프로세스가 종료된다.
 백그라운드로 돌리고 로그 파일을 따로 읽는다.
@@ -44,17 +68,13 @@ AVD 문제가 아니라 Qt 창 문제다. **headless 로 띄운다** — 규약 
 못 받아 `Unable to load script` 로 죽는다 — 개발 빌드만의 현상이라 검증이 성립하지 않는다.
 **릴리스 빌드(번들 내장)로 재야 한다.** ([[feedback-offline-no-error-ui]])
 
-**6. 🔴 클레임 파일이 있어도 안 떠 있을 수 있다 (유령 락).**
-`.emulator-claims/*.lock` 은 세션이 끝나거나 PC 가 재부팅돼도 **안 지워진다.**
-2026-09-02 실측: 락 2개가 하루 넘게 남아 있었는데 `adb devices` 는 **완전히 비어 있었다.**
+**6. 🔴 로드 판정은 `screencap`, 내용 판정은 uiautomator — 하나만 쓰면 반대로 틀린다.**
+RN 화면은 접근성 트리에 텍스트가 **0개**로 나올 수 있다. 트리만 보고 "아직 안 떴다"며 40회를
+기다린 사례와, 화면만 보고 "글자가 사라졌다"고 읽었는데 실제로는 한글 IME 가 바꿔 넣고 있던
+사례가 둘 다 있다(공용 §2.2). **떴는지는 화면으로, 무엇이 떴는지는 트리로** 본다.
 
-```bash
-ls "$CLAIMS"/*.lock          # 약속
-"$ADB" devices               # 🔴 진실 — 여기 없으면 유령 락이다
-```
-
-락만 보고 *"둘 다 사용 중"* 으로 읽으면 **빌릴 수 있는 에뮬레이터를 두고 작업을 접는다.**
-빼앗는 것이 아니므로 공용 §3(사용자에게 묻기)의 대상이 아니지만, `note=` 에 그 사실을 남긴다.
+~~**클레임 파일(유령 락)**~~ — 2026-09-08 정책 변경으로 선점 자체가 없어졌다. 프로젝트마다 자기
+AVD 라 협상도 유령 락도 없다. 그 사고 기록은 `common/EMULATOR_POOL.md` §4 에 보존돼 있다.
 
 ## 반드시 보는 동선
 
