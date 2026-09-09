@@ -372,6 +372,59 @@ adb -s emulator-5576 shell "sqlite3 /data/data/com.myword.front/databases/RKStor
 # builtFrom 이 quiz_results 개수와 같은가 · reps 가 한 판에 1씩만 오르는가
 ```
 
+#### ✅ 1.6.0 게시 완료 — 2026-09-08 23:42 · **R8 숙제가 3개 → 2개로 줄었다**
+
+`활성 · 최신 출시 버전: 21 (1.6.0) - 백업·복원 · 간격 복습 · 일본어 · 국가/지역 145개 · 설치 수 7회`
+(2026-09-09 콘솔 `프로덕션 → 출시` 실측). 전송에서 게시까지 **1시간이 안 걸렸다** —
+관리형 게시가 꺼져 있어 **통과가 곧 게시**다. `검토를 위해 전송` 뒤에는 되돌릴 창이 사실상 없다.
+
+🟢 **9-07 에 적어 둔 "R8 을 절반만 켜 두었다" 표가 실제로 갱신됐다.**
+`권장 조치 → R8 최적화로 앱의 메모리 및 성능 개선` 을 펼치면 항목이 **둘만 남는다**:
+
+| 9-07 에 콘솔이 지적한 것 | 지금 | 우리가 한 일 |
+|---|---|---|
+| 최적화가 사용 설정되지 않음 | 🟢 **사라졌다** | `proguard-android-optimize.txt` 로 교체 |
+| 리소스 축소가 사용 설정되지 않음 | ⚠ **`최적화된 리소스 축소`로 좁혀졌다** | `enableShrinkResourcesInReleaseBuilds=true` |
+| AGP 9.0 이상으로 업그레이드 | 그대로 | ❌ Expo SDK 가 정한다 |
+
+🔴 **가운데 줄을 "안 고쳐졌다"로 읽지 마라 — 문구가 바뀐 것이 증거다.**
+우리가 켠 `shrinkResources` 와 Play 가 지금 요구하는 `최적화된 리소스 축소`
+(`android.r8.optimizedResourceShrinking`)는 **서로 다른 플래그**다. 우리 것은 인정됐고 한 칸을 더 요구한다.
+
+⚠ **이것만으로 릴리스를 만들지 않는다** — `주의 필요`가 아니라 `권장`이고 **기한이 없다.**
+다음 기능 릴리스에 함께 싣는다(9-02·9-07 과 같은 이유). 켤 때는 **알림 아이콘 실물 확인**을 다시 한다.
+
+⚠ 나머지 권장 조치 3개는 R8 과 무관하다 — 대형 화면 API 2건(`사용자 환경`) · 비트맵 최적화 1건.
+태블릿·이미지 축이라 별건으로 둔다.
+
+#### 📦 릴리스 산출물은 **D: 에 남긴다** · 찌꺼기는 지운다 (2026-09-09)
+
+정본은 `C:\project\common\BUILD_ARTIFACTS.md`. 규칙대로 옮겼다:
+
+```
+D:\builds\my_word\myword-vc21.aab      60,538,721B — 게시된 그 파일
+```
+
+🔴 **업로드한 버전은 이제 지우지 않는다.** 옛 규칙("최신 1개만")은 공간 때문이었고 D: 는 3.7TB 가 빈다.
+롤백·재제출·크래시 대조에 **그 시점 산출물**이 필요하다.
+
+🟢 **`mapping.txt` 를 따로 보관할 필요가 없다 — AAB 안에 들어 있다**(2026-09-09 실측으로 확인):
+`BUNDLE-METADATA/com.android.tools.build.obfuscation/proguard.map` **83.9MB** + 디버그 심볼 48개.
+1.4.0 때 적어 둔 *"gradle 이 AAB 안에 함께 넣는다"* 가 그대로 맞다. 난독화 스택을 읽어야 하면
+이 AAB 를 풀면 된다. **별도 업로드 절차를 만들지 말 것**(그 문장은 여전히 유효하다).
+
+⚠ **`./gradlew clean` 을 쓰지 않는다** — CNG 구성에서 `externalNativeBuildCleanRelease` 가 CMake 를
+다시 돌리다 죽고 **찌꺼기가 그대로 남는다**(형제 3개가 같은 날 밟았다). 경로를 정확히 지정한다:
+
+```bash
+rm -rf "android/app/build" "android/app/.cxx" "android/build" "android/.gradle"
+# 🚫 android/app/build* 글롭 금지 — build.gradle 까지 지운다
+```
+
+2026-09-09 회수 **4.9GB**(`build` 4.3G · `.cxx` 545M · `.gradle` 51M · `.cxx` 는 지금까지 형제 중 최대).
+지운 뒤 `build.gradle`·`proguard-rules.pro`·`gradle.properties`·알림 아이콘 5종·매니페스트 4줄이
+그대로인지 확인했다. **서명 정보는 `android/` 밖(`keystore.properties`·`*.jks`)이라 애초에 대상이 아니다.**
+
 ### OTA (expo-updates)
 
 - 채널은 `eas.json` 의 빌드 프로필에 있다(`production`/`preview`/`development`)
