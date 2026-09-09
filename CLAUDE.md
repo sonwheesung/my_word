@@ -436,4 +436,55 @@ rm -rf "android/app/build" "android/app/.cxx" "android/build" "android/.gradle"
   (깨진 번들이 나가면 이미 받은 사용자는 다음 확인 때까지 깨진 채로 남는다 — 심사가 걸러주지 않는다)
 - 네이티브 모듈이 바뀌면 OTA 로 못 보낸다. 반드시 스토어 빌드다
 
+#### 🔒 OTA 번들에 개발 머신 주소가 구워지지 않았는지 잰다 (2026-09-09)
+
+형제 세션(던전가이드)이 **나갈 번들에서 개발 머신의 tailnet 주소를 찾아냈다.** 원인이 `.env.local`
+파일이 아니라 **변환 캐시**였다는 것이 핵심이다. 파일을 치워도 값이 남고 `--clear` 로만 사라진다.
+환경변수는 구울 때 인라인되는 값이라, 고치는 것은 다음에 구울 때부터 듣는다.
+
+🔴 **이건 사용자 기기로 나간다. 나간 뒤에 되돌리려면 OTA 가 또 필요하다.**
+
+My Word 가 왜 지금은 안전한가. 두 경로가 **각자 독립적으로 같은 값**을 가리킨다:
+
+| 경로 | 값의 출처 | 실측값 |
+|---|---|---|
+| 스토어 빌드(AAB) | `eas.json` → `build.production.env` | `common-server.vercel.app` |
+| OTA 번들 | 로컬 `.env` (gitignore 대상) | 같음 |
+
+⚠ **`.env` 는 아무도 리뷰하지 않는 파일이다.** 누가 디버깅하려고 한 줄 바꾸면 그 순간 둘이 갈라지고,
+스토어 빌드는 멀쩡한데 **OTA 만 엉뚱한 주소를 싣는다.** 그래서 이 검사는 일회성이면 의미가 없다.
+
+**2026-09-09 실측 — 게시된 vc21 번들을 직접 뜯었다** (새로 굽는 것보다 강한 증거다. 사용자 손에
+실제로 들어간 바이트다):
+
+```bash
+python -c "import zipfile;zipfile.ZipFile(r'D:\builds\my_word\myword-vc21.aab').extract('base/assets/index.android.bundle')"
+```
+
+| 확인 | 결과 |
+|---|---|
+| tailnet · 터널(ngrok·cloudflare) | 0건 |
+| 사설 IP · 루프백 호스트 | 0건 |
+| 개발 포트(8081·19000·3000 등) | 0건 |
+| 평문 `http://` 도메인 | 0건 |
+| 구워진 서버 호스트 | `https://common-server.vercel.app` 하나뿐 |
+| `.env.local` · 셸 `EXPO_PUBLIC_*` · metro 캐시 잔재 | 전부 0건 |
+
+🔴 **함정 하나. Hermes 바이트코드는 문자열을 붙여서 담는다.** 그래서 소박한 정규식은 반드시 오탐을
+낸다. 실제로 이런 것이 잡혔다:
+
+```
+https://common-server.vercel.appearanceChangedance-pole    ← 세 문자열이 붙은 것
+primaryLightp://client-payload?platform=islamic-civil       ← "http://" 가 여기서 만들어진다
+```
+
+→ **호스트로 성립하는지**(점 있는 도메인 · 포트 · 경로 구분자)를 함께 요구해야 판정이 선다.
+`http://` 가 나왔다는 사실만으로 사고라고 읽으면 매번 헛수고한다.
+
+⏸ **`npx expo export` 로 새 번들을 구워 보는 것은 못 했다.** 메모리 부족으로 두 번 죽었다
+(32GB 중 여유 2.3GB. gradle 데몬 2개가 2.7GB, 남의 에뮬레이터가 1GB). 🚫 `java.exe` 를 죽이거나
+`gradlew --stop` 을 부르지 않았다. 데몬 레지스트리가 사용자 전역이라 남의 빌드를 끊는다.
+→ **다음 OTA 발행 직전에 한가할 때 굽고 위 검사를 돌린다.** 게시된 번들이 깨끗한 것과
+다음에 구울 번들이 깨끗한 것은 다른 명제다.
+
 상세 가이드: `.claude/SKILL.md` 참조
