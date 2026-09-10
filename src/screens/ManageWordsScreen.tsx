@@ -25,6 +25,7 @@ import type { Category, Word } from '../types/word';
 import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
 import ScreenHeader from '../components/ScreenHeader';
+import MeaningList from '../components/MeaningList';
 import { WordCardSkeleton } from '../components/SkeletonLoader';
 import BottomSheet from '../components/BottomSheet';
 import { FONT, HIT_SLOP, RADIUS, SEARCH_DEBOUNCE_MS, SPACING } from '../constants/design';
@@ -542,11 +543,7 @@ export default function ManageWordsScreen({
                   {/* 뜻 */}
                   <View style={styles.modalSection}>
                     <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>{t('뜻')}</Text>
-                    {selectedWord.meanings.map((meaning, index) => (
-                      <Text key={index} style={[styles.modalMeaningText, { color: colors.text }]}>
-                        {index + 1}. {meaning}
-                      </Text>
-                    ))}
+                    <MeaningList meanings={selectedWord.meanings} />
                   </View>
 
                   {/* 예문 */}
@@ -644,9 +641,8 @@ const styles = StyleSheet.create({
    *   컨테이너가 갖고 있었는데, BottomSheet 로 옮기면서 같이 사라져 단어·뜻이
    *   화면 왼쪽 끝에 붙어 있었다. 하단 버튼 줄은 ScrollView 밖이라 따로 준다.
    */
-  detailScrollContent: {
-    paddingHorizontal: SPACING.xl,
-  },
+  // 가로 여백은 BottomSheet 가 준다(SHEET_GUTTER)
+  detailScrollContent: {},
   container: {
     flex: 1,
     backgroundColor: '#F8F9FA',
@@ -885,12 +881,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#6B7280',
     marginBottom: 8,
-  },
-  modalMeaningText: {
-    fontSize: 15,
-    color: '#374151',
-    marginBottom: 6,
-    lineHeight: 22,
   },
   modalExampleItem: {
     borderRadius: 8,

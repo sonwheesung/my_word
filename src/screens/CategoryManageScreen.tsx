@@ -363,7 +363,6 @@ export default function CategoryManageScreen({ onBack }: CategoryManageScreenPro
 
 const styles = StyleSheet.create({
   sheetForm: {
-    paddingHorizontal: SPACING.xl,
     paddingTop: SPACING.sm,
   },
   sheetButtons: {

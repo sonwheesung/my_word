@@ -53,10 +53,14 @@ export default function BottomSheet({
   // (이 값을 빼먹으면 3버튼 내비바 기기에서 시트 맨 아래 버튼이 절반 잘린다)
   const insets = useSafeAreaInsets();
 
+  // 🔴 가로 여백은 **여기 한 곳에서만** 준다. 자세한 이유는 파일 맨 아래 SHEET_GUTTER 참조.
+  //    스크롤바가 화면 끝에 붙어야 하므로 ScrollView 자체가 아니라 콘텐츠에 준다.
   const body = scrollable ? (
-    <ScrollView keyboardShouldPersistTaps="handled">{children}</ScrollView>
+    <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
+      {children}
+    </ScrollView>
   ) : (
-    children
+    <View style={styles.content}>{children}</View>
   );
 
   const sheet = (
@@ -108,6 +112,24 @@ export default function BottomSheet({
   );
 }
 
+/**
+ * 시트 안쪽 가로 여백. 🔴 **이 값은 시트가 갖는다. 쓰는 쪽이 다시 주지 않는다.**
+ *
+ * 2026-09-10 이전에는 시트가 제목에만 여백을 주고 본문(children)에는 안 줬다.
+ * 그래서 시트를 쓰는 화면 9곳이 각자 같은 값을 다시 선언하고 있었고,
+ * **플래시카드 설정에서 그걸 빠뜨려 카테고리 목록이 화면 왼쪽 끝에 붙었다**(사용자 발견).
+ * 값이 제각각이어서 생긴 사고가 아니다. 값은 전부 20 으로 같았다.
+ * 주인이 없어서 **빠뜨릴 수 있었던 것**이 원인이다. 그래서 주인을 여기로 옮겼다.
+ *
+ * ⚠ 목록 항목처럼 **선택 강조 배경이 여백 밖까지 나가야 하는 것**은
+ *   `marginHorizontal: -SPACING.md` 로 명시적으로 빼낸다(`SHEET_BLEED`).
+ *   빼내는 것은 눈에 보이는 선언이라 잊을 수 없고, 안 주는 것은 조용하다.
+ */
+export const SHEET_GUTTER = SPACING.xl;
+
+/** 강조 배경을 여백 밖으로 빼낼 때 쓴다. 글자는 여전히 SHEET_GUTTER 자리에 선다 */
+export const SHEET_BLEED = -SPACING.md;
+
 const styles = StyleSheet.create({
   flex: {
     flex: 1,
@@ -133,7 +155,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FONT.title - 2,
     fontWeight: 'bold',
-    paddingHorizontal: SPACING.xl,
+    // 제목은 body 바깥(형제)이라 같은 값을 직접 쓴다. 상수는 하나다
+    paddingHorizontal: SHEET_GUTTER,
     marginBottom: SPACING.sm,
+  },
+  content: {
+    paddingHorizontal: SHEET_GUTTER,
   },
 });

@@ -95,7 +95,6 @@ export default function NotificationPromptSheet({ visible }: NotificationPromptS
 
 const styles = StyleSheet.create({
   body: {
-    paddingHorizontal: SPACING.xl,
     alignItems: 'center',
   },
   iconCircle: {

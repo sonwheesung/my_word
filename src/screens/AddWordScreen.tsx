@@ -22,7 +22,7 @@ import type { Category } from '../types/word';
 import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
 import ScreenHeader from '../components/ScreenHeader';
-import BottomSheet from '../components/BottomSheet';
+import BottomSheet, { SHEET_BLEED } from '../components/BottomSheet';
 import { useTheme } from '../contexts/ThemeContext';
 import { normalizeForCompare } from '../utils/text';
 import {
@@ -956,14 +956,15 @@ const styles = StyleSheet.create({
   },
 
   // ── 카테고리 시트 ──
-  sheetList: {
-    paddingHorizontal: SPACING.sm,
-  },
+  // 가로 여백은 BottomSheet 가 준다(SHEET_GUTTER)
+  sheetList: {},
   sheetOption: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     borderRadius: RADIUS.md,
+    // 선택 강조를 여백 밖으로 빼낸다. 글자는 여전히 SHEET_GUTTER 자리다
+    marginHorizontal: SHEET_BLEED,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.md + 2,
   },

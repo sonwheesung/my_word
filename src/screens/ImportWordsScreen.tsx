@@ -21,7 +21,7 @@ import { shareService } from '../services/shareService';
 import type { ParsedWord, ParseResult, DuplicateCheckResult } from '../services/shareService';
 import type { Category } from '../types/word';
 import ScreenHeader from '../components/ScreenHeader';
-import BottomSheet from '../components/BottomSheet';
+import BottomSheet, { SHEET_BLEED } from '../components/BottomSheet';
 import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
 import { useTheme } from '../contexts/ThemeContext';
@@ -453,7 +453,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   previewBody: {
-    paddingHorizontal: SPACING.xl,
     flexShrink: 1,
   },
   sheetOption: {
@@ -461,7 +460,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: SPACING.sm,
     borderRadius: RADIUS.md,
-    marginHorizontal: SPACING.sm,
+    // 선택 강조를 여백 밖으로 빼낸다. 글자는 여전히 SHEET_GUTTER 자리다
+    marginHorizontal: SHEET_BLEED,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.md + 2,
   },

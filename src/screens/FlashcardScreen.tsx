@@ -17,6 +17,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 
 import AdBanner, { useAdBannerHeight } from '../components/AdBanner';
 import FlipCard from '../components/FlipCard';
+import MeaningList from '../components/MeaningList';
 import ScreenHeader from '../components/ScreenHeader';
 import Toast from '../components/Toast';
 import { FONT, HIT_SLOP, RADIUS, SPACING } from '../constants/design';
@@ -267,9 +268,9 @@ export default function FlashcardScreen({
     );
   }
 
+  // 앞면이 「뜻」일 때만 한 줄로 붙인다. 앞면은 카드 한가운데 크게 놓이는 자리라
+  // 번호 목록이 들어가면 세로로 길어져 단어 카드처럼 안 보인다.
   const meaningText = (current.meanings ?? []).join(', ');
-  const faceMain = frontIsWord ? current.word : meaningText;
-  const backMain = frontIsWord ? meaningText : current.word;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -309,7 +310,9 @@ export default function FlashcardScreen({
               flipped={flipped}
               front={
                 <View style={styles.faceFront}>
-                  <Text style={[styles.faceWord, { color: colors.text }]}>{faceMain}</Text>
+                  <Text style={[styles.faceWord, { color: colors.text }]}>
+                    {frontIsWord ? current.word : meaningText}
+                  </Text>
                   {/* 단어가 보이는 면에만 둔다. 뜻을 읽어 주는 것은 발음 연습이 아니다 */}
                   {frontIsWord && (
                     <TouchableOpacity
@@ -337,7 +340,14 @@ export default function FlashcardScreen({
                   <Text style={[styles.backCounter, { color: colors.textSecondary }]}>
                     {frontIsWord ? current.word : meaningText}
                   </Text>
-                  <Text style={[styles.backMain, { color: colors.text }]}>{backMain}</Text>
+                  {/* 🔴 뜻은 앱 전체가 쓰는 번호 목록으로 그린다(MeaningList).
+                      예전에는 여기만 쉼표로 붙여서, 뜻이 다섯 개인 단어가 상세 시트에서는
+                      읽히고 카드에서는 뭉쳤다. */}
+                  {frontIsWord ? (
+                    <MeaningList meanings={current.meanings ?? []} variant="card" />
+                  ) : (
+                    <Text style={[styles.backMain, { color: colors.text }]}>{current.word}</Text>
+                  )}
 
                   {/* 앞면이 「뜻」이면 단어가 이쪽에 있다. 버튼도 따라와야 발음을 들을 수 있다 */}
                   {!frontIsWord && (

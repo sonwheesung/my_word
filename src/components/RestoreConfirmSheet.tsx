@@ -125,9 +125,8 @@ export default function RestoreConfirmSheet({
 }
 
 const styles = StyleSheet.create({
-  body: {
-    paddingHorizontal: SPACING.xl,
-  },
+  // 가로 여백은 BottomSheet 가 준다(SHEET_GUTTER)
+  body: {},
   fileName: {
     fontSize: FONT.label,
     textAlign: 'center',

@@ -177,9 +177,8 @@ export default function TimePickerSheet({ visible, value, onClose, onConfirm }: 
 }
 
 const styles = StyleSheet.create({
-  body: {
-    paddingHorizontal: SPACING.xl,
-  },
+  // 가로 여백은 BottomSheet 가 준다(SHEET_GUTTER)
+  body: {},
   preview: {
     fontSize: 32,
     fontWeight: 'bold',
