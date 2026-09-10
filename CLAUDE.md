@@ -136,6 +136,7 @@
 | `res/values/colors.xml` | `notification_icon_color` | 알림 강조색이 빠진다 |
 | `android/app/build.gradle` | `proguardFiles ... "proguard-android-**optimize**.txt"` | R8 최적화가 다시 꺼진다(기본판엔 `-dontoptimize` 가 있다) |
 | `android/gradle.properties` | `android.enableShrinkResourcesInReleaseBuilds=true` | 리소스 축소가 꺼진다 |
+| `android/gradle.properties` | `android.r8.optimizedShrinking=true` (2026-09-10 추가) | 최적화된 리소스 축소가 꺼지고 Play 권장 항목이 되살아난다. 🔴 이름이 AGP 버전마다 다르다 |
 
 🔴 **알림 리소스는 `expo-notifications` 의 config plugin 이 만들어야 하는 것인데, 이 프로젝트는
 `prebuild` 를 돌리지 않으므로 플러그인이 실행되지 않는다.** `app.json` 의 plugins 항목만 보고
@@ -398,8 +399,10 @@ adb -s emulator-5576 shell "sqlite3 /data/data/com.myword.front/databases/RKStor
 | AGP 9.0 이상으로 업그레이드 | 그대로 | ❌ Expo SDK 가 정한다 |
 
 🔴 **가운데 줄을 "안 고쳐졌다"로 읽지 마라.** 문구가 바뀐 것 자체가 증거다.
-우리가 켠 `shrinkResources` 와 Play 가 지금 요구하는 `최적화된 리소스 축소`
-(`android.r8.optimizedResourceShrinking`)는 **서로 다른 플래그**다. 우리 것은 인정됐고 한 칸을 더 요구한다.
+우리가 켠 `shrinkResources` 와 Play 가 지금 요구하는 `최적화된 리소스 축소`는 **서로 다른 플래그**다.
+우리 것은 인정됐고 한 칸을 더 요구한다.
+⚠ 이 자리에 처음 적었던 플래그 이름 `android.r8.optimizedResourceShrinking` 은 **우리 AGP 에 없는
+이름이었다.** 9-10 에 실측하고 고쳤다. 아래 절을 본다.
 
 ⚠ **이것만으로 릴리스를 만들지 않는다.** `주의 필요`가 아니라 `권장`이고 **기한이 없다.**
 다음 기능 릴리스에 함께 싣는다(9-02·9-07 과 같은 이유). 켤 때는 **알림 아이콘 실물 확인**을 다시 한다.
@@ -435,6 +438,78 @@ rm -rf "android/app/build" "android/app/.cxx" "android/build" "android/.gradle"
 2026-09-09 회수 **4.9GB**(`build` 4.3G · `.cxx` 545M · `.gradle` 51M). `.cxx` 는 지금까지 형제 중 최대다.
 지운 뒤 `build.gradle`·`proguard-rules.pro`·`gradle.properties`·알림 아이콘 5종·매니페스트 4줄이
 그대로인지 확인했다. **서명 정보는 `android/` 밖(`keystore.properties`·`*.jks`)이라 애초에 대상이 아니다.**
+
+#### ⏭ `최적화된 리소스 축소` 를 켰다. 🔴 **플래그 이름이 AGP 버전마다 다르다** (2026-09-10)
+
+`android/gradle.properties` 에 한 줄을 넣었다. **아직 릴리스 빌드로 검증되지 않았다.**
+
+```properties
+android.r8.optimizedShrinking=true
+```
+
+🔴 **Play 문서와 콘솔이 쓰는 이름을 그대로 적으면 우리 프로젝트에서는 아무 일도 안 일어난다.**
+AGP 는 모르는 `android.*` 속성을 오류로 만들지 않고 **조용히 무시한다.** 그래서 "적었으니 됐다" 가
+성립하지 않는다. 캐시에 있는 AGP 들의 `BooleanOption` 을 역어셈블해 실측했다:
+
+| AGP | 이름 | 기본값 | 등급 |
+|---|---|---|---|
+| 8.10.1 · **8.11.0 (우리)** | `android.r8.optimizedShrinking` | false | Experimental |
+| 8.13.0 · 8.13.2 | `android.r8.optimizedShrinking` | false | **Removed** |
+| 8.13.0 · 8.13.2 | `android.r8.optimizedResourceShrinking` | false | Experimental |
+| 8.10.1 이상 전부 | `android.r8.integratedResourceShrinking` | **true** | SoftlyEnforced |
+
+같은 기능의 옛 이름과 새 이름이다. 8.13 이 옛 이름을 `Removed(VERSION_8_11)` 로 표시한다.
+둘 다 `R8ResourceShrinkingParametersKt` 가 읽으므로 리소스 축소 경로가 맞다.
+`integratedResourceShrinking` 은 이미 기본값이 true 라 우리가 할 일이 없다.
+
+우리 AGP 가 8.11.0 인 근거는 `node_modules/@react-native/gradle-plugin/gradle/libs.versions.toml`
+의 `agp = "8.11.0"` 이다. `android/build.gradle` 은 `classpath('com.android.tools.build:gradle')` 로
+버전을 안 적으므로 **그 파일만 봐서는 알 수 없다.**
+
+🔴 **검증이 남았다. 다음 릴리스를 구울 때 반드시 한다.**
+이 옵션은 우리 AGP 에서 Experimental 등급이고, 리소스를 더 공격적으로 지운다.
+매니페스트에서 `@drawable` 로만 참조되는 **알림 아이콘이 흰 사각형이 되는지 실물로 본다.**
+1.5.0 때 리소스 이름이 난독화돼(`res/-B.png`) 파일명 검색으로는 판정이 안 됐다.
+되돌리는 법은 그 한 줄을 지우는 것이다.
+
+⚠ 2026-09-10 에는 빌드하지 않았다 (사용자 결정, 업데이트는 다음 주). 설정만 들어가 있다.
+🔴 Expo SDK 55 로 올라가면 이 줄의 이름이 Removed 가 된다. 그때 `optimizedResourceShrinking` 으로 바꾼다.
+
+#### 🟢 `비트맵 이미지 최적화` 권장은 우리 코드가 아니다. AdMob 이다 (2026-09-10)
+
+콘솔이 `조치 취하기` 에 새로 띄운 항목이다. **닫을 수 없고, 닫으려 들면 안 된다.**
+
+`더보기` 를 펼치면 콘솔이 호출 스택을 직접 준다. 다운로드 경로가 네 갈래인데 전부 같은 곳이다:
+
+```
+G2.a.c 에서 디코딩됨
+  ← com.google.android.gms.internal.ads.FI.J 에서 다운로드됨
+  ← com.google.android.gms.internal.ads.Hg.J
+  ← com.google.android.gms.internal.ads.Qg.i
+  ← com.google.android.gms.internal.ads.dy.run
+```
+
+`com.google.android.gms.internal.ads` 는 Google Mobile Ads SDK 내부다. 배너 광고 크리에이티브를
+받아서 디코딩하는 코드다. 우리 쪽 실측은 이렇다:
+
+| 검사 | 결과 |
+|---|---|
+| `<Image>` · `ImageBackground` 사용처 | **0건** (`src/` 전체 + `App.tsx`) |
+| 원격 이미지 URI | **0건** |
+| 이미지 로드 라이브러리 의존성 (`expo-image` 등) | **0건** |
+| 번들된 이미지 | `assets/` 1.2MB, 아이콘 5개뿐 |
+
+🔴 **그래서 콘솔이 권하는 "이미지 로드 라이브러리를 사용하세요" 는 적용할 대상이 없다.**
+넣어도 SDK 내부 디코딩은 우리 라이브러리를 타지 않는다. 없애는 방법은 배너 광고를 빼는 것뿐이고,
+그건 수익을 버리는 결정이라 경고 하나 때문에 할 일이 아니다.
+(광고 제거를 구매한 사용자에게는 이 동작 자체가 일어나지 않는다.)
+
+⚠ **다음에 같은 경고를 보고 이미지 라이브러리를 넣으러 가지 마라.** 스택을 먼저 펼쳐 본다.
+`더보기` 를 눌러야 스택이 나오고, 요약 문구만 보면 우리 코드 이야기로 읽힌다.
+
+🟢 2026-09-10 콘솔 실측: `조치 취하기` 는 이 둘뿐이다. 정책 문제 0건. Android vitals 는
+비정상 종료율·ANR·느린 콜드 스타트가 전부 `데이터 없음` 이다 (설치 사용자 6명이라 표본이 안 잡힌다).
+9-09 에 별건으로 둔 대형 화면 API 2건은 이 목록에 지금 없다.
 
 ### OTA (expo-updates)
 
