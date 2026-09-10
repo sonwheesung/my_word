@@ -79,6 +79,13 @@ export default function FlashcardScreen({
   const [flipped, setFlipped] = useState(false);
   const [done, setDone] = useState(false);
 
+  /**
+   * 카드의 가로 이동. 🔴 **이 값은 JS 드라이버로만 쓴다**(`useNativeDriver: false`).
+   * 손가락을 따라가려면 `setValue` 가 즉시 화면에 반영돼야 하는데, 네이티브 드라이버에서는
+   * `setValue` 가 네이티브 뷰에 닿지 않아 드래그가 아예 안 움직였다(2026-09-10 실측).
+   * 변환 하나짜리 뷰 한 개라 JS 드라이버로도 부담이 없다.
+   * ⚠ 같은 값을 두 드라이버로 섞어 쓰면 RN 이 경고하고 한쪽이 조용히 안 먹는다.
+   */
   const drag = useRef(new Animated.Value(0)).current;
   const sliding = useRef(false);
   const screenWidth = Dimensions.get('window').width;
@@ -125,7 +132,18 @@ export default function FlashcardScreen({
     void speakCurrent(current);
   }, [autoSpeak, current, done, speakCurrent]);
 
-  /** 카드를 옮긴다. 마지막에서 다음을 누르면 마무리 화면으로 간다 */
+  /**
+   * 카드를 옮긴다. 마지막에서 다음을 누르면 마무리 화면으로 간다.
+   *
+   * 🔴 **카드를 화면 밖으로 내보내고 거기서 멈추지 않는다. 들어오는 쪽만 애니메이션한다.**
+   *    처음에는 "내보낸 뒤 `drag.setValue(0)` 으로 되돌리기"로 썼는데 에뮬레이터에서
+   *    카드가 통째로 사라졌다(2026-09-10 실측. 카운터는 2/12 로 넘어가는데 카드가 안 보였다).
+   *    `useNativeDriver` 로 돌린 변환은 네이티브 뷰가 값을 들고 있어서 `setValue` 로 되돌린
+   *    JS 값이 반영되지 않는다. 그래서 카드가 -screenWidth 에 주차된 채로 남았다.
+   *    지금 구조는 **모든 이동이 0 에서 끝나는 애니메이션**이라, 어긋나도 카드가 사라질 수 없다.
+   *
+   * ⚠ 단위 테스트로는 잡히지 않는다. 순서 계산은 옳았고 화면에 그리는 일이 틀렸다.
+   */
   const move = useCallback(
     (step: 1 | -1) => {
       if (sliding.current || cards.length === 0) return;
@@ -136,15 +154,16 @@ export default function FlashcardScreen({
         return;
       }
       sliding.current = true;
+      setFlipped(false);
+      setIndex(next);
+      // 새 카드를 반대편에 세워 두고 제자리로 끌어온다
+      drag.setValue(step === 1 ? screenWidth : -screenWidth);
       Animated.timing(drag, {
-        toValue: step === 1 ? -screenWidth : screenWidth,
+        toValue: 0,
         duration: SLIDE_MS,
         easing: Easing.out(Easing.quad),
-        useNativeDriver: true,
+        useNativeDriver: false,
       }).start(() => {
-        setFlipped(false);
-        setIndex(next);
-        drag.setValue(0);
         sliding.current = false;
       });
     },
@@ -167,11 +186,11 @@ export default function FlashcardScreen({
           } else if (gesture.dx >= SWIPE_COMMIT) {
             move(-1);
           } else {
-            Animated.spring(drag, { toValue: 0, useNativeDriver: true, bounciness: 0 }).start();
+            Animated.spring(drag, { toValue: 0, useNativeDriver: false, bounciness: 0 }).start();
           }
         },
         onPanResponderTerminate: () => {
-          Animated.spring(drag, { toValue: 0, useNativeDriver: true, bounciness: 0 }).start();
+          Animated.spring(drag, { toValue: 0, useNativeDriver: false, bounciness: 0 }).start();
         },
       }),
     [drag, move],
