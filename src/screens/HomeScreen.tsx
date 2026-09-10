@@ -28,6 +28,8 @@ interface HomeScreenProps {
   onNavigateToManageWords: () => void;
   onAddWord: () => void;
   onStartQuiz: () => void;
+  /** 플래시카드. 채점하지 않고 카드만 넘겨보는 모드라 퀴즈와 입구를 따로 둔다 */
+  onFlashcards: () => void;
   /** 복습 배너. 만기인 단어 id 를 그대로 넘겨 카테고리를 가로질러 출제한다 */
   onStartReview: (wordIds: number[]) => void;
   onViewStatistics: () => void;
@@ -48,9 +50,17 @@ interface HomeSummary {
 /** 복습 배너를 눌렀을 때 한 번에 내는 문제 수. 만기가 23개여도 10개씩 나눠 푼다 */
 const REVIEW_SESSION_SIZE = 10;
 
+/**
+ * 큰 카드 줄. **매일 하는 일 셋**이다. 익히고(플래시카드) · 재고(학습하기) · 넣고(단어 추가).
+ *
+ * 🔴 **부제가 없다.** 2026-09-10 에 두 칸에서 세 칸으로 늘렸는데, 카드 폭이 154 에서 99 로
+ *    줄어(화면 360 기준) 12sp 부제가 영어·일본어에서 세 줄로 터진다. 셋 다 이름만 남겼다.
+ *    사용자 결정(안 A). 부제를 지키려면 2×2 로 가야 했고 그건 홈이 한 줄 길어지는 값이었다.
+ */
 const PRIMARY_MENU = [
-  { key: 'startQuiz', icon: 'school' as const, title: '학습하기', subtitle: '퀴즈로 단어 복습' },
-  { key: 'addWord', icon: 'add' as const, title: '단어 추가', subtitle: '새로운 단어 등록' },
+  { key: 'startQuiz', icon: 'school' as const, title: '학습하기' },
+  { key: 'flashcards', icon: 'style' as const, title: '플래시카드' },
+  { key: 'addWord', icon: 'add' as const, title: '단어 추가' },
 ];
 
 const SECONDARY_MENU = [
@@ -66,6 +76,7 @@ export default function HomeScreen({
   onNavigateToManageWords,
   onAddWord,
   onStartQuiz,
+  onFlashcards,
   onStartReview,
   onViewStatistics,
   onMyPage,
@@ -132,10 +143,11 @@ export default function HomeScreen({
       case 'manageWords': return onNavigateToManageWords();
       case 'manageCategories': return onManageCategories();
       case 'startQuiz': return onStartQuiz();
+      case 'flashcards': return onFlashcards();
       case 'statistics': return onViewStatistics();
       case 'myPage': return onMyPage();
     }
-  }, [onAddWord, onNavigateToManageWords, onManageCategories, onStartQuiz, onViewStatistics, onMyPage]);
+  }, [onAddWord, onNavigateToManageWords, onManageCategories, onStartQuiz, onFlashcards, onViewStatistics, onMyPage]);
 
   /**
    * 복습 배너를 눌렀을 때. 만기 단어를 여기서 뽑아 넘긴다.
@@ -320,9 +332,15 @@ export default function HomeScreen({
               <View style={[styles.iconCircle, { backgroundColor: colors.primaryLight }]}>
                 <MaterialIcons name={item.icon} size={28} color={colors.primary} />
               </View>
-              <Text style={[styles.primaryTitle, { color: colors.text }]}>{t(item.title)}</Text>
-              <Text style={[styles.primarySubtitle, { color: colors.textTertiary }]}>
-                {t(item.subtitle)}
+              <Text
+                style={[styles.primaryTitle, { color: colors.text }]}
+                // 세 칸이 되어 폭이 좁다(360 기준 99). 「플래시카드」·Flashcards 는 두 줄까지 쓴다.
+                // 🚫 `adjustsFontSizeToFit` 을 쓰지 않는다. RN 에서 iOS 전용이라 이 앱(안드로이드)
+                //    에서는 아무 일도 안 하고, 있으면 "글자가 줄어드니 괜찮다"고 오해하게 만든다.
+                //    세 줄로 터지는지는 `i18n-layout-audit` 로 눈으로 잰다.
+                numberOfLines={2}
+              >
+                {t(item.title)}
               </Text>
             </TouchableOpacity>
           ))}
@@ -372,7 +390,8 @@ const cardShadow = Platform.OS === 'web'
 
 const CARD_GAP = 12;
 const SECTION_PADDING = 20;
-const PRIMARY_CARD_WIDTH = (SCREEN_WIDTH - SECTION_PADDING * 2 - CARD_GAP) / 2;
+// 2026-09-10: 두 칸 → 세 칸(플래시카드 추가). 360 기준 154 → 99
+const PRIMARY_CARD_WIDTH = (SCREEN_WIDTH - SECTION_PADDING * 2 - CARD_GAP * 2) / 3;
 const SECONDARY_CARD_WIDTH = (SCREEN_WIDTH - SECTION_PADDING * 2 - CARD_GAP * 3) / 4;
 
 const styles = StyleSheet.create({
@@ -534,26 +553,25 @@ const styles = StyleSheet.create({
   },
   primaryCard: {
     width: PRIMARY_CARD_WIDTH,
-    paddingVertical: 22,
-    paddingHorizontal: 16,
+    paddingVertical: 20,
+    // 세 칸이 되며 16 → 8. 폭 99 에 아이콘 48 을 넣으려면 여백을 줄여야 한다
+    paddingHorizontal: 8,
     borderRadius: 20,
     alignItems: 'center',
   },
   iconCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    // 56 → 48. 좁아진 카드에서 아이콘이 글자 자리를 먹지 않게 한다
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 14,
+    marginBottom: 12,
   },
   primaryTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  primarySubtitle: {
-    fontSize: 12,
+    textAlign: 'center',
   },
 
   // ── 서브 카드 (4열) ──

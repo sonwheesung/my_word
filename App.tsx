@@ -8,6 +8,8 @@ import ManageWordsScreen from './src/screens/ManageWordsScreen';
 import AddWordScreen from './src/screens/AddWordScreen';
 import CategoryManageScreen from './src/screens/CategoryManageScreen';
 import QuizSetupScreen from './src/screens/QuizSetupScreen';
+import FlashcardSetupScreen from './src/screens/FlashcardSetupScreen';
+import FlashcardScreen from './src/screens/FlashcardScreen';
 import QuizScreen from './src/screens/QuizScreen';
 import QuizResultScreen from './src/screens/QuizResultScreen';
 import StatisticsScreen from './src/screens/StatisticsScreen';
@@ -25,6 +27,7 @@ import { PurchaseProvider } from './src/contexts/PurchaseContext';
 import { versionService, isBlocking } from './src/services/versionService';
 import type { GateDecision } from './src/services/versionService';
 import type { QuizMode, QuizDirection, QuizAnswerType } from './src/screens/QuizSetupScreen';
+import type { CardOrder } from './src/services/flashcardService';
 import type { QuizResult } from './src/services/quizService';
 
 // 에러 바운더리: 렌더링 에러를 화면에 표시
@@ -60,7 +63,7 @@ class ErrorBoundary extends React.Component<
   }
 }
 
-type Screen = 'home' | 'manageWords' | 'addWord' | 'editWord' | 'manageCategories' | 'quizSetup' | 'quiz' | 'quizResult' | 'statistics' | 'myPage' | 'importWords' | 'settings' | 'support' | 'notice';
+type Screen = 'home' | 'manageWords' | 'addWord' | 'editWord' | 'manageCategories' | 'quizSetup' | 'quiz' | 'quizResult' | 'statistics' | 'myPage' | 'importWords' | 'settings' | 'support' | 'notice' | 'flashcardSetup' | 'flashcard';
 
 function AppContent() {
   const { t } = useTranslation();
@@ -78,7 +81,16 @@ function AppContent() {
   // 특정 단어 목록으로 퀴즈를 낼 때 쓴다 — 오답 재도전과 **복습 큐**가 같은 통로를 쓴다
   const [retryWordIds, setRetryWordIds] = useState<number[] | undefined>(undefined);
   // 퀴즈를 어디서 시작했나. 나갈 때 돌아갈 곳이 다르다(설정 화면 vs 홈)
-  const [quizFrom, setQuizFrom] = useState<'setup' | 'home'>('setup');
+  const [quizFrom, setQuizFrom] = useState<'setup' | 'home' | 'flashcard'>('setup');
+
+  /**
+   * 플래시카드 설정. 상태를 **하나로 묶어** 둔다. 카테고리·순서·앞면·발음이 늘 함께 정해지고
+   * 함께 버려지므로, 네 개로 흩어 놓으면 넷 중 하나만 낡는 경우가 생긴다.
+   * 🔴 진입점이 홈 하나뿐이라 `from` 변수가 필요 없다(quizFrom·noticeFrom 과 다른 점).
+   */
+  const [flashcard, setFlashcard] = useState<
+    { categoryId: number; order: CardOrder; frontIsWord: boolean; autoSpeak: boolean } | null
+  >(null);
 
   // 공지 화면에서 돌아갈 곳(홈 또는 설정) — 진입점이 두 개라 따로 기억한다
   const [noticeFrom, setNoticeFrom] = useState<Screen>('home');
@@ -119,6 +131,7 @@ function AppContent() {
         break;
       case 'manageWords':
       case 'quizSetup':
+      case 'flashcardSetup':
       case 'statistics':
       case 'myPage':
       case 'settings':
@@ -133,7 +146,10 @@ function AppContent() {
         break;
       case 'quiz':
         setRetryWordIds(undefined);
-        setCurrentScreen('quizSetup');
+        setCurrentScreen(quizFrom === 'flashcard' ? 'home' : 'quizSetup');
+        break;
+      case 'flashcard':
+        setCurrentScreen('flashcardSetup');
         break;
       case 'quizResult':
         setRetryWordIds(undefined);
@@ -142,7 +158,7 @@ function AppContent() {
       default:
         break;
     }
-  }, [currentScreen, previousScreen, noticeFrom]);
+  }, [currentScreen, previousScreen, noticeFrom, quizFrom]);
 
   useEffect(() => {
     const backAction = () => {
@@ -244,6 +260,40 @@ function AppContent() {
     );
   }
 
+  if (currentScreen === 'flashcardSetup') {
+    return (
+      <FlashcardSetupScreen
+        onBack={() => setCurrentScreen('home')}
+        onStart={(categoryId, order, frontIsWord, autoSpeak) => {
+          setFlashcard({ categoryId, order, frontIsWord, autoSpeak });
+          setCurrentScreen('flashcard');
+        }}
+      />
+    );
+  }
+
+  if (currentScreen === 'flashcard' && flashcard) {
+    return (
+      <FlashcardScreen
+        categoryId={flashcard.categoryId}
+        order={flashcard.order}
+        frontIsWord={flashcard.frontIsWord}
+        autoSpeak={flashcard.autoSpeak}
+        onBack={() => setCurrentScreen('flashcardSetup')}
+        // 방금 본 단어를 그대로 들고 퀴즈로 간다. 복습 배너와 같은 통로를 쓴다
+        onQuiz={(wordIds) => {
+          setQuizFrom('flashcard');
+          setQuizCategoryId(null);
+          setRetryWordIds(wordIds);
+          setQuizMode('random');
+          setQuizDirection('word_to_meaning');
+          setQuizAnswerType('multiple_choice');
+          setCurrentScreen('quiz');
+        }}
+      />
+    );
+  }
+
   // 복습 큐는 카테고리를 가로지르므로 quizCategoryId 가 null 이다 — 단어 목록만 있으면 낼 수 있다
   if (currentScreen === 'quiz' && (quizCategoryId !== null || retryWordIds)) {
     return (
@@ -261,7 +311,7 @@ function AppContent() {
         }}
         onExit={() => {
           setRetryWordIds(undefined);
-          setCurrentScreen(quizFrom === 'home' ? 'home' : 'quizSetup');
+          setCurrentScreen(quizFrom === 'setup' ? 'quizSetup' : 'home');
         }}
       />
     );
@@ -330,6 +380,7 @@ function AppContent() {
           setCurrentScreen('addWord');
         }}
         onStartQuiz={() => setCurrentScreen('quizSetup')}
+        onFlashcards={() => setCurrentScreen('flashcardSetup')}
         onStartReview={(wordIds) => {
           setQuizFrom('home');
           setQuizCategoryId(null); // 전 카테고리 횡단
