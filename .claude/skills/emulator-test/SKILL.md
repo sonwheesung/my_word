@@ -1,6 +1,6 @@
 ---
 name: emulator-test
-description: My Word 를 안드로이드 에뮬레이터에 올려 화면을 보며 터치로 검증한다 ("에뮬레이터 테스트", "에뮬로 띄워서 확인", "실기기처럼 눌러봐", "E2E 돌려줘", "릴리스 빌드로 확인"). 이 프로젝트 전용 AVD(`my_word` · 포트 5576 · 외장 D:)를 쓰며, 이 PC 고유의 창 오류·Metro 함정·오프라인 검증 제약을 담고 있다. 단위/타입 검사만 필요하면 `npx tsc --noEmit` 로 충분하니 부르지 않는다.
+description: My Word 를 안드로이드 에뮬레이터에 올려 화면을 보며 터치로 검증한다 ("에뮬레이터 테스트", "에뮬로 띄워서 확인", "실기기처럼 눌러봐", "E2E 돌려줘", "릴리스 빌드로 확인"). 이 프로젝트 전용 AVD(`my_word` · 포트 5576 · 외장 D:)를 쓰며, 이 PC 고유의 GPU 선택·Metro 함정·오프라인 검증 제약을 담고 있다. 단위/타입 검사만 필요하면 `npx tsc --noEmit` 로 충분하니 부르지 않는다.
 ---
 
 # emulator-test (My Word 판)
@@ -31,7 +31,7 @@ description: My Word 를 안드로이드 에뮬레이터에 올려 화면을 보
 (`store-assets/{ko,en,ja}-1080/` 는 상태바 138px·제스처바 119px 를 잘라 1080×1920 으로 맞춘
 것이다 — Play 는 화면비 2:1 을 넘는 원본을 거부한다). 프로필을 바꾸면 그 좌표가 **조용히**
 틀어지고, 그건 스토어에 나가는 이미지라 대가가 크다.
-→ 바꾸려면 크롭 좌표를 **같이** 바꾼다. `-no-window` 는 이유가 다르다(이 PC 의 Qt 창 문제, 아래 1번).
+→ 바꾸려면 크롭 좌표를 **같이** 바꾼다. `-no-window` 는 이유가 다르다(해상도가 아니라 GPU 선택 문제다. 아래 1번).
 
 ## 🔴 이 PC 에서 실제로 당한 것
 
@@ -47,8 +47,31 @@ avdmanager create avd -n my_word -k "system-images;android-35;google_apis;x86_64
 
 시스템 이미지는 C: 에 공유로 남는다 — 외장에 가는 건 userdata 뿐이라 중복되지 않는다.
 
-**1. 창 모드로 안 뜬다.** 그냥 띄우면 `Critical: Failed to load opengl32sw` 로 즉시 죽는다.
-AVD 문제가 아니라 Qt 창 문제다. **headless 로 띄운다**:
+**1. 창 모드로 뜬다. 죽는 것은 GPU 를 잘못 고를 때다** (2026-09-10 실측으로 정정).
+
+~~**창 모드로 안 뜬다.** 그냥 띄우면 `Critical: Failed to load opengl32sw` 로 즉시 죽는다.
+AVD 문제가 아니라 Qt 창 문제다.~~ 🔴 **이 서술은 절반만 맞았다.** 죽는 것은 **소프트웨어 GPU**
+일 때이고, `-gpu host` 로 띄우면 창이 뜬다. 2026-09-10 에 사장님이 직접 눌러 보려고 띄웠을 때
+**21초 만에 창이 떴다.**
+
+| 어떻게 띄우나 | 결과 |
+|---|---|
+| 창 + `-gpu swiftshader_indirect` | 🚫 `Critical: Failed to load opengl32sw` 로 즉시 죽는다 |
+| 창 + **`-gpu host`** | ✅ **뜬다.** 같은 `Critical` 줄이 로그에 찍히지만 **죽지 않는다** |
+| `-no-window` | ✅ 뜬다 (GPU 선택과 무관) |
+
+🔴 **로그의 `Critical` 을 실패로 읽지 않는다.** 그 줄이 찍혀 있어도 창은 떠 있다.
+이 한 줄 때문에 *"이 PC 는 창이 안 뜬다"* 가 3주 동안 정본으로 남아 있었다.
+
+**사용자가 직접 만져 볼 때** (창을 띄운다):
+
+```bash
+export ANDROID_AVD_HOME='D:\emulators\my_word'
+"$EMU" -avd my_word -port 5576 -no-snapshot -no-snapshot-save \
+       -no-audio -no-boot-anim -gpu host
+```
+
+**내가 자동으로 검증만 할 때** (headless 가 가볍다):
 
 ```bash
 export ANDROID_AVD_HOME='D:\emulators\my_word'
@@ -59,7 +82,13 @@ export ANDROID_AVD_HOME='D:\emulators\my_word'
 창이 없어도 `screencap` · `input tap` 은 그대로 된다.
 🔴 `-no-snapshot-save` 를 빼지 않는다 — 2026-09-01 에 2.6G, 09-02 에 두 대 합쳐 5.2G 가 그렇게 쌓였다.
 
-**1-1. 🔴 외장은 7.8배 느리다 — 실패가 아니라 느린 것이다.**
+**1-1. ⚠ headless 는 프로세스 이름이 다르다.** `tasklist` 에서 `qemu-system-x86_64.exe` 를 찾으면
+**없다고 나온다.** 실제 이름은 **`qemu-system-x86_64-headless.exe`** 다.
+2026-09-10 에 그것으로 *"띄우기 실패했다"* 고 오판했고, 사실은 멀쩡히 떠 있었다.
+그 오판 때문에 한 번 더 띄우려다 같은 AVD 중복 실행으로 막혔다(그 거절은 옳았다).
+🔴 **살아 있는지는 프로세스 이름이 아니라 `adb devices` 로 본다.**
+
+**1-2. 🔴 외장은 7.8배 느리다 — 실패가 아니라 느린 것이다.**
 콜드 부팅 **259초**(내장 33초) · Expo Go 설치 94초(내장 6초). 부팅이 4분을 넘겨도 정상이니
 죽은 줄 알고 죽이지 않는다. 대신 **화면을 여러 번 볼 작업이면 에뮬을 켜 둔 채 Metro 만 재시작한다** —
 2분짜리가 20분이 되는 자리가 그것이다.
