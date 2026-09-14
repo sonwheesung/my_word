@@ -27,6 +27,31 @@
     적어도 **조용히 무시된다.** 역어셈블로 실측했다(`CLAUDE.md` R8 절)
 - ⚠ 리소스를 더 세게 지우므로 **알림 아이콘을 릴리스 빌드에서 눈으로 확인**한다(아래 검증)
 
+### ✅ 릴리스 빌드 확인 (2026-09-14 · AVD `my_word` 5576 · 릴리스 APK)
+
+값은 화면을 보기 **전에** 계산해 두고 앱이 그 숫자를 말하는지 봤다
+(단어 13 · 퀴즈 기록 9건 중 정답 7 → 정답률 77.8%, `토익 필수` 12장, 퀴즈 넘김 10개).
+
+| 확인 | 근거 |
+|---|---|
+| 서명 | APK·AAB 모두 SHA-256 `EE:68:31:DB:…:86:1F:5B` = 게시된 vc21 과 같은 키 |
+| 버전 | APK 안 `versionCode 22` · `versionName 1.7.0` · 임베드 매니페스트 `commitTime` 빌드 당일 |
+| 홈 | `Study · Flashcards · Add Word` 세 칸 · 잘림 0 · 정답률 78%(77.8 반올림) |
+| 플래시카드 | 설정 `12 words · 10 due` → `Start 12 cards` → 첫 장 `meticulous` · 탭하면 뜻 2개 번호 목록 |
+| 🔴 밀어 넘기기 | `2 / 12 obsolete` 가 **보인다**(9-10 에 카드가 사라지던 동작, R8 뒤에도 재발 없음) |
+| 마무리 | `12 / 12` → `You went through all 12 cards` · `Quiz me on these 10 words` → 퀴즈 `1 / 10` |
+| 🔴 **채점 안 함** | 12장을 넘기기 전후 `@my_word_quiz_results` md5 `ce5f28ef95e4` · `@my_word_srs` md5 `c3e9317e2125` **둘 다 그대로** |
+| 🔴 **알림 아이콘** | `aapt2`: `0x7f0800f8 = drawable/notification_icon`, 매니페스트 두 줄이 이 번호. PNG 5장이 vc21 과 **바이트 크기까지 동일**(이름만 `res/U4.png` 식). 실제 발화 `icon=0x7f0800f8` · 알림창에서 **흰 네모 아님** · `vis=PRIVATE` |
+| 알림 예약 | 00:00 로 켜자 9/15~9/21 7개 · 발화 뒤 6개 |
+| `expo-updates` | `dev.expo.EASSharedPreferences.xml`(`eas-client-id`) · `updates.db` 생성 |
+| 기타 모듈 | `SecureStore.xml` 키 2개 · `admob.xml` · 알림 저장소 |
+| 오프라인 첫 실행 | 비행기 모드 · 화면 글자 27개 · **오류 문구 0건**(uiautomator 트리) |
+
+⚠ **알림 시험에서 헛걸음 하나**: 앱이 화면에 떠 있는 동안 알람이 발화해서 알림이 **안 떴다.**
+결함이 아니라 설계다(`notificationService` 가 앞에 떠 있을 때 `shouldShowBanner: false`).
+오늘 앱을 쓰는 사람에게 복습 알림을 띄울 이유가 없다. **알림은 앱을 뒤로 보낸 뒤에 터뜨린다.**
+또 예약이 부정확 알람(`window=+1h`)이라 시각에 딱 맞춰 시계를 옮기면 안 뜨고, **창 끝을 지나야** 뜬다.
+
 ## [1.6.0] - 2026-09-08 (versionCode 21)
 
 🔴 **1.5.0 은 스토어에 나가지 않는다 — 1.6.0 에 합쳐졌다.**
