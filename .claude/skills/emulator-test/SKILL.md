@@ -199,6 +199,26 @@ export MSYS_NO_PATHCONV=1
    을 함께 쏴야 다시 잰다.
 2. 가장 깔끔한 방법은 **자정 직전으로 맞추고 알림 시각을 `00:00` 으로 두는 것**이다.
    예약은 "내일부터"라 23:57 로 맞추면 첫 알람이 **3분 뒤**가 된다.
+   ⚠ **다만 00:00 을 막 지난 시각에는 안 뜰 수 있다.** 아래 4번을 본다(2026-09-14 실측).
+3. 🔴 **먼저 앱을 HOME 으로 내린다. 앱이 화면에 떠 있으면 알림이 안 뜬다.**
+   결함이 아니라 설계다. `notificationService` 가 앱이 앞에 있을 때 `shouldShowBanner` ·
+   `shouldShowList` 를 false 로 준다(지금 앱을 쓰는 사람에게 복습 알림은 필요 없다).
+   ⚠ **헷갈리는 이유**: 알람 자체는 발화해서 예약 수가 **7→6 으로 준다.** 그런데 알림창도
+   `dumpsys notification` 도 비어 있다. "발화했는데 알림이 사라졌다"로 읽고 결함을 찾으러 가기 쉽다.
+4. 🔴 **부정확 알람이라 시각에 딱 맞추면 창 안이라 안 뜬다.** 예약이 `window=+1h` 다.
+   2026-09-14 에 00:00:26 까지 기다려도 예약이 7개 그대로였다.
+   → 시계를 **창 끝 너머**로 옮기고 `TIME_SET` 을 쏜다. `01:00:30` 으로 옮기자 바로 발화했다.
+
+   ```bash
+   # 순서가 전부다: HOME → 시계를 창 끝 너머로 → TIME_SET → 25초 뒤 확인
+   "$ADB" -s $S shell input keyevent KEYCODE_HOME
+   "$ADB" -s $S shell settings put global auto_time 0
+   "$ADB" -s $S shell "date MMDD0100YYYY.30"          # 예약된 날의 01:00:30
+   "$ADB" -s $S shell am broadcast -a android.intent.action.TIME_SET
+   "$ADB" -s $S shell "dumpsys notification --noredact" | grep -A40 "pkg=com.myword.front" | grep -E "icon=|android.title="
+   # 끝나면 되돌린다
+   "$ADB" -s $S shell settings put global auto_time 1
+   ```
 
 🚫 **시계를 앞뒤로 옮기면 유령 중복이 생긴다 — 앱 버그로 오해하지 말 것.**
    밀려 있던 옛 알람이 `TIME_SET` 순간에 한꺼번에 터진다. 실제로 같은 문구가 2개 쌓였는데,
@@ -221,6 +241,9 @@ AAPT=$(ls "$LOCALAPPDATA/Android/Sdk/build-tools/"*/aapt2.exe | tail -1)
 "$AAPT" dump xmltree --file AndroidManifest.xml <apk> | grep -A1 default_notification
 ```
 → 매니페스트 meta-data 의 `@0x…` 와 위 resource id 가 같아야 한다.
+⚠ **이름에 공백을 붙여 grep 하면 0줄이 나온다**(2026-09-14 실측). 축소가 지운 줄 알 뻔했다.
+**매니페스트에서 번호(`0x7f0800f8`)를 먼저 얻고 그 번호로 찾는다.** 그 아래 줄에 밀도별 PNG 가 나오고,
+`unzip -l` 로 크기를 재서 직전 릴리스 AAB 의 `notification_icon.png` 크기와 대 보면 빈 껍데기인지 가려진다.
 **그래도 최종 판정은 알림을 터뜨려 눈으로 본다.**
 
 ### 테스트 데이터는 sqlite3 로 심는다 (UI 로 만들면 오래 걸린다)
