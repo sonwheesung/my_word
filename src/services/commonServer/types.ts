@@ -1,6 +1,6 @@
 // 공통 서버 클라이언트 SDK — 타입.
 //
-// ⚠️ 원본: common_server/client/types.ts 에서 복사 (2026-09-02, SDK_VERSION 2026-09-02).
+// ⚠️ 원본: common_server/client/types.ts 에서 복사 (2026-09-14, SDK_VERSION 2026-09-14).
 //    이 파일은 손으로 고치지 말 것 — 서버 계약이 바뀌면 원본을 갱신하고 다시 복사한다.
 //    (앱 4~5개 규모엔 monorepo·npm 패키지 오버헤드가 이득보다 크다는 판단)
 //
@@ -29,6 +29,10 @@ export interface AnnouncementItem {
   body: string;
   pinned: boolean;
   startsAt: string; // ISO — 앱에서 "등록일"로 표시
+  // 영어 제목·본문(SDK 2026-09-14). 서버에서 영어 공지를 켠 앱만 온다. 끈 앱은 키 자체가 없다.
+  // 직접 고르지 말고 localizeAnnouncement() 를 쓴다(제목만 영어인 공지를 막는 규칙이 거기 있다).
+  titleEn?: string | null;
+  bodyEn?: string | null;
 }
 
 export interface Bootstrap {

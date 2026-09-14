@@ -1,6 +1,6 @@
 // 공통 서버 클라이언트 SDK.
 //
-// ⚠️ 원본: common_server/client/index.ts 에서 복사 (2026-09-02, SDK_VERSION 2026-09-02).
+// ⚠️ 원본: common_server/client/index.ts 에서 복사 (2026-09-14, SDK_VERSION 2026-09-14).
 //    이 파일은 손으로 고치지 말 것 — 서버 계약이 바뀌면 원본을 갱신하고 다시 복사한다.
 //    (앱 4~5개 규모엔 monorepo·npm 패키지 오버헤드가 이득보다 크다는 판단)
 //
@@ -23,7 +23,7 @@ import type {
 export type * from './types';
 
 /** 앱에 복사할 때 이 값을 복사본 주석에 남긴다 — 서버 계약이 바뀌었는지 판단하는 유일한 단서다. */
-export const SDK_VERSION = '2026-09-02'; // 웜 스타트 하트비트(heartbeat) + 토큰이 exp를 들고 다닌다
+export const SDK_VERSION = '2026-09-14'; // 공지 영어 본문(titleEn·bodyEn) + localizeAnnouncement(). 추가만이라 쓰는 앱만 재복사한다(지금은 My Word)
 
 const DEFAULT_TIMEOUT_MS = 10000;
 
@@ -477,6 +477,35 @@ export type CommonServer = ReturnType<typeof createCommonServer>;
  * 게이트 판단은 앱이 한다: `compareVersions(APP_VERSION, boot.version.min) < 0` 이면 강제 업데이트.
  * 자리수가 다르면 없는 자리는 0으로 본다('1.2' vs '1.2.0' 은 같음).
  */
+/**
+ * 공지를 기기 언어에 맞춰 고른다(SDK 2026-09-14).
+ *
+ * ```ts
+ * const { title, body } = localizeAnnouncement(item, i18n.language);
+ * ```
+ *
+ * 규칙
+ * - 한국어 기기(`ko`, `ko-KR` …)는 한국어
+ * - 그 외 기기는 영어 제목과 본문이 **둘 다** 있으면 영어, 아니면 한국어
+ * - 언어를 모르면(빈 값) 한국어
+ *
+ * 둘 다 있을 때만 영어로 바꾸는 이유: 제목은 영어인데 본문은 한국어인 공지가 나가지 않게 하려는 것이다.
+ * 배구 서버가 같은 규칙으로 운영 중이다(volleyball `docs/I18N_SYSTEM.md` §9.2).
+ * 서버에서 영어 공지를 켜지 않은 앱은 `titleEn` 키가 아예 없으므로 항상 한국어가 나온다.
+ */
+export function localizeAnnouncement(
+  a: { title: string; body: string; titleEn?: string | null; bodyEn?: string | null },
+  lang: string | null | undefined,
+): { title: string; body: string } {
+  const l = (lang ?? '').trim().toLowerCase();
+  if (!l || l.startsWith('ko')) return { title: a.title, body: a.body };
+  const t = a.titleEn ?? '';
+  const b = a.bodyEn ?? '';
+  // 완결 판정에만 trim 을 쓰고 반환은 원문 그대로다(줄바꿈 서식 보존).
+  if (t.trim() && b.trim()) return { title: t, body: b };
+  return { title: a.title, body: a.body };
+}
+
 export function compareVersions(a: string, b: string): number {
   const pa = a.split('.').map((n) => parseInt(n, 10) || 0);
   const pb = b.split('.').map((n) => parseInt(n, 10) || 0);

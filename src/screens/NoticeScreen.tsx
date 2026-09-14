@@ -6,6 +6,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import ScreenHeader from '../components/ScreenHeader';
 import { useTheme } from '../contexts/ThemeContext';
 import { useBootstrap } from '../contexts/BootstrapContext';
+import { localizeAnnouncement } from '../services/commonServer';
 
 interface NoticeScreenProps {
   onBack: () => void;
@@ -34,7 +35,7 @@ function formatDate(iso: string): string {
  */
 export default function NoticeScreen({ onBack }: NoticeScreenProps) {
   const { colors } = useTheme();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { announcements, readIds, loaded, markAllNoticesRead } = useBootstrap();
 
   // 입장 시점의 안읽음을 고정해 둔다 — 바로 읽음 처리하더라도 이번 방문에서는 NEW 가 유지된다.
@@ -72,6 +73,8 @@ export default function NoticeScreen({ onBack }: NoticeScreenProps) {
           {announcements.map((item) => {
             const kindLabel = KIND_LABEL[item.kind] ? t(KIND_LABEL[item.kind]) : undefined;
             const date = formatDate(item.startsAt);
+            // 영어 공지를 고르는 규칙은 SDK 안에 있다. 여기서 titleEn 을 직접 보지 않는다(제목만 영어인 공지가 나간다).
+            const { title, body } = localizeAnnouncement(item, i18n.language);
             return (
               <View
                 key={item.id}
@@ -98,11 +101,11 @@ export default function NoticeScreen({ onBack }: NoticeScreenProps) {
                   )}
                 </View>
 
-                <Text style={[styles.title, { color: colors.text }]}>{item.title}</Text>
+                <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
                 {date !== '' && (
                   <Text style={[styles.date, { color: colors.textTertiary }]}>{date}</Text>
                 )}
-                <Text style={[styles.body, { color: colors.textSecondary }]}>{item.body}</Text>
+                <Text style={[styles.body, { color: colors.textSecondary }]}>{body}</Text>
               </View>
             );
           })}
