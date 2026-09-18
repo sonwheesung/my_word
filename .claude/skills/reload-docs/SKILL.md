@@ -74,7 +74,7 @@ android/app/proguard-rules.pro                    # expo.modules.** keep
 
 ## 4. 🔴 재적재 때 **기계로 대조한다.** 여기서 사람이 읽는 규칙은 진다
 
-문서는 "읽었다"로 안 닫힌다. 아래 둘을 재적재 때마다 돌린다.
+문서는 "읽었다"로 안 닫힌다. 아래 셋을 재적재 때마다 돌린다.
 
 ```bash
 # ① CHANGELOG 최신 항목 vs 실제 배포 버전
@@ -83,7 +83,14 @@ python -c "import io,json;print(json.load(io.open('app.json',encoding='utf-8'))[
 
 # ② 게시 중인 오픈소스 고지가 지금 것과 맞나
 npm run check:licenses
+
+# ③ 설계 문서의 화면 · 서비스 · 컴포넌트 · 저장 키 목록이 코드와 같나 (2026-09-18 추가)
+npm run check:docs
 ```
+
+⚠ ③ 이 빨가면 **재적재한 설계 문서를 믿지 마라.** 2026-09-18 전까지 `screens.md` 는 9개 화면(실제 15개),
+`data-model.md` 는 4개 키(실제 14개)를 적고 있었다. 빨간 채로 읽은 문서로 판단하면 "없는 화면"을 지우러 간다.
+문서 자체를 고치는 절차는 `.claude/skills/doc-consistency` 에 있다.
 
 **2026-09-02 첫 실행 결과**(그날 둘 다 고쳤다):
 

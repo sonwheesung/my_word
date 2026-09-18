@@ -62,9 +62,10 @@ npm start
 |---|---|
 | `npm start` | Metro 개발 서버 (포트 **8081** — 기본값) |
 | `npm run android` / `ios` / `web` | 플랫폼별 실행 |
-| `npm test` | Jest (`__tests__/` 13개 스위트 · 199개) |
+| `npm test` | Jest (`__tests__/`). 개수는 적지 않는다. 바닥값의 정본은 `scripts/check-tests.mjs` |
 | `npm run check:tests` | 🔴 **테스트가 실제로 돌았는지** — 개수 바닥값 + 알려진 고장 대조. `npm test` 가 초록인 것만으로는 부족하다(아래) |
 | `npm run check:licenses` | 🔴 **게시 중인 오픈소스 고지가 지금 설치본과 맞는지** — 의존성을 바꾼 날 조용히 거짓이 된다 |
+| `npm run check:docs` | 설계 문서의 화면 · 서비스 · 컴포넌트 · 저장 키 목록이 코드와 같은지. 화면이나 키를 더한 날 문서를 같이 고치게 만든다 |
 | `npm run lint` | ESLint |
 | `npx tsc --noEmit` | 🔴 **타입 체크 — 모든 변경 후 필수** |
 
@@ -93,32 +94,33 @@ docs/                      설계 문서 + 게시되는 법적 고지(.html)
 .agents/                   에이전트 역할 정의 12종
 .claude/
   SKILL.md                 🔴 코딩 규칙 본문 842줄 (스킬이 아니라 문서다)
-  skills/                  emulator-test · i18n-layout-audit · reload-docs
+  skills/                  check · doc-consistency · emulator-test · i18n-layout-audit · reload-docs
 scripts/                   아이콘·알림 아이콘·스토어 애셋·오픈소스 고지 생성기 + 테스트 가드
 src/
-├── components/            AdBanner · BottomSheet · BlockingGate · Toast · UpdateModal 등 8개
+├── components/            AdBanner · BottomSheet · BlockingGate · FlipCard · Toast · UpdateModal · 시트 넷 등 (목록은 docs/architecture.md)
 │                          (`.web.tsx` 는 웹 전용 대체 구현)
 ├── constants/             appConfig · adConfig · partOfSpeech
 ├── contexts/              Bootstrap(공지·버전) · Purchase(광고제거) · Theme · Notification(학습 알림)
 ├── hooks/                 useInterstitialAd · useToast
 ├── i18n/                  🔴 **한국어 원문이 곧 키다** — locales/{en,ja}.json (ko 는 키가 원문이라 파일 없음)
-├── screens/               13개 (아래)
-├── services/              word · category · quiz · dictionary · share · support · notice · version · notification
+├── screens/               15개 (아래)
+├── services/              word · category · quiz · srs(간격 복습) · flashcard · dictionary · share · support · notice · version · notification
 │                          backup(순수 로직) · backupFile(파일 입출력 — 네이티브는 여기만)
 │   └── commonServer/      ⚠ 공통 서버 SDK — **손으로 고치지 말 것**(원본에서 재복사)
 ├── types/
-└── utils/                 storage · date · text · speech · notificationSchedule
+└── utils/                 storage · srs(FSRS 계산) · date · text · speech · notificationSchedule
 ```
 
 **라우팅에 React Navigation 을 쓰지 않는다.** `App.tsx` 의 `useState<Screen>` 하나로 전환하고,
 각 화면은 `onBack` · `onNavigate*` 콜백을 props 로 받는다.
 
-### 화면 13개
+### 화면 15개
 
 | 묶음 | 화면 |
 |---|---|
 | 핵심 | Home · ManageWords · AddWord · CategoryManage · ImportWords |
 | 퀴즈 | QuizSetup · Quiz · QuizResult |
+| 플래시카드 | FlashcardSetup · Flashcard (채점하지 않는다) |
 | 기록 | Statistics · MyPage |
 | 기타 | Settings · Support(문의) · Notice(공지) |
 
@@ -132,11 +134,12 @@ src/
 |---|---|
 | `@my_word_categories` · `@my_word_words` · `@my_word_quiz_results` | 본체 |
 | `@my_word_next_id` | 전역 ID 카운터 |
-| `@my_word_language` · `@my_word_read_notices` · `@my_word_ad_free` | 설정·캐시 |
+| `@my_word_language` · `@my_word_theme` · `@my_word_read_notices` · `@my_word_skipped_version` · `@my_word_ad_free` | 설정·캐시 |
 | `@my_word_notify_enabled` · `@my_word_notify_time` · `@my_word_notify_prompted` | 학습 알림 설정 |
+| `@my_word_srs` · `@my_word_flashcard_prefs` | 복습 만기 캐시(파생값) · 카드 보기 취향 |
 | 〃 | 🔴 **백업이 담는 범위** — 단어·카테고리·퀴즈결과·`@my_word_next_id`·설정.
-`@my_word_ad_free`(구매 캐시)와 `myword_device_id`(자격증명)는 **일부러 뺀다** |
-| `myword_device_id` | 🔴 **SecureStore** — 문의 답변용 식별자(AsyncStorage 아님) |
+`@my_word_ad_free`(구매 캐시) · SecureStore 키(자격증명) · 복습 캐시 · 카드 취향은 **일부러 뺀다** |
+| `myword_device_id` · `cs_session_myword` | 🔴 **SecureStore**. 문의 답변용 식별자 · 공통 서버 세션(AsyncStorage 아님) |
 
 상세는 [`docs/data-model.md`](docs/data-model.md).
 
@@ -169,13 +172,14 @@ eas build --platform android --profile production
 ### OTA (JS 만 바꿀 때)
 
 ```bash
-eas update --branch production --message "무엇을 바꿨나"
+npx eas-cli update --channel production --platform android --message "무엇을 바꿨나"
 ```
 
 - **문구·스타일·명백한 JS 버그픽스까지.** 로직 변경은 스토어로 간다 —
   깨진 번들이 나가면 이미 받은 사용자는 다음 확인 때까지 깨진 채로 남는다(심사가 안 걸러준다).
 - 네이티브 모듈이 바뀌면 OTA 로 못 보낸다. `runtimeVersion` 은 **그때만** 올린다
-  (앱 버전을 올려도 따라 오르지 않는다 — 지금 값이 `1.3.3` 인 것은 OTA 도입 시점이라서다).
+  (앱 버전을 올려도 따라 오르지 않는다. 2026-09-18 현재 `1.6.0` 이고, 앱 1.7.0 과 1.6.0 설치본이 같은 OTA 를 받는다).
+  값은 기억하지 말고 `app.json` 과 `strings.xml` 을 본다.
 
 ---
 

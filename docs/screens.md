@@ -1,204 +1,301 @@
 # My Word - 화면별 기능 명세
 
-## 화면 목록
+> 2026-09-18 코드에서 다시 뽑았다(앱 1.7.0). 그 전 판은 2026-03 에 멈춰 있었다(9개 화면만 있었다).
+> 화면을 더하거나 빼면 이 문서와 `architecture.md` 를 같은 커밋에서 고친다. `npm run check:docs` 가 목록을 대조한다.
+> 이 가드는 **이름**만 본다. 아래 설명이 맞는지는 `.claude/skills/doc-consistency` 로 사람이 본다.
 
-| # | 화면 | 파일 | 설명 |
+## 화면 목록 (화면 15개)
+
+| # | 화면 | 파일 | 한 줄 |
 |---|------|------|------|
-| 1 | Home | `HomeScreen.tsx` | 메인 대시보드 |
-| 2 | ManageWords | `ManageWordsScreen.tsx` | 단어 목록/검색/관리 |
-| 3 | AddWord | `AddWordScreen.tsx` | 단어 추가/수정 |
-| 4 | CategoryManage | `CategoryManageScreen.tsx` | 카테고리 관리 |
-| 5 | QuizSetup | `QuizSetupScreen.tsx` | 퀴즈 설정 |
-| 6 | Quiz | `QuizScreen.tsx` | 퀴즈 진행 |
-| 7 | QuizResult | `QuizResultScreen.tsx` | 퀴즈 결과 |
-| 8 | Statistics | `StatisticsScreen.tsx` | 학습 통계 |
-| 9 | MyPage | `MyPageScreen.tsx` | 마이페이지 |
+| 1 | Home | `HomeScreen.tsx` | 첫 화면. 요약 · 복습 배너 · 기능 입구 |
+| 2 | ManageWords | `ManageWordsScreen.tsx` | 단어장. 카테고리별 조회 · 검색 · 공유 · 삭제 |
+| 3 | AddWord | `AddWordScreen.tsx` | 단어 추가 · 수정 (`addWord` · `editWord` 두 라우트가 같은 화면) |
+| 4 | CategoryManage | `CategoryManageScreen.tsx` | 카테고리 추가 · 수정 · 삭제 · 순서 |
+| 5 | ImportWords | `ImportWordsScreen.tsx` | CSV 를 붙여 넣어 단어 한꺼번에 받기 |
+| 6 | QuizSetup | `QuizSetupScreen.tsx` | 퀴즈 설정 |
+| 7 | Quiz | `QuizScreen.tsx` | 문제 풀기 · 채점 · 결과 저장 |
+| 8 | QuizResult | `QuizResultScreen.tsx` | 점수 · 틀린 단어 · 다시 풀기 |
+| 9 | FlashcardSetup | `FlashcardSetupScreen.tsx` | 플래시카드 설정 |
+| 10 | Flashcard | `FlashcardScreen.tsx` | 카드 뒤집기 · 넘기기. **채점하지 않는다** |
+| 11 | Statistics | `StatisticsScreen.tsx` | 전체 · 카테고리별 · 단어별 정답률 |
+| 12 | MyPage | `MyPageScreen.tsx` | 활동 요약 · 잔디 히트맵 · 연속 학습 |
+| 13 | Settings | `SettingsScreen.tsx` | 언어 · 테마 · 알림 · 백업 · 공지 · 문의 · 광고 제거 · 고지 |
+| 14 | Support | `SupportScreen.tsx` | 문의 보내기(공통 서버) |
+| 15 | Notice | `NoticeScreen.tsx` | 공지 목록(부팅 때 받은 것) |
+
+화면 위에 덧그리는 것: 점검 중이면 어느 화면이든 대신 `BlockingGate`, 새 버전 안내는 홈 위에만 `UpdateModal`.
+라우트와 뒤로가기 표는 `architecture.md` 에 있다.
 
 ---
 
 ## 1. HomeScreen
 
-**역할**: 메인 대시보드. 학습 현황 요약 + 주요 기능 진입점.
+**보이는 것**
+- 히어로: 인사말 · 앱 이름 · 공지 버튼(안 읽은 공지가 있으면 빨간 점) · 설정 버튼
+- 통계 3칸: 등록 단어 · 정답률(퀴즈 0회면 `-`) · 연속 학습(0일이면 `-`)
+- 배너 한 자리를 둘이 나눠 쓴다. 만기 단어가 있고 퀴즈를 1회 이상 풀었으면 `오늘 복습할 단어 N개`(누르면 복습 퀴즈).
+  아니면 연속 학습 문구(0일 · 3일 미만 · 7일 미만 · 7일 이상으로 문구가 바뀐다)
+- 첫 줄 큰 칸 3개(`PRIMARY_MENU`): **학습하기 · 플래시카드 · 단어 추가**. 부제 없음, 제목은 두 줄까지
+- 작은 칸 4개(`SECONDARY_MENU`): 단어장 · 카테고리 · 통계 · 마이
+- 하단 광고 배너(스크롤 밖 고정)
+- 빈 상태(단어 0 · 퀴즈 0): 통계 대신 `단어를 추가하고 학습을 시작해보세요!`
 
-**표시 정보**:
-- 총 등록 단어 수, 카테고리 수
-- 퀴즈 정확도 (%)
-- 연속 학습일 (스트릭) + 동기부여 메시지
+**동작**
+- 복습 배너: `srsService.getDueWordIds(REVIEW_SESSION_SIZE = 10)` 로 전 카테고리에서 뽑아 퀴즈로 간다(객관식 · 단어→뜻 고정). 누르는 동안 비활성
+- 알림 권유 시트(`NotificationPromptSheet`): 퀴즈 기록이 있고 아직 안 물어봤을 때 한 번
+- 요약 불러오기 실패는 조용히 0으로 둔다(오프라인 오류 표시 금지 규칙)
+- 하드웨어 뒤로가기: `앱 종료` 확인창 뒤 종료
 
-**메뉴 그리드** (2열):
-| 메뉴 | 이동 화면 |
-|------|----------|
-| 단어 추가 | AddWord |
-| 단어장 | ManageWords |
-| 카테고리 관리 | CategoryManage |
-| 퀴즈 | QuizSetup |
-| 통계 | Statistics |
-| 마이페이지 | MyPage |
-
-**특수 동작**:
-- Android 뒤로가기 시 앱 종료 확인 Alert
-
-**Props**:
-- `onNavigateToManageWords`, `onAddWord`, `onStartQuiz`, `onViewStatistics`, `onMyPage`, `onManageCategories`
+**Props**: `onNavigateToManageWords` · `onAddWord` · `onStartQuiz` · `onFlashcards` · `onStartReview(wordIds)` · `onViewStatistics` · `onMyPage` · `onManageCategories` · `onSettings` · `onNotices`
 
 ---
 
 ## 2. ManageWordsScreen
 
-**역할**: 카테고리별 단어 목록 조회, 검색, 상세 보기, 삭제.
+**보이는 것**: 왼쪽 카테고리 목록(폭 140, 단어 수 뱃지) · 오른쪽 단어 카드(단어 · 첫 뜻 · 태그 최대 3개와 `+N` · 발음 버튼) · 상단 `공유` · `받기`.
+빈 상태는 셋: 카테고리 없음 · 단어 없음 · 검색 결과 없음.
 
-**레이아웃**: 좌측 카테고리 탭 + 우측 단어 리스트
+**동작**
+- 검색: `maxLength 100`, `SEARCH_DEBOUNCE_MS = 400`. 단어 · 뜻 · 태그를 정규화해 비교
+- 단어를 누르면 상세 시트(뜻 · 예문과 번역 · 태그 · 메모, 아래에 `수정` · `삭제`)
+- 삭제는 확인창을 거친다. **퀴즈 기록은 남는다**(통계에 `(삭제된 단어)` 로 보인다)
+- 공유: `전체 공유` / `선택 공유` → CSV 를 **클립보드에 복사**한다(공유 시트가 아니다)
+- 길게 누르면 선택 모드(`N개 선택` · `전체 선택` · `취소`)
+- 헤더 `관리` 는 카테고리 관리로 간다
 
-**기능**:
-- 카테고리 선택 시 해당 카테고리 단어 로드
-- 텍스트 검색 (단어명, 뜻, 태그)
-- 단어 카드 탭 → 상세 모달 (뜻, 예문, 태그, 메모)
-- 발음 듣기 (expo-speech)
-- 수정/삭제 버튼
-- Pull-to-refresh
-
-**Props**:
-- `onBack`, `onAddWord`, `onEditWord(wordId)`, `onManageCategories`
+**Props**: `onBack` · `onAddWord` · `onEditWord(wordId)` · `onManageCategories` · `onImportWords`
+⚠ `onAddWord` 는 App 이 넘기지만 화면 안에 쓰는 곳이 없다(추가 버튼이 없다).
 
 ---
 
 ## 3. AddWordScreen
 
-**역할**: 새 단어 추가 또는 기존 단어 수정.
+`wordId` 가 있으면 수정 모드. 들어온 화면(`previousScreen`)으로 돌아간다.
 
-**입력 필드**:
-| 필드 | 최대 | 키보드 설정 |
-|------|------|------------|
-| 단어 (영문) | 100자 | autoCapitalize="none" |
-| 뜻 (한글) | 최대 10개 | - |
-| 예문 + 번역 | 최대 5개 | autoCapitalize="sentences" |
-| 태그 | 최대 10개 | - |
-| 메모 | 500자 | - |
+| 입력 | 상한 |
+|------|------|
+| 단어 | 100자. 소문자로 바꾸지 않는다(독일어 명사 등) |
+| 뜻 | 한 칸 200자 · 최대 `LIMITS.meanings = 10` |
+| 예문 · 번역 | 각 300자 · 최대 `LIMITS.examples = 5` |
+| 태그 | 30자 · 최대 `LIMITS.tags = 10` · 엔터로 추가 · 중복 거부 |
+| 메모 | `MEMO_MAX = 500` · 100자를 넘으면 카운터 표시 |
 
-**기능**:
-- 카테고리 선택 (모달 피커)
-- 사전 검색 (dictionaryService) → 뜻/예문 자동 채움
-- 중복 단어 검사 (동일 카테고리 내)
-- `wordId` prop 유무로 추가/수정 모드 결정
+- 예문 · 태그 · 메모는 접이식 `선택 항목` 안에 있다(기본 접힘)
+- `뜻 찾기`(`dictionaryService.lookup`): 결과가 뜻 · 예문 · 태그를 덮어쓰고 메모를 비운다. 예문은 영어 단어만. 단어 칸에서 엔터도 같다
+- 저장 검증: 카테고리 · 단어 · 뜻 하나 이상. 같은 카테고리에 같은 단어가 있으면 확인창 뒤 저장 가능
+- 수정 모드는 저장 전 확인창. 저장 중 입력과 버튼 비활성
 
-**Props**:
-- `onWordAdded`, `onBack`, `wordId?` (수정 모드)
+**Props**: `wordId?` · `onWordAdded` · `onBack`
 
 ---
 
 ## 4. CategoryManageScreen
 
-**역할**: 카테고리 CRUD + 순서 변경.
+- 카드: 위 · 아래 화살표 · 이름 · 단어 수 · 설명 · `수정` · `삭제`
+- 추가 · 수정 시트: 이름 `maxLength 20`(엔터로 설명 칸 이동) · 설명 200자(선택)
+- 같은 이름(정규화 비교)은 서비스가 거부한다
+- 삭제 확인창에 **소속 단어도 함께 삭제**된다는 경고. 퀴즈 기록은 남는다
+- 순서: 화살표를 누르면 화면을 먼저 바꾸고 `displayOrder = 순번` 으로 저장. 실패하면 다시 불러온다
 
-**기능**:
-- 카테고리 목록 (이름, 단어 수 배지)
-- 추가/수정 모달 (이름, 설명 입력)
-- 삭제 (확인 다이얼로그, 소속 단어도 함께 삭제 경고)
-- 위/아래 이동 버튼으로 순서 변경
-- Pull-to-refresh
-
-**Props**:
-- `onBack`
+**Props**: `onBack`
 
 ---
 
-## 5. QuizSetupScreen
+## 5. ImportWordsScreen
 
-**역할**: 퀴즈 시작 전 설정.
+단어장 `받기` 에서 온다. 끝나면 단어장으로 간다.
 
-**설정 항목**:
+- 저장할 카테고리 선택 · CSV 입력칸 · `붙여넣기`(클립보드)
+- 형식: `단어,뜻1|뜻2,예문1::번역1|예문2::번역2,태그1|태그2,메모`. 첫 줄에 `단어` 와 `뜻` 이 있으면 헤더로 건너뛴다
+- `중복된 단어도 함께 받기`(기본 해제 = 건너뜀)
+- 미리보기 시트: 신규 · 중복 · 오류(`N행: 이유`) · 저장 예정 수
+- 한 번에 `MAX_IMPORT_COUNT = 200` 개까지. 저장은 한 개씩 하고 실패 수를 따로 알린다
+- ⚠ CSV 입력칸에는 `maxLength` 가 없다(상한은 파싱 뒤 200개로 건다)
 
-| 항목 | 옵션 |
+**Props**: `onBack` · `onImportComplete`
+
+---
+
+## 6. QuizSetupScreen
+
+| 항목 | 값 |
 |------|------|
-| 카테고리 | 등록된 카테고리 중 선택 |
-| 모드 | 랜덤, 최근 등록, 취약 단어, 혼합 |
-| 방향 | 단어→뜻, 뜻→단어 (혼합 모드 시 숨김) |
-| 문제 수 | 5, 10, 15, 20, 30 |
+| 카테고리 | 단어 수와 만기 수(`복습 N`) 표시 |
+| 모드 `QuizMode` | `random` 무작위 · `recent` 최신순 · `weak` 취약 단어 · `mixed` 여러 형태 · `review` 복습할 단어 |
+| 방향 `QuizDirection` | `word_to_meaning` · `meaning_to_word` (`mixed` 에서는 숨김) |
+| 답변 `QuizAnswerType` | `subjective` 주관식 · `multiple_choice` 객관식(4지선다) |
+| 문제 수 | `WORD_COUNTS = [5, 10, 15, 20, 30]`, 기본 10 |
 
-**유효성 검사**:
-- 카테고리 내 단어가 5개 미만이면 전체 출제
-- 선택한 문제 수가 가용 단어보다 많으면 자동 조정
+- 카테고리 단어가 5개 미만이면 `전체 (N)` 버튼. 단어 수를 넘는 버튼은 비활성
+- 카테고리를 바꿔 문제 수가 넘치면 가능한 최대로 줄이고 안내 토스트
+- 지난 선택은 기억하지 않는다(기본값 `random` · 단어→뜻 · 주관식 · 첫 카테고리)
+- 읽기만 한다
 
-**Props**:
-- `onBack`, `onStartQuiz(categoryId, mode, wordCount, direction)`
+**Props**: `onBack` · `onStartQuiz(categoryId, mode, wordCount, direction, answerType)`
 
 ---
 
-## 6. QuizScreen
+## 7. QuizScreen
 
-**역할**: 퀴즈 진행 화면.
+**들어오는 길 넷**: 퀴즈 설정 · 홈 복습 배너 · 플래시카드 마무리 · 결과 화면의 다시 풀기.
+뒤의 둘(배너 · 플래시카드)은 단어 id 목록(`retryWordIds`)을 들고 오고, 카테고리 없이 객관식 · 단어→뜻 으로 고정된다.
 
-**문제 유형** (4종):
-| 유형 | 제시 | 입력 |
+**문제 유형** (`QuizType`)
+
+| 유형 | 제시 | 답 |
 |------|------|------|
-| `word_to_meaning` | 영단어 | 한글 뜻 |
-| `meaning_to_word` | 한글 뜻 | 영단어 |
-| `example_to_meaning` | 영문 예문 | 한글 뜻 |
-| `translation_to_example` | 한글 번역 | 영단어(핵심) |
+| `word_to_meaning` | 단어 | 뜻 |
+| `meaning_to_word` | 뜻 | 단어 |
+| `example_to_meaning` | 예문 | 뜻 (주관식 `mixed` 에서만) |
+| `translation_to_example` | 번역 | 예문 (주관식 `mixed` 에서만) |
 
-**기능**:
-- 텍스트 입력 → 정답 판정 (대소문자 무시, trim)
-- 예문 문제: 부분 일치 40% 이상이면 정답
-- 힌트 버튼 (첫 글자 또는 단어 수)
-- 발음 듣기 (영어 텍스트만)
-- 진행 바 + 문제 번호 표시
-- 정답/오답 피드백 (1.5초 후 다음 문제)
-- 중도 퇴장 확인 Alert
-- 전면광고 표시 (완료 시)
+**단어 고르기**
+- `random` · `mixed`: 섞어서 앞에서부터 · `recent`: 등록 최신순
+- `weak`: 정답률 50% 미만을 낮은 순으로(`getWeakWordIds`). 모자라면 나머지에서 무작위로 채운다
+- `review`: 고른 카테고리 안에서 만기 지난 단어(오래 밀린 순) → 한 번도 안 푼 단어(오래된 순).
+  **만기가 문제 수보다 적으면 만기만 낸다**(억지로 채우지 않는다). 만기 0이면 무작위
+- 뜻이 비어 있는 단어는 뺀다
+- `mixed` 유형 배정: 객관식은 앞의 두 유형 반반, 주관식은 0.3 · 0.3 · 0.2 · 0.2(예문이 없으면 `word_to_meaning`)
 
-**Props**:
-- `categoryId`, `mode`, `wordCount`, `direction`, `retryWordIds?`, `onComplete(results)`, `onExit`
+**객관식 보기**: 같은 퀴즈의 단어 풀(카테고리가 없으면 전체 단어)에서 정답과 다른 것 3개. 모자라면 더미(`기억나지 않음` 등)로 채운다.
+
+**채점** (`normalizeForCompare` = trim · 소문자 · NFC)
+- 뜻이 답이면 뜻 중 하나만 맞아도 정답 · 단어가 답이면 완전 일치
+- `translation_to_example`: 완전 일치, 또는 입력이 `max(3, 정답 길이의 40%)` 자 이상이고 포함 관계
+- 주관식 입력 `maxLength 300`
+
+**그 밖**
+- 정답 · 오답 표시 1500ms 뒤 다음 문제(코드에 숫자로 있다)
+- 힌트: 3자 이하는 글자 수만, 그보다 길면 첫 글자와 글자 수(3단어 이상이면 단어 수도)
+- 발음(`SPEECH_RATE 0.85`): 제시가 단어나 예문일 때만
+- 전면 광고: 진입 300ms 뒤, 불러와져 있고 광고 제거를 안 샀을 때
+- **저장은 마지막 문제 뒤에만.** `saveQuizResults` → `srsService.recordAnswers` 순서. 중간에 나가면 아무것도 안 남는다
+- `나가기` 는 확인창 뒤 설정 화면(설정에서 왔을 때) 또는 홈
+
+⚠ **알려진 어긋남** (2026-09-18 코드 대조에서 발견 · 수정 전)
+- 하드웨어 뒤로가기는 확인창 없이 나간다. 복습 배너에서 왔을 때 홈이 아니라 **퀴즈 설정**으로 간다
+- 플래시카드에서 넘긴 순서가 유지되지 않는다. 저장소 순서로 나온다
+
+**Props**: `categoryId?` · `mode` · `wordCount` · `direction` · `answerType` · `retryWordIds?` · `onComplete(results)` · `onExit`
 
 ---
 
-## 7. QuizResultScreen
+## 8. QuizResultScreen
 
-**역할**: 퀴즈 결과 표시 + 재시험 옵션.
+- 제목: 만점 `완벽합니다!` · 70% 이상 `잘했어요!` · 그 밖 `다시 도전해보세요!`
+- 정답률(반올림) · 정답 수 · 오답 수 · **틀린 단어 목록을 화면에 바로 펼친다**(문제 · 정답 · 내 답 · 발음)
+- 버튼: 오답이 있으면 `틀린 N개 다시 풀기` 와 `전체 다시 풀기`, 없으면 `다시 풀기` 하나 · `홈으로`
+- 전면 광고 진입 500ms 뒤 · 하단 배너
+- 저장하지 않는다(퀴즈 화면에서 끝났다)
 
-**표시 정보**:
-- 정답률 (%) + 이모지 (100%→🎉, >=70%→😊, <70%→📝)
-- 정답/오답 개수 (색상 구분)
-- 오답 목록 모달 (문제, 정답, 내 답)
+⚠ **알려진 어긋남** (수정 전)
+- 복습 배너 · 플래시카드에서 온 퀴즈에서 `다시 풀기` · `전체 다시 풀기` 를 누르면 **홈이 뜬다.** 단어 목록을 비우는데 카테고리도 없어 퀴즈를 못 그린다
+- `틀린 N개` 의 N 은 오답 **건수**이고, 실제로 다시 내는 것은 중복을 걷은 **단어 수**다
 
-**액션 버튼**:
-| 버튼 | 동작 |
+**Props**: `correctCount` · `totalCount` · `results` · `onRetry` · `onRetryWrong` · `onBackToHome`
+
+---
+
+## 9. FlashcardSetupScreen
+
+| 항목 | 값 |
 |------|------|
-| 다시 풀기 | 동일 설정으로 퀴즈 재시작 |
-| 틀린 문제 다시 풀기 | 오답 단어만 재출제 |
-| 홈으로 | 홈 화면 이동 |
+| 카테고리 | `N개 단어 · 복습 N`. 마지막으로 본 카테고리가 있으면 그것 |
+| 순서 `CardOrder` | `created` 등록순 · `shuffle` 무작위 · `due` 복습순 |
+| 카드 앞면 | 단어 / 뜻 |
+| 발음 자동 재생 | 켜기 · 끄기 |
 
-**Props**:
-- `correctCount`, `totalCount`, `results`, `onRetry`, `onRetryWrong`, `onBackToHome`
+- 문제 수를 묻지 않는다. 카테고리 전체를 `N장 시작하기`
+- 기본값 `DEFAULT_PREFS`: 등록순 · 앞면 단어 · 자동 재생 끔
+- 시작할 때 `@my_word_flashcard_prefs` 하나만 쓴다. **퀴즈 결과는 쓰지 않는다**
 
----
-
-## 8. StatisticsScreen
-
-**역할**: 종합 학습 통계 대시보드.
-
-**섹션**:
-1. **전체 통계**: 총 단어, 카테고리, 퀴즈 횟수, 정확도, 취약 단어 수
-2. **동기부여 메시지**: 정확도 기반 (>=90%→트로피, >=70%→불꽃, >=50%→근육, else→책)
-3. **카테고리별 통계**: 정확도 바, 퀴즈 횟수, 취약 단어 수
-4. **단어별 통계 모달**: 카테고리 필터, 5가지 정렬 (단어/정확도/횟수/정답/오답)
-
-**Props**:
-- `onBack`
+**Props**: `onBack` · `onStart(categoryId, order, frontIsWord, autoSpeak)`
 
 ---
 
-## 9. MyPageScreen
+## 10. FlashcardScreen
 
-**역할**: 사용자 활동 요약 + GitHub 스타일 히트맵.
+🔴 **채점하지 않는다.** `@my_word_quiz_results` 와 `@my_word_srs` 에 쓰는 코드가 없고,
+`__tests__/flashcardService.test.ts` 가 소스를 읽어 지킨다(이유는 `CLAUDE.md` 플래시카드 절).
 
-**표시 정보**:
-- 등록 단어 수, 퀴즈 응시 수, 연속 학습일
-- 활동 히트맵 (15주 x 7일, 색상 4단계)
-- 스트릭 축하 카드 (1~2일→✨, 3~6일→🔥, 7일+→🏆)
+- 카드를 탭하면 뒤집힌다. 앞면이 단어면 뒷면에 뜻 번호 목록(`MeaningList`) · 예문 · 메모
+- **왼쪽으로 밀면 다음 카드, 오른쪽으로 밀면 이전 카드.** `SWIPE_START 12` · `SWIPE_COMMIT 56` · `SLIDE_MS 170`
+- `이전` · `다음` 버튼도 있다. 마지막 카드에서 `마치기` 를 누르면 마무리 화면:
+  `N장 다 봤어요` · `이 N개로 퀴즈 풀기`(카드 순서의 앞 `QUIZ_HANDOFF_SIZE = 10` 개) · `처음부터 다시 보기`
+- `due` 순서는 만기 단어를 앞에, 나머지를 등록순으로 뒤에 붙인다(빼지 않는다). 만기 조회가 실패하면 등록순
+- 🔴 가로 이동은 전부 `useNativeDriver: false`, 뒤집기(`FlipCard`, `FLIP_MS 240`)만 `true`. 섞지 않는다(CLAUDE.md)
+- 뒤로가기는 항상 플래시카드 설정
 
-**히트맵 계산**:
-- 활동 레벨 = 단어 추가 수 + 퀴즈 응시 수
-- 레벨 0~4 (없음, 1~2, 3~4, 5~6, 7+)
+**Props**: `categoryId` · `order` · `frontIsWord` · `autoSpeak` · `onBack` · `onQuiz(wordIds)`
 
-**Props**:
-- `onBack`
+---
+
+## 11. StatisticsScreen
+
+- 전체 학습 현황(단어 · 카테고리) · 퀴즈 성적(정답률 소수 한 자리 · 정답 · 오답 · 총 문제) · 정답률별 격려 문구
+- 카테고리별 성적(정답률 막대 · 횟수 · 정답 · 오답 · 취약) · 취약한 단어 수(정답률 50% 미만)
+- 단어별 모달: `단어 정답률` 버튼이나 카테고리 줄을 누르면. 정렬 다섯 개(단어 · 정답률 · 횟수 · 정답 · 오답), 같은 칩을 다시 누르면 방향 반전
+- 색 기준: 80 이상 초록 · 50 이상 주황 · 그 미만 빨강
+- ⚠ `통계 데이터가 없습니다` 빈 화면은 데이터가 0일 때가 아니라 **조회에 실패했을 때만** 나온다. 0이면 카드가 0과 안내 문구로 보인다
+- 당겨서 새로고침하면 화면 전체가 스켈레톤으로 바뀐다
+
+**Props**: `onBack`
+
+---
+
+## 12. MyPageScreen
+
+- 프로필 카드(`총 N일 활동`) · 등록 단어 · 퀴즈 횟수 · 연속 학습
+- 히트맵: `WEEKS = 15` 에 이번 주 토요일까지. 하루 값 = 그날 추가한 단어 수 + 그날 퀴즈 결과 수.
+  단계 0 · 1 · 2~3 · 4~6 · 7 이상, 테마와 무관한 고정 초록 5색
+- 연속 학습 카드(1일 이상일 때, 3일 · 7일에서 아이콘과 문구가 바뀐다)
+- 연속 학습은 단어 등록일도 활동일로 센다. 오늘 기록이 없으면 어제부터 센다
+
+**Props**: `onBack`
+
+---
+
+## 13. SettingsScreen
+
+위에서부터:
+
+1. **언어**: 한국어 · English · 日本語
+2. **색상 테마**: 인디고(기본) · 민트 · 로즈 · 오렌지 · 스카이 · 다크
+3. **학습 알림**(웹에서는 숨김): `알림 받기` 스위치 · 켜져 있을 때 `알림 시각`(기본 `20:00`, 5분 단위 `TimePickerSheet`). 켤 때만 권한을 묻는다
+4. **데이터**(iOS · Android): `백업 파일 만들기`(공유 시트, `myword-backup-YYYY-MM-DD.json`) · `백업에서 복원`
+   - 기기에 데이터가 하나도 없으면 묻지 않고 복원, 있으면 `RestoreConfirmSheet` 로 양쪽 숫자를 나란히 보여 준다
+   - 복원 직전 `myword-before-restore.json` 안전 사본 → 복원 → `Updates.reloadAsync()` 로 재시작
+5. **소식**: 공지사항(안 읽은 수 뱃지)
+6. **고객 지원**: 문의하기
+7. **광고**: 산 사람은 `광고가 제거되었어요` 만. 안 산 사람은 `광고 제거`(스토어 가격) · `구매 복원`
+8. **법적 고지**: 개인정보처리방침 · 이용약관 · 오픈소스 라이선스(`?lang=` 을 붙여 외부로 연다)
+9. **앱 정보**: 버전(`app.json` 에서 읽음) · 패키지
+
+- Play 조회가 실패해도 광고 제거 캐시를 되돌리지 않는다(산 사람에게 광고를 다시 띄우지 않는다)
+
+**Props**: `onBack` · `onSupport` · `onNotices`
+
+---
+
+## 14. SupportScreen
+
+- 안내: 기기에 만든 임의 식별자로 접수 · 개인정보를 보내지 않음 · 앱 버전과 기기 종류가 함께 감 · 답변 확인은 준비 중
+- 분류 칩 4개: 오류(`bug`, 기본) · 건의 · 질문 · 기타
+- 내용: `SUPPORT_CONTENT_MAX = 2000`, trim 해서 `SUPPORT_CONTENT_MIN = 5` 자 미만이면 보내기 비활성
+- `POST /api/v1/tickets`(공통 서버). 성공하면 내용을 비운다. 실패 문구는 **보내기를 누른 뒤에만** 뜬다(들어올 때 오프라인 오류 없음)
+
+**Props**: `onBack`
+
+---
+
+## 15. NoticeScreen
+
+- 부팅 때 받은 공지(`GET /api/v1/bootstrap`)를 서버 순서대로 펼쳐 보여 준다. 이 화면에서 새로 요청하지 않는다
+- 뱃지: `고정` · 종류(공지 · 이벤트 · 업데이트) · `NEW`. 본문은 마크다운 없이 줄바꿈만
+- 언어: `localizeAnnouncement(item, i18n.language)`. 한국어면 한국어, 그 밖에는 영어 제목과 본문이 **둘 다** 있을 때만 영어
+- 들어오는 순간 전부 읽음으로 기록한다(`@my_word_read_notices`, 서버로 보내지 않는다). `NEW` 는 이번 방문 동안 유지
+- 오프라인이면 오류 대신 빈 상태(`등록된 공지사항이 없습니다`)
+- 뒤로가기는 들어온 곳(홈 또는 설정)
+
+**Props**: `onBack`
