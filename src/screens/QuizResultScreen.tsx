@@ -156,14 +156,14 @@ export default function QuizResultScreen({
                       )}
                     </View>
                     <View style={styles.wrongRowLine}>
-                      <Text style={[styles.wrongRowLabel, { color: colors.textTertiary }]}>{t('정답')}</Text>
+                      <Text style={[styles.wrongRowLabel, { color: colors.textTertiary }]} numberOfLines={1}>{t('정답')}</Text>
                       <Text style={[styles.wrongRowValue, { color: colors.successText }]}>
                         {result.correctAnswer}
                       </Text>
                     </View>
                     {result.userAnswer ? (
                       <View style={styles.wrongRowLine}>
-                        <Text style={[styles.wrongRowLabel, { color: colors.textTertiary }]}>{t('내 답')}</Text>
+                        <Text style={[styles.wrongRowLabel, { color: colors.textTertiary }]} numberOfLines={1}>{t('내 답')}</Text>
                         <Text style={[styles.wrongRowValue, { color: colors.dangerText }]}>
                           {result.userAnswer}
                         </Text>
@@ -269,9 +269,12 @@ const styles = StyleSheet.create({
     alignItems: 'baseline',
     gap: 8,
   },
+  // 폭을 30 에 고정하면 한국어(정답 · 내 답)만 맞는다. 영어 `Correct answer` 가 `Corre / ct ans / wer` 로
+  // 글자 단위로 끊겼다(2026-09-18). 글자만큼 넓어지고 줄지 않게 한다
   wrongRowLabel: {
     fontSize: 11,
-    width: 30,
+    minWidth: 30,
+    flexShrink: 0,
   },
   wrongRowValue: {
     fontSize: 13,
@@ -295,8 +298,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8F9FA',
   },
+  // 🔴 `flex: 1` 이 아니라 `flexGrow: 1` 이다. flex: 1 은 스크롤 안의 내용을 화면 높이에 묶어서,
+  //    틀린 단어가 많으면 넘친 만큼 위(점수)와 아래(버튼)가 잘린 채 **스크롤이 안 됐다**(2026-09-18 에뮬레이터 확인).
+  //    2026-08-21 틀린 단어 목록을 모달에서 이 화면 안으로 옮기면서 생겼다. flexGrow 는 짧을 때만 가운데로 모은다
   content: {
-    flex: 1,
+    flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,

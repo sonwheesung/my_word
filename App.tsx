@@ -82,6 +82,14 @@ function AppContent() {
   const [retryWordIds, setRetryWordIds] = useState<number[] | undefined>(undefined);
   // 퀴즈를 어디서 시작했나. 나갈 때 돌아갈 곳이 다르다(설정 화면 vs 홈)
   const [quizFrom, setQuizFrom] = useState<'setup' | 'home' | 'flashcard'>('setup');
+  /**
+   * 단어 목록으로 시작한 퀴즈(복습 배너 · 플래시카드)의 **처음 목록**. `전체 다시 풀기` 가 이것으로 다시 낸다.
+   * 🔴 2026-09-18 결함: 이게 없어서 `다시 풀기` 가 retryWordIds 를 비웠고, 이 두 길은 카테고리도 null 이라
+   *    퀴즈를 그릴 조건이 사라져 **홈이 떴다**(상태는 퀴즈로 남아 뒤로가기가 퀴즈 설정으로 갔다).
+   *    retryWordIds 는 오답 재도전이 덮어쓰므로 처음 목록을 따로 들고 있어야 한다.
+   *    설정 화면에서 시작한 퀴즈는 undefined 다(카테고리에서 새로 뽑는다. 예전 동작 그대로).
+   */
+  const [quizSourceWordIds, setQuizSourceWordIds] = useState<number[] | undefined>(undefined);
 
   /**
    * 플래시카드 설정. 상태를 **하나로 묶어** 둔다. 카테고리·순서·앞면·발음이 늘 함께 정해지고
@@ -120,6 +128,12 @@ function AppContent() {
     };
   }, [boot, loaded]);
 
+  // 퀴즈를 나가는 곳은 하나로 둔다. 화면의 `나가기` 와 기기 뒤로가기가 같은 곳으로 가야 한다
+  const exitQuiz = useCallback(() => {
+    setRetryWordIds(undefined);
+    setCurrentScreen(quizFrom === 'setup' ? 'quizSetup' : 'home');
+  }, [quizFrom]);
+
   // 뒤로가기 핸들러: 홈이면 종료 확인, 다른 화면이면 이전 화면으로 이동
   const handleBackNavigation = useCallback(() => {
     switch (currentScreen) {
@@ -145,8 +159,17 @@ function AppContent() {
         setCurrentScreen(noticeFrom);
         break;
       case 'quiz':
-        setRetryWordIds(undefined);
-        setCurrentScreen(quizFrom === 'flashcard' ? 'home' : 'quizSetup');
+        // 화면의 `나가기` 와 같게 한다. 확인을 받고, 같은 곳으로 간다.
+        // 🔴 예전에는 확인 없이 나갔고(푼 것이 말없이 버려진다), 복습 배너에서 온 퀴즈가 홈이 아니라 퀴즈 설정으로 갔다
+        Alert.alert(
+          t('퀴즈 종료'),
+          t('퀴즈를 종료하시겠습니까?\n진행 중인 결과는 저장되지 않습니다.'),
+          [
+            { text: t('취소'), style: 'cancel' },
+            { text: t('종료'), style: 'destructive', onPress: exitQuiz },
+          ],
+          { cancelable: true },
+        );
         break;
       case 'flashcard':
         setCurrentScreen('flashcardSetup');
@@ -158,7 +181,7 @@ function AppContent() {
       default:
         break;
     }
-  }, [currentScreen, previousScreen, noticeFrom, quizFrom]);
+  }, [currentScreen, previousScreen, noticeFrom, exitQuiz, t]);
 
   useEffect(() => {
     const backAction = () => {
@@ -249,6 +272,7 @@ function AppContent() {
         onStartQuiz={(categoryId, mode, wordCount, direction, answerType) => {
           setQuizFrom('setup');
           setRetryWordIds(undefined);
+          setQuizSourceWordIds(undefined);
           setQuizCategoryId(categoryId);
           setQuizMode(mode);
           setQuizWordCount(wordCount);
@@ -285,6 +309,7 @@ function AppContent() {
           setQuizFrom('flashcard');
           setQuizCategoryId(null);
           setRetryWordIds(wordIds);
+          setQuizSourceWordIds(wordIds);
           setQuizMode('random');
           setQuizDirection('word_to_meaning');
           setQuizAnswerType('multiple_choice');
@@ -309,10 +334,7 @@ function AppContent() {
           setRetryWordIds(undefined);
           setCurrentScreen('quizResult');
         }}
-        onExit={() => {
-          setRetryWordIds(undefined);
-          setCurrentScreen(quizFrom === 'setup' ? 'quizSetup' : 'home');
-        }}
+        onExit={exitQuiz}
       />
     );
   }
@@ -326,7 +348,8 @@ function AppContent() {
         totalCount={quizResults.length}
         results={quizResults}
         onRetry={() => {
-          setRetryWordIds(undefined);
+          // 설정에서 시작한 퀴즈는 undefined → 카테고리에서 새로 뽑는다. 목록으로 시작한 퀴즈는 처음 목록으로
+          setRetryWordIds(quizSourceWordIds);
           setCurrentScreen('quiz');
         }}
         onRetryWrong={() => {
@@ -385,6 +408,7 @@ function AppContent() {
           setQuizFrom('home');
           setQuizCategoryId(null); // 전 카테고리 횡단
           setRetryWordIds(wordIds);
+          setQuizSourceWordIds(wordIds);
           setQuizMode('random');
           setQuizDirection('word_to_meaning');
           setQuizAnswerType('multiple_choice');

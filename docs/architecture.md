@@ -111,7 +111,7 @@ React Navigation 을 쓰지 않는다. `App.tsx` 의 `useState<Screen>` 하나�
 | `manageCategories` | CategoryManage | `previousScreen` |
 | `importWords` | ImportWords | `previousScreen` |
 | `quizSetup` | QuizSetup | 홈 |
-| `quiz` | Quiz (카테고리나 단어 목록이 있을 때만) | 플래시카드에서 왔으면 홈, 아니면 퀴즈 설정 |
+| `quiz` | Quiz (카테고리나 단어 목록이 있을 때만) | 확인창 뒤 `exitQuiz`: 설정에서 왔으면 퀴즈 설정, 아니면 홈 |
 | `quizResult` | QuizResult | 홈 |
 | `flashcardSetup` | FlashcardSetup | 홈 |
 | `flashcard` | Flashcard | 플래시카드 설정 |
@@ -121,7 +121,7 @@ React Navigation 을 쓰지 않는다. `App.tsx` 의 `useState<Screen>` 하나�
 
 - 점검 중(`isBlocking(gate)`)이면 어느 값이든 `BlockingGate` 를 그리고 뒤로가기를 무시한다
 - `quiz` · `flashcard` 가 조건을 못 채우면 마지막 기본 분기인 **Home 이 그려진다.**
-  ⚠ 복습 배너 · 플래시카드에서 온 퀴즈의 `다시 풀기` 가 이 길로 빠진다(screens.md §8 · 수정 전)
+  ~~복습 배너 · 플래시카드에서 온 퀴즈의 `다시 풀기` 가 이 길로 빠졌다~~ → 2026-09-18 고침(`quizSourceWordIds`). 이 기본 분기는 여전히 조용히 홈을 그리므로, 퀴즈로 가는 새 길을 만들면 카테고리나 단어 목록 중 하나를 반드시 넘긴다
 
 ## 화면 흐름
 
