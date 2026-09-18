@@ -2,9 +2,16 @@
 
 모든 주요 변경사항을 기록합니다.
 
-## [Unreleased] - OTA 후보 (2026-09-18 · 발행은 사장님 승인 뒤)
+## [1.7.0 OTA] - 2026-09-18 (runtimeVersion 1.6.0)
 
 JS 만 바뀌었다. 네이티브 · `runtimeVersion`(1.6.0) 그대로라 OTA 로 1.6.0 · 1.7.0 설치본에 함께 간다.
+
+**OTA**: 2026-09-18 KST · 사장님 지시("ota로 내보내줘") · `production` 채널 · 커밋 `56c6a23` ·
+그룹 `428aa669-12fe-478b-a722-380e68271e99` · android `01a0b3ad-1491-7ee7-9d75-07c9835a225d`.
+발행 전 번들 주소 검사(`expo export --clear` → `scan_ota_bundle.py`): 터널 · 사설 IP · 개발 포트 · 평문 http **0건**.
+걸린 둘은 판정해 통과시켰다. `localhost` 1건은 라이브러리 문자열이 붙은 것(`source-commit-localhost component`, 스킴 · 포트 없음. 9/14 에도 같은 1건),
+`common-server.vercel.appearanceChange…` 는 서버 주소 뒤에 다른 문자열이 붙은 것(CLAUDE.md OTA 절의 알려진 오탐). 서버 호스트는 `common-server.vercel.app` 하나.
+✅ **기기 수신**: 에뮬레이터 `my_word` 에서 콜드 부팅 두 번 뒤 `updates.db` 에 `01a0b3ad…` 가 준비 상태로 있고 마지막 실행이 그 id 다.
 
 ### 퀴즈 결과 화면 결함 넷 (2026-09-18 설계 문서를 코드에서 다시 뽑다가 찾았다)
 
