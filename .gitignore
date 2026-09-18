@@ -98,3 +98,6 @@ credentials.json
 
 # 릴리스 빌드 로그 (R8 검증 때 남는다)
 build-*.log
+
+# /check 스킬이 읽은 수정사항 시트 결과와 지난 기록 (common/FIX_REQUESTS.md §7.1)
+.claude/skills/check/*.json
