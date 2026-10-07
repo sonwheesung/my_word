@@ -318,6 +318,21 @@ export interface ExamRecord {
  * 🔴 저장본을 고치는 마이그레이션을 돌리지 않는다 — 읽을 때 고친다. 운영 중인 앱이라
  *    저장본을 건드리는 쪽이 늘 더 위험하다(SRS·백업이 같은 규율이다).
  */
+/**
+ * 저장된 점수가 **쓸 만한가**. 아니면 `null` 을 주고 부르는 쪽이 다시 센다.
+ *
+ * 🔴 **실기기에서 `Best NaN%` 를 보고 생겼다**(2026-10-07). 저장 경로가 점수를 `{}` 로 쓴
+ *    기록이 있었는데, 그걸 그대로 믿으니 화면에 NaN 이 나왔다. **숫자인지 확인하지 않고
+ *    객체라는 이유로 믿은 것**이 원인이다. 모양이 맞아도 값이 쓸 만한지는 따로 봐야 한다.
+ */
+function usableScore(raw: unknown): ExamScore | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const o = raw as Record<string, unknown>;
+  const ok = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+  if (!ok(o.correct) || !ok(o.total) || !ok(o.accuracy)) return null;
+  return raw as ExamScore;
+}
+
 function parseAttempts(obj: Record<string, unknown>, questions: ExamQuestion[]): ExamAttempt[] {
   const out: ExamAttempt[] = [];
   const raw = obj.attempts;
@@ -329,10 +344,7 @@ function parseAttempts(obj: Record<string, unknown>, questions: ExamQuestion[]):
       const answers = a.answers as ExamAnswer[];
       out.push({
         answers,
-        score:
-          typeof a.score === 'object' && a.score !== null
-            ? (a.score as ExamScore)
-            : scoreExam(questions, answers),
+        score: usableScore(a.score) ?? scoreExam(questions, answers),
         takenAt: typeof a.takenAt === 'string' ? a.takenAt : String(obj.takenAt ?? ''),
       });
     }
@@ -342,10 +354,7 @@ function parseAttempts(obj: Record<string, unknown>, questions: ExamQuestion[]):
     const answers = obj.answers as ExamAnswer[];
     out.push({
       answers,
-      score:
-        typeof obj.score === 'object' && obj.score !== null
-          ? (obj.score as ExamScore)
-          : scoreExam(questions, answers),
+      score: usableScore(obj.score) ?? scoreExam(questions, answers),
       takenAt: String(obj.takenAt ?? ''),
     });
   }

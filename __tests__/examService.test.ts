@@ -769,3 +769,34 @@ describe('🔴 ExamScreen 이 1회차를 실제로 기록한다 (배선)', () =>
     expect(stripComments(readSource('src/screens/ExamScreen.tsx'))).toContain('recordFirstAttempt');
   });
 });
+
+describe('🔴 점수가 쓸 만한지 따로 본다 (실기기가 Best NaN% 를 보여줬다)', () => {
+  const questions = [makeQuestion(0)];
+  const base = { examId: 'x', takenAt: '2026-10-07T00:00:00.000Z', language: 'ja', questions };
+
+  it('빈 객체는 믿지 않고 다시 센다', () => {
+    const raw = JSON.stringify([{ ...base, attempts: [{ answers: [0], score: {} }] }]);
+    expect(parseRecords(raw)[0].attempts[0].score.accuracy).toBe(100);
+  });
+
+  it('accuracy 가 숫자가 아니면 다시 센다', () => {
+    const raw = JSON.stringify([
+      { ...base, attempts: [{ answers: [0], score: { correct: 1, total: 1, accuracy: 'x' } }] },
+    ]);
+    expect(parseRecords(raw)[0].attempts[0].score.accuracy).toBe(100);
+  });
+
+  it('🔴 NaN 은 유한수가 아니므로 다시 센다', () => {
+    // JSON 에 NaN 은 못 담기므로 null 로 온다 — 그것도 숫자가 아니다
+    const raw = JSON.stringify([
+      { ...base, attempts: [{ answers: [0], score: { correct: null, total: null, accuracy: null } }] },
+    ]);
+    expect(Number.isFinite(parseRecords(raw)[0].attempts[0].score.accuracy)).toBe(true);
+  });
+
+  it('쓸 만한 점수는 그대로 쓴다', () => {
+    const score = { correct: 1, wrong: 0, skipped: 0, total: 1, accuracy: 100 };
+    const raw = JSON.stringify([{ ...base, attempts: [{ answers: [0], score }] }]);
+    expect(parseRecords(raw)[0].attempts[0].score).toEqual(score);
+  });
+});

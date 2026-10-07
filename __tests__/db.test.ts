@@ -367,8 +367,8 @@ describe('스키마가 실제로 지키는 것', () => {
 
 describe('🔴 v2 — 시험 기록의 카테고리 (Expand-only)', () => {
   it('스키마 버전이 2다', () => {
-    expect(CODE_SCHEMA_VERSION).toBe(2);
-    expect(MIGRATIONS).toHaveLength(2);
+    expect(CODE_SCHEMA_VERSION).toBe(3);
+    expect(MIGRATIONS).toHaveLength(3);
   });
 
   it('category_id 칸이 생겼다', () => {
@@ -386,7 +386,7 @@ describe('🔴 v2 — 시험 기록의 카테고리 (Expand-only)', () => {
     db.run('INSERT INTO exams (exam_id, language, taken_at, questions, answers, score) VALUES (?,?,?,?,?,?)', [
       'old', 'ja', NOW, '[]', '[]', '{}',
     ]);
-    expect(runMigrations(db)).toBe(2);
+    expect(runMigrations(db)).toBe(3);
     // 🔴 올리면서 옛 행이 살아 있어야 한다
     expect(db.get<{ n: number }>('SELECT count(*) n FROM exams')?.n).toBe(1);
     expect(db.get<{ category_id: number | null }>('SELECT category_id FROM exams')?.category_id).toBeNull();
@@ -402,5 +402,57 @@ describe('🔴 v2 — 시험 기록의 카테고리 (Expand-only)', () => {
     const db = fresh();
     importFromLegacy(db, legacy(), { now: NOW });
     expect(db.get<{ category_id: number | null }>('SELECT category_id FROM exams')?.category_id).toBeNull();
+  });
+});
+
+describe('🔴 v3 — 회차가 표에 실제로 저장된다 (에뮬레이터가 잡은 버그)', () => {
+  /*
+   * 🔴 이 describe 는 **실기기가 잡은 버그** 때문에 생겼다(2026-10-07).
+   *    ExamRecord 를 attempts[] 로 바꿨는데 이 표는 옛 칸(answers·score)에 쓰고 있어서
+   *    성적표가 `Best NaN%` 를 보여줬다. 단위 테스트는 AsyncStorage 경로라 못 잡았다.
+   *    → **저장 엔진이 둘이면 둘 다 재야 한다.**
+   */
+  it('attempts 칸이 생겼다', () => {
+    const db = fresh();
+    expect(db.all<{ name: string }>('PRAGMA table_info(exams)').map((r) => r.name)).toContain('attempts');
+  });
+
+  it('🔴 회차가 왕복한다 — 넣은 그대로 읽힌다', () => {
+    const db = fresh();
+    const attempts = [
+      { answers: [0, 1], score: { correct: 1, wrong: 1, skipped: 0, total: 2, accuracy: 50 }, takenAt: NOW },
+      { answers: [1, 1], score: { correct: 0, wrong: 2, skipped: 0, total: 2, accuracy: 0 }, takenAt: NOW },
+    ];
+    importFromLegacy(
+      db,
+      legacy({ exams: [{ examId: 'e', language: 'ja', takenAt: NOW, questions: [{ id: 'q' }], attempts }] }),
+      { now: NOW },
+    );
+    const stored = db.get<{ attempts: string }>('SELECT attempts FROM exams');
+    expect(JSON.parse(stored?.attempts ?? '[]')).toEqual(attempts);
+  });
+
+  it('🔴 v2 기기가 v3 로 올라가고 옛 행이 산다', () => {
+    const db = makeDb();
+    db.exec(META_TABLE_SQL);
+    db.exec(MIGRATIONS[0]!);
+    db.exec(MIGRATIONS[1]!);
+    db.run('INSERT INTO meta (key, value) VALUES (?, ?)', ['schema_version', '2']);
+    db.run('INSERT INTO exams (exam_id, language, taken_at, questions, answers, score) VALUES (?,?,?,?,?,?)', [
+      'old', 'ja', NOW, '[]', '[0]', '{"correct":1}',
+    ]);
+    expect(runMigrations(db)).toBe(3);
+    const row = db.get<{ answers: string; attempts: string | null }>('SELECT answers, attempts FROM exams');
+    // 옛 칸은 그대로 있고(Expand-only) 새 칸은 비어 있다 — parseRecords 가 1회차로 옮긴다
+    expect(row?.answers).toBe('[0]');
+    expect(row?.attempts).toBeNull();
+  });
+
+  it('attempts 가 없는 옛 행도 읽기가 던지지 않는다', () => {
+    const db = fresh();
+    db.run('INSERT INTO exams (exam_id, language, taken_at, questions, answers, score) VALUES (?,?,?,?,?,?)', [
+      'x', 'ja', NOW, '[]', '[]', '{}',
+    ]);
+    expect(() => db.all('SELECT * FROM exams')).not.toThrow();
   });
 });

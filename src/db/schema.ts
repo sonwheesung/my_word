@@ -120,4 +120,19 @@ ALTER TABLE exams ADD COLUMN category_id INTEGER;
  * 🔴 **덧붙이기만 한다.** 배열의 길이가 곧 스키마 버전이다.
  *    기존 항목을 고치면 이미 그 버전을 지나간 기기가 그 변경을 영원히 못 받는다.
  */
-export const MIGRATIONS: readonly string[] = [V1, V2];
+/*
+ * v3 — 시험 기록을 **회차 구조**로(2026-10-07 Phase 5).
+ *
+ * 🔴 **에뮬레이터가 잡은 버그의 수습이다.** `ExamRecord` 를 `attempts[]` 로 바꿨는데 이 표는
+ *    옛 칸(`answers`·`score`)에 쓰고 있어서 성적표가 `Best NaN%` 를 보여줬다.
+ *    단위 테스트는 AsyncStorage 경로(`getDb()` 가 null)라 못 잡았다 — **저장 엔진이 둘이면
+ *    둘 다 재야 한다**는 교훈이다.
+ *
+ * ⚠ 옛 칸을 **지우지 않는다**(Expand-only). 이미 v1·v2 를 지나며 그 칸에 쓴 기기가 있고,
+ *   `parseRecords` 가 옛 모양을 1회차로 옮겨 주므로 읽는 데 문제가 없다.
+ */
+const V3 = `
+ALTER TABLE exams ADD COLUMN attempts TEXT;
+`;
+
+export const MIGRATIONS: readonly string[] = [V1, V2, V3];

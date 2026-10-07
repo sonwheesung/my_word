@@ -191,19 +191,25 @@ export function importFromLegacy(
     for (const raw of exams) {
       const o = raw as Record<string, unknown>;
       const id = str(o?.examId);
-      if (!id || !Array.isArray(o.questions) || !Array.isArray(o.answers)) {
+      /*
+       * ⚠ 모양이 **둘**이다. v3 이전 기록은 `answers` 를, 그 뒤는 `attempts` 를 갖는다.
+       *   둘 중 하나만 있으면 받는다 — 한쪽만 보면 새 기록을 버린다(2026-10-07 실측).
+       */
+      if (!id || !Array.isArray(o.questions) || (!Array.isArray(o.answers) && !Array.isArray(o.attempts))) {
         report.dropped += 1;
         continue;
       }
       db.run(
-        `INSERT OR REPLACE INTO exams (exam_id, language, category_id, taken_at, questions, answers, score)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT OR REPLACE INTO exams
+           (exam_id, language, category_id, taken_at, questions, attempts, answers, score)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id,
           str(o.language),
           num(o.categoryId),
           str(o.takenAt, now),
           jsonArray(o.questions),
+          jsonArray(o.attempts),
           jsonArray(o.answers),
           (() => {
             try {

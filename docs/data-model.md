@@ -114,9 +114,18 @@ AI 시험 한 판. **문제 본문을 그대로 담는다** — 재시험과 성
 | `examId` | 서버가 준 시험 id. 없으면 `local-<시각>` |
 | `language` | 시험 대상 언어(`ja` 등) |
 | `takenAt` | ISO. 최신순 정렬의 축 |
-| `questions` | `ExamQuestion[]` — 본문 · 보기 4개 · 정답 번호 · 뜻 · 해설 |
-| `answers` | `(number \| null)[]` — `null` 은 넘긴 문제 |
-| `score` | `correct` · `wrong` · `skipped` · `total` · `accuracy` |
+| `questions` | `ExamQuestion[]` — 본문 · 보기 4개 · 정답 번호 · 뜻 · 해설. **회차 밖에 있다** |
+| `attempts` | `ExamAttempt[]` — 회차 목록. **1회차가 `[0]`** 이고 뒤로 쌓인다 |
+
+`ExamAttempt` = `{ answers: (number \| null)[], score, takenAt }`
+(`null` 은 넘긴 문제 · `score` 는 `correct` · `wrong` · `skipped` · `total` · `accuracy`)
+
+- 🔴 **통계에 들어가는 것은 1회차뿐이다.** 같은 문제를 다시 풀면 외워서 맞히므로 정답률이 조용히 부푼다.
+  ✅ 실기기에서 재시험 뒤 `quiz_results` 49건 불변 · `@my_word_srs` md5 동일을 확인했다(2026-10-07)
+- ⚠ **옛 기록은 `answers`·`score` 를 기록에 직접 들고 있었다.** `parseAttempts` 가 읽을 때 1회차로 옮긴다 —
+  저장본을 고치는 마이그레이션을 돌리지 않는다(운영 중인 앱이라 저장본을 건드리는 쪽이 늘 더 위험하다)
+- ⚠ **저장된 점수가 유한수가 아니면 버리고 다시 센다**(`usableScore`). 실기기가 `Best NaN%` 를 보여 줘서
+  생겼다 — 모양이 객체인 것과 값이 쓸 만한 것은 다른 명제다
 
 - 🔴 **최근 20판(`EXAM_HISTORY_MAX`)만 남긴다.** 무제한이면 백업이 커져 복원이 실패할 수 있다
 - 🔴 **정답 번호를 기기가 갖는다.** 숨기면 채점마다 서버를 불러야 하고 그러면 구독을 끊은 사람이
@@ -202,8 +211,13 @@ src/db/index.ts             expo-sqlite 연결(여기만 안다) · 부팅
 | `categories` | 카테고리 |
 | `words` | 단어. 뜻·예문·태그는 JSON 문자열 |
 | `quiz_results` | 퀴즈 결과 |
-| `exams` | AI 시험 기록 (+ `category_id` · v2) |
+| `exams` | AI 시험 기록 (+ `category_id` · v2, + `attempts` · v3) |
 | `meta` | `schema_version` · `legacy_imported_at` |
+
+**v3 (2026-10-07)**: `exams.attempts` 추가(회차 JSON). 🔴 **실기기가 `Best NaN%` 를 띄워서 잡혔다** —
+`ExamRecord` 를 회차 구조로 바꾼 뒤에도 `examRepo.save` 가 옛 칸(`answers`·`score`)에만 쓰고 있었고,
+읽을 때 빈 값이 점수로 들어가 NaN 이 됐다. **타입 체크도 테스트 447개도 통과한 채였다** —
+칸이 모자란 것은 타입이 못 보고, 저장소를 거치지 않는 테스트도 못 본다.
 
 **v2 (2026-10-07)**: `exams.category_id` 추가. 🔴 **V1 을 고치지 않고 덧붙였다** —
 이미 v1 을 지나간 기기가 있고(그날 에뮬레이터가 그랬다) V1 을 고치면 그 기기는 변경을 영원히 못 받는다.

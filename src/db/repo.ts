@@ -280,22 +280,20 @@ export const examRepo = {
   save(db: SqlDriver, record: Record<string, unknown>, max: number): void {
     db.tx(() => {
       db.run(
-        `INSERT OR REPLACE INTO exams (exam_id, language, category_id, taken_at, questions, answers, score)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT OR REPLACE INTO exams
+           (exam_id, language, category_id, taken_at, questions, attempts, answers, score)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           String(record.examId ?? ''),
           String(record.language ?? ''),
           typeof record.categoryId === 'number' ? record.categoryId : null,
           String(record.takenAt ?? ''),
           json(record.questions),
-          json(record.answers),
-          (() => {
-            try {
-              return JSON.stringify(record.score ?? {});
-            } catch {
-              return '{}';
-            }
-          })(),
+          // 🔴 회차가 진실이다
+          json(record.attempts),
+          // ⚠ 옛 칸은 비워 둔다. 지우지 않는 이유는 schema.ts 의 V3 주석에 있다
+          '[]',
+          '{}',
         ],
       );
       db.run(
@@ -328,6 +326,7 @@ export const backupRepo = {
         questions: string;
         answers: string;
         score: string;
+        attempts: string | null;
       }>('SELECT * FROM exams ORDER BY taken_at DESC')
       .map((r) => ({
         examId: r.exam_id,
@@ -336,6 +335,11 @@ export const backupRepo = {
         ...(r.category_id === null ? {} : { categoryId: r.category_id }),
         takenAt: r.taken_at,
         questions: arr(r.questions),
+        /*
+         * 🔴 **회차가 진실이다.** 옛 칸(`answers`·`score`)도 함께 준다 — v3 이전에 쓴 기기를
+         *    위해서다. `parseRecords` 가 `attempts` 가 비면 그 둘을 1회차로 옮긴다.
+         */
+        attempts: arr(r.attempts),
         answers: arr(r.answers),
         score: (() => {
           try {
@@ -424,14 +428,16 @@ export const backupRepo = {
           const o = raw as Record<string, unknown>;
           if (typeof o?.examId !== 'string') continue;
           db.run(
-            `INSERT OR REPLACE INTO exams (exam_id, language, category_id, taken_at, questions, answers, score)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT OR REPLACE INTO exams
+               (exam_id, language, category_id, taken_at, questions, attempts, answers, score)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               o.examId,
               String(o.language ?? ''),
               typeof o.categoryId === 'number' ? o.categoryId : null,
               String(o.takenAt ?? now),
               json(o.questions),
+              json(o.attempts),
               json(o.answers),
               (() => {
                 try {

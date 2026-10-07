@@ -86,7 +86,7 @@ my_word/
 | `quizService.ts` | 결과 저장 · 통계 · 취약 단어 · 연속 학습 | |
 | `srsService.ts` | 간격 복습 만기(저장본 캐시 · 이력 재생 · 알림용 예측) | |
 | `flashcardService.ts` | 카드 순서 · 보기 취향. **퀴즈 결과를 쓰지 않는다** | |
-| `examService.ts` | 씨앗 고르기(만기 4/취약 3/무작위 3) · 언어 판정 · 채점 · 기록. **퀴즈 결과를 쓰지 않는다** | |
+| `examService.ts` | 씨앗 고르기(만기 4/취약 3/무작위 3) · 언어 판정 · 채점 · 기록 · 회차. 🔴 **통계는 1회차만**(`recordFirstAttempt` 한 곳에서) | |
 | `syncService.ts` | 단어를 서버로 **밀기만** 한다(분석용). 🔴 기기가 정본 · 당기기 없음 · 메모·예문·태그는 안 보낸다 | ✅ |
 | `shareService.ts` | CSV 내보내기 · 파싱 · 중복 판정 | |
 | `backupService.ts` | 백업 파일 만들기 · 검사 · 복원(순수 로직) | |

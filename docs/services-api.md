@@ -68,15 +68,24 @@ Screen → Service → utils/storage.ts (AsyncStorage / localStorage)
 | `examService.loadPrefs()` · `savePrefs(prefs)` | `ExamPrefs` | 저장 실패는 삼킨다 |
 | `examService.buildSeeds(categoryId, limit?)` | `SeedPlan` | 만기·취약 조회가 실패하면 무작위로 내려앉는다 |
 | `examService.getRecords()` · `saveRecord(record)` | `ExamRecord[]` | 🔴 **저장 실패는 삼키지 않는다** — 성적표가 비면 사용자가 알아야 한다 |
+| `examService.recordFirstAttempt(record)` | | 🔴 **이 파일에서 통계를 쓰는 유일한 함수.** `attempts.length !== 1` 이면 아무것도 안 한다 |
+| `examService.addAttempt(examId, answers)` | `ExamRecord` | 재시험 한 회차를 덧붙인다. **통계를 안 쓴다** |
 | `pickSeeds(words, dueIds, weakIds, limit?, rng?)` | `SeedPlan` | 순수 함수. 만기 4 · 취약 3 · 무작위 3. **앞이 비면 뒤가 채운다** |
 | `scoreExam(questions, answers)` | `ExamScore` | 순수 함수. 🔴 **넘긴 문제를 분모에서 빼지 않는다** |
 | `detectLanguage(text)` · `detectCategoryLanguage(words)` · `countLanguages(words)` | | 순수 함수. 판정 불가면 `null` — **추측으로 보내지 않는다** |
 | `parseRecords(raw)` · `parseExamPrefs(raw)` · `trimRecords(records, max?)` | | 순수 함수. 어떤 입력에도 throw 하지 않는다 |
+| `parseAttempts(obj, questions)` | `ExamAttempt[]` | 옛 모양(`answers`·`score` 가 기록에 직접 있는 것)을 1회차로 옮긴다. **저장본을 고치지 않고 읽을 때 고친다** |
 | `toSeedPayload(plan)` | `{word, meaning?}[]` | 뜻은 첫 번째만 보낸다 |
 
-🔴 **이 파일과 시험 화면 셋은 퀴즈 결과를 쓰지 않는다.** 기획은 *"내 단어 문제만 반영하고 재시험은
-반영하지 않는다"* 로 정했는데 **재시험을 구분하는 코드가 아직 없다** — 구분 못 하는 상태에서 쓰면
-재시험이 정답률을 부풀린다. `__tests__/examService.test.ts` 가 네 파일의 소스를 읽어 지킨다.
+🔴 **통계에 들어가는 것은 1회차뿐이다**(2026-10-07 Phase 5 에서 켰다). 기획: *"내 단어 문제만
+반영하고 재시험은 반영하지 않는다"*. 같은 문제를 다시 풀면 **외워서 맞히므로** 정답률이 조용히 부푼다.
+쓰기는 `recordFirstAttempt` **한 곳에서만** 일어나고, 그 함수는 내 단어장에서 찾은 단어의
+**안 넘긴** 문제만 쓴다. `__tests__/examService.test.ts` 가 **소스 훑기 + 실제 저장소 동작**
+양쪽으로 지킨다 — 소스 훑기만으로는 변이 셋이 빠져나갔다.
+
+⚠ **저장된 점수를 그대로 믿지 않는다**(`usableScore`). `correct`·`total`·`accuracy` 가 유한수가
+아니면 버리고 `scoreExam` 으로 다시 센다. 2026-10-07 실기기에서 `Best NaN%` 가 떠서 생긴 가드이고,
+가드를 넣자 그 기록들이 **실제 점수(0% · 30%)로 되살아났다** — 숨긴 것이 아니다.
 
 ⚠ `detectLanguage` 는 `utils/text.ts` 의 `detectSpeechLanguage` 와 **일부러 따로 둔다.**
 그쪽은 발음용 BCP-47(`ja-JP`)이고 한자를 중국어로 떨어뜨리는데, 이쪽은 서버가 받는 짧은 코드이고
