@@ -29,6 +29,7 @@
 | `@my_word_flashcard_prefs` | `FLASHCARD_PREFS_KEY` · appConfig.ts | `FlashcardPrefs` JSON | 🚫 | 이 기기의 카드 보기 취향 |
 | `@my_word_exams` | `EXAMS_KEY` · appConfig.ts | `ExamRecord[]` JSON (최근 20판) | ✅ | AI 시험 기록(문제 · 내 답 · 점수) |
 | `@my_word_exam_prefs` | `EXAM_PREFS_KEY` · appConfig.ts | `ExamPrefs` JSON | 🚫 | 카테고리별로 고른 **단어의 언어** |
+| `@my_word_sync_state` | `SYNC_STATE_KEY` · appConfig.ts | `SyncState` JSON | 🚫 | 단어를 어디까지 밀었나(기기별 진행 상태) |
 
 **SecureStore** (키 이름만 적는다. 값은 자격증명이다)
 

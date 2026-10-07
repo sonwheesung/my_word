@@ -157,7 +157,7 @@
         <p>학습 데이터는 기기 안에만 저장됩니다. 다만 사용자가 <strong>직접 실행한 경우에 한해</strong> 아래 두 기능에서 외부로 데이터가 전송됩니다: 단어 검색(제5항), 문의하기(제6항). 이와 별개로 앱을 실행할 때와 앱이 다시 화면 앞으로 올라올 때, 공지사항·최신 버전 확인과 이용 통계를 위한 요청이 발생하며, 이때 제6-2항의 기기 식별자가 함께 전송됩니다. 자세한 내용은 제6항에 적었습니다.</p>
         <p>또한 본 앱은 유료 상품(평생 광고 제거)의 인앱 결제를 제공하며, 이 경우에도 결제 정보는 Google Play가 처리할 뿐 본 앱이 수집하거나 저장하지 않습니다. 자세한 내용은 제7항을 참고해 주세요.</p>
 
-        <p>AI 단어 시험 기능을 사용하시는 경우, 시험 문제를 만들고 같은 문제를 반복해 내지 않기 위하여 제5-2항의 정보를 수집&middot;이용합니다.</p>
+        <p>AI 단어 시험 기능을 사용하시는 경우, 시험 문제를 만들고 같은 문제를 반복해 내지 않기 위하여 제5-2항의 정보를 수집&middot;이용합니다. 또한 서비스 개선을 위한 분석 목적으로 제5-3항의 단어 목록을 수집&middot;이용합니다.</p>
 
         <h2>2. 기기에만 저장되는 데이터</h2>
 
@@ -168,7 +168,7 @@
             <li>퀴즈 결과 및 학습 통계</li>
             <li>앱 설정 (테마, 알림 사용 여부 및 알림 시각 등)</li>
         </ul>
-        <p>위 데이터는 모두 <strong>기기의 로컬 저장소에만</strong> 저장되며, 외부 서버로 전송되지 않습니다. 다만 제5-2항의 AI 단어 시험을 이용하시는 경우에는 그 항에 적은 범위에서 일부 단어가 전송됩니다.</p>
+        <p>위 데이터는 모두 <strong>기기의 로컬 저장소에</strong> 저장됩니다. 다만 <strong>단어와 그 뜻은 제5-3항에 따라 서버에도 보관</strong>되며, AI 단어 시험을 이용하시는 경우 제5-2항의 범위에서 추가로 전송됩니다. 그 밖의 항목(메모&middot;예문&middot;태그&middot;퀴즈 기록&middot;설정)은 기기 밖으로 나가지 않습니다.</p>
         <p><strong>학습 알림</strong>을 켜신 경우, 알림은 기기 안에서만 만들어져 기기에 표시되며 <strong>외부 서버로 전송되지 않습니다.</strong> 알림 문구에는 회원님이 저장하신 단어가 표시될 수 있으므로, 잠금화면 노출이 염려되시면 앱 설정에서 알림을 끄시거나 기기의 잠금화면 알림 설정을 조정하실 수 있습니다.</p>
 
         <h2>3. 개인정보의 제3자 제공</h2>
@@ -212,6 +212,24 @@
         <p>문제 생성을 위해 전송한 단어와 뜻은 OpenAI, L.L.C.(미국)에 전달됩니다. 회사는 해당 서비스에 <strong>저장하지 않도록 요청하는 설정</strong>으로 전송하며, 다만 OpenAI가 자체 남용 감시 목적으로 일정 기간 보관할 수 있습니다. 자세한 사항은 제12항에 적었습니다.</p>
         <p><strong>보관 및 삭제</strong></p>
         <p>위 &ldquo;이미 보여드린 문제의 목록&rdquo;&middot;&ldquo;이용 기록&rdquo;은 제6-2항의 방법으로 기기 식별자를 삭제하시면 함께 삭제되거나 이용자와의 연결이 끊어집니다. 다만 <strong>만들어진 문제 자체는 이용자 전체가 함께 이용하는 자료이므로</strong> 이용자와의 연결이 끊어진 상태로 서버에 남습니다.</p>
+
+        <h3>5-3. 단어 목록의 서버 보관(분석 목적)</h3>
+        <p>앱을 실행하실 때, 이용자가 저장하신 <strong>단어와 그 뜻</strong>이 회사 서버로 전송되어 보관됩니다. 이는 어떤 단어가 많이 학습되는지를 파악해 서비스를 개선하기 위한 것입니다.</p>
+        <p><strong>전송하는 정보</strong></p>
+        <ul>
+            <li>단어, 뜻, 단어의 언어, 단어장(카테고리) 번호, 저장·수정 시각</li>
+            <li>제6항의 기기 식별자</li>
+        </ul>
+        <p><strong>전송하지 않는 정보</strong></p>
+        <ul>
+            <li><strong>메모&middot;예문&middot;태그는 전송하지 않습니다.</strong> 분석에 사용하지 않으며 사적인 내용이 담길 수 있기 때문입니다.</li>
+            <li>퀴즈 점수와 학습 통계는 전송하지 않습니다.</li>
+        </ul>
+        <div class="notice">
+            <p><strong>이 보관은 복구 수단이 아닙니다.</strong> 앱을 삭제하시면 기기 식별자가 사라지므로, 다시 설치하셔도 회사는 이전 기기의 단어를 돌려드릴 수 없습니다. 데이터 보호는 앱의 백업 기능을 이용해 주시기 바랍니다.</p>
+        </div>
+        <p><strong>보관 및 삭제</strong></p>
+        <p>제6-2항의 방법으로 기기 식별자를 삭제하시면 서버에 보관된 단어도 함께 삭제됩니다.</p>
 
         <h2>6. 문의하기 · 공지사항 · 버전 확인</h2>
         <p>아래 세 기능은 같은 서버(이하 "문의 접수 서버")를 이용합니다.</p>
@@ -314,7 +332,7 @@
         </div>
 
         <!-- 시행일 2026-08-17 = 본 문서가 GitHub Pages 에 게시된 날. 약관 제3조가 "게시함으로써 효력이 발생한다" 고 정하고 있고, 유료 상품은 그 이후에 판매를 시작하므로 순서가 맞다. -->
-        <p class="date">최초 시행일: 2026년 4월 10일<br>개정 시행일: 2026년 10월 7일 (AI 단어 시험 도입에 따른 제5항 개정 &mdash; 제5-2항 신설 및 제1·12항 반영. <strong>이 개정으로 저장하는 항목이 늘어납니다</strong> — 이 기능을 사용하시는 경우에 한하여, 이용자가 저장한 단어와 뜻이 문제 생성을 위해 국외(OpenAI)로 전송되고, 만들어진 문제와 &ldquo;어느 기기에 어떤 문제를 보냈는지&rdquo;가 회사 서버에 저장됩니다)<br>개정 시행일: 2026년 9월 7일 (기기 안에서만 동작하는 학습 알림 추가에 따른 제2항 개정 &mdash; <strong>수집하는 항목은 달라지지 않았고</strong>, 알림은 서버로 전송되지 않으며 알림 문구에 저장하신 단어가 표시될 수 있다는 안내가 추가되었습니다)<br>개정 시행일: 2026년 9월 2일 (활성 집계 시점 확대에 따른 제1·6-1항 개정 &mdash; <strong>수집하는 항목은 달라지지 않았고</strong>, 요청이 발생하는 시점에 &ldquo;앱이 다시 화면 앞으로 올라올 때&rdquo;(최소 5분 간격)가 추가되었습니다)<br>개정 시행일: 2026년 9월 1일 (문의 답변 전달을 위한 기기 식별자 수집 개시에 따른 제6-1·6-2항 개정 및 제1·9·10·11·12항 반영, 문의 보관 기간을 실제 운영과 일치하도록 1년 → 3년으로 정정, 제13항 변경 고지 방식 정비)<br>개정 시행일: 2026년 8월 17일 (인앱 결제 도입에 따른 제1·4항 변경 및 제7항 신설, 제8항 보완, 문의 이메일 변경, 사업자 정보 추가, 제9항 아동 연령 기준 국가별 병기, 개인정보 보호책임자 지정, 제4항 광고 식별자 거부 방법 안내 추가, 제10항 정보주체의 권리·제11항 안전성 확보조치·제12항 국외 이전 신설)</p>
+        <p class="date">최초 시행일: 2026년 4월 10일<br>개정 시행일: 2026년 10월 7일 (AI 단어 시험 도입에 따른 제5항 개정 &mdash; 제5-2항 신설 및 제1·12항 반영. <strong>이 개정으로 저장하는 항목이 늘어납니다</strong> — 이 기능을 사용하시는 경우에 한하여, 이용자가 저장한 단어와 뜻이 문제 생성을 위해 국외(OpenAI)로 전송되고, 만들어진 문제와 &ldquo;어느 기기에 어떤 문제를 보냈는지&rdquo;가 회사 서버에 저장됩니다. 또한 AI 시험 이용 여부와 관계없이 <strong>이용자가 저장한 단어와 그 뜻이 분석 목적으로 서버에 보관</strong>됩니다. 메모&middot;예문&middot;태그는 전송되지 않습니다)<br>개정 시행일: 2026년 9월 7일 (기기 안에서만 동작하는 학습 알림 추가에 따른 제2항 개정 &mdash; <strong>수집하는 항목은 달라지지 않았고</strong>, 알림은 서버로 전송되지 않으며 알림 문구에 저장하신 단어가 표시될 수 있다는 안내가 추가되었습니다)<br>개정 시행일: 2026년 9월 2일 (활성 집계 시점 확대에 따른 제1·6-1항 개정 &mdash; <strong>수집하는 항목은 달라지지 않았고</strong>, 요청이 발생하는 시점에 &ldquo;앱이 다시 화면 앞으로 올라올 때&rdquo;(최소 5분 간격)가 추가되었습니다)<br>개정 시행일: 2026년 9월 1일 (문의 답변 전달을 위한 기기 식별자 수집 개시에 따른 제6-1·6-2항 개정 및 제1·9·10·11·12항 반영, 문의 보관 기간을 실제 운영과 일치하도록 1년 → 3년으로 정정, 제13항 변경 고지 방식 정비)<br>개정 시행일: 2026년 8월 17일 (인앱 결제 도입에 따른 제1·4항 변경 및 제7항 신설, 제8항 보완, 문의 이메일 변경, 사업자 정보 추가, 제9항 아동 연령 기준 국가별 병기, 개인정보 보호책임자 지정, 제4항 광고 식별자 거부 방법 안내 추가, 제10항 정보주체의 권리·제11항 안전성 확보조치·제12항 국외 이전 신설)</p>
         </div>
         <!-- =================== 한국어 끝 =================== -->
 
@@ -340,7 +358,7 @@
             <li>Quiz results and learning statistics</li>
             <li>App settings (theme, whether reminders are enabled, reminder time, etc.)</li>
         </ul>
-        <p>All of the above data is stored only in the device's <strong>local storage</strong> and is not transmitted to any external server. The sole exception is the AI Word Exam described in Section 5-2, which transmits some words within the scope described there.</p>
+        <p>All of the above data is stored in the device's <strong>local storage</strong>. However, <strong>words and their meanings are also retained on our servers</strong> as described in Section 5-3, and if you use the AI Word Exam, additional data is transmitted within the scope of Section 5-2. Everything else (memos, examples, tags, quiz records and settings) never leaves your device.</p>
         <p>If you turn on <strong>study reminders</strong>, the reminders are created and displayed entirely on your device and are <strong>not transmitted to any external server.</strong> A reminder may display a word you have saved, so if you are concerned about it appearing on your lock screen, you can turn reminders off in the App's settings or adjust your device's lock-screen notification settings.</p>
 
         <h2>3. Provision of Personal Information to Third Parties</h2>
@@ -368,6 +386,15 @@
         <p><strong>Not stored:</strong> your exam scores and answers remain on your device only. Your full word list is never transmitted.</p>
         <p><strong>Processor and overseas transfer:</strong> the words and meanings are sent to OpenAI, L.L.C. (United States) to generate questions. We send them with the setting that asks the service not to retain them; OpenAI may nonetheless retain them for a limited period for its own abuse monitoring. See Section 12.</p>
         <p><strong>Retention and deletion:</strong> the record of questions already shown and the usage records are deleted, or unlinked from you, when you delete your device identifier as described in Section 6-2. The generated questions themselves remain on the server, unlinked from you, because they are shared material used by all users.</p>
+
+        <h3>5-3. Server Retention of Your Word List (for analytics)</h3>
+        <p>When you launch the app, the <strong>words and meanings</strong> you have saved are transmitted to and retained on the Company's servers. This is used to understand which words are commonly studied so that the service can be improved.</p>
+        <p><strong>Transmitted:</strong> the word, its meaning, its language, the word-list (category) number, and the created/updated timestamps, together with the device identifier described in Section 6.</p>
+        <p><strong>Not transmitted:</strong> <strong>memos, example sentences and tags are never transmitted</strong>, because they are not used for analytics and may contain private content. Quiz scores and study statistics are not transmitted either.</p>
+        <div class="notice">
+            <p><strong>This retention is not a recovery mechanism.</strong> If you delete the app, the device identifier is lost, so we cannot return the words from your previous device even if you reinstall. Please use the app's backup feature to protect your data.</p>
+        </div>
+        <p><strong>Retention and deletion:</strong> deleting your device identifier as described in Section 6-2 also deletes the words retained on the server.</p>
 
         <h2>6. Contact Us · Notices · Version Check</h2>
         <p>The following three features use the same server (the "inquiry server").</p>

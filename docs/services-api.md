@@ -86,6 +86,28 @@ Screen → Service → utils/storage.ts (AsyncStorage / localStorage)
 `generateExam` 만 타임아웃이 **120초**다 — 기본 10초로는 서버가 멀쩡히 문제를 만드는 동안 앱이 abort 하고
 `offline` 이라고 말한다(그 호출의 원가는 이미 나갔으므로 가장 나쁜 실패다).
 
+## syncService.ts (단어 밀기)
+
+| 함수 | 반환 | 설명 |
+|------|------|------|
+| `syncService.pushOnce()` | `{pushed, remaining, reason?}` | **던지지 않는다.** 실패하면 다음 기회에 다시 민다 |
+| `syncService.loadState()` · `saveState(s)` | `SyncState` | 저장 실패는 삼킨다 |
+| `pickChanged(words, since, limit?)` | `Word[]` | 순수 함수. 🔴 경계를 **`>=`** 로 본다 — `>` 면 같은 밀리초의 단어를 영원히 빠뜨린다 |
+| `toPayload(words)` | 서버 모양 | 🔴 **메모·예문·태그를 안 담는다** |
+| `parseState(raw)` | `SyncState` | 어떤 입력에도 throw 하지 않는다 |
+
+🔴 **기기가 정본이고 서버는 사본이자 분석 창고다**(mission 기둥 6 승계). 이 서비스가 통째로
+실패해도 사용자는 아무것도 잃지 않으므로 **실패를 화면에 띄우지 않는다.**
+
+🔴 **밀기만 한다.** 당기기(서버 → 기기)가 없다 — 신원이 기기 식별자뿐이라 앱을 지우면 사라지고,
+서버를 복구 수단으로 쓰면 재설치한 사용자가 *"서버엔 있는데 내 기기엔 없는"* 최악을 겪는다.
+복구는 백업 파일이 한다. `__tests__/syncService.test.ts` 가 소스를 읽어 이 규칙을 지킨다.
+
+⚠ **지운 단어는 아직 못 민다.** 기기가 진짜로 지우므로(soft delete 아님) "지웠다"는 사실이 안 남는다.
+서버 표에 `deleted_at` 칸은 미리 만들어 뒀다. 기기 삭제를 묘비로 바꿀 때 쓴다.
+
+⚠ 부팅에서 `setLoaded(true)` **뒤에** 떼어 붙인다 — 사용자에게 값을 주지 않는 일이 첫 화면을 막으면 안 된다.
+
 ## shareService.ts (CSV)
 
 | 함수 | 설명 |

@@ -1,6 +1,6 @@
 // 공통 서버 클라이언트 SDK.
 //
-// ⚠️ 원본: common_server/client/index.ts 에서 복사 (2026-10-07, SDK_VERSION 2026-10-07).
+// ⚠️ 원본: common_server/client/index.ts 에서 복사 (2026-10-08, SDK_VERSION 2026-10-08).
 //    이 파일은 손으로 고치지 말 것 — 서버 계약이 바뀌면 원본을 갱신하고 다시 복사한다.
 //    (앱 4~5개 규모엔 monorepo·npm 패키지 오버헤드가 이득보다 크다는 판단)
 //
@@ -24,7 +24,7 @@ import type {
 export type * from './types';
 
 /** 앱에 복사할 때 이 값을 복사본 주석에 남긴다 — 서버 계약이 바뀌었는지 판단하는 유일한 단서다. */
-export const SDK_VERSION = '2026-10-07'; // AI 시험(generateExam·reportQuestion) + req() 호출별 타임아웃. 추가만이라 쓰는 앱만 재복사한다(지금은 My Word)
+export const SDK_VERSION = '2026-10-08'; // 단어 밀기(syncWords) 추가. 앞판은 AI 시험 + req() 호출별 타임아웃. 추가만이라 쓰는 앱만 재복사한다(지금은 My Word)
 
 const DEFAULT_TIMEOUT_MS = 10000;
 
@@ -539,6 +539,54 @@ export function createCommonServer(cfg: CommonServerConfig) {
           return { ok: false, reason: 'error' };
         }
         return { ok: true, exam: j };
+      } catch {
+        return { ok: false, reason: 'error' };
+      }
+    },
+
+    /**
+     * 기기의 단어를 서버로 **밀기만** 한다 (SDK 2026-10-08).
+     *
+     * 🔴 **기기가 정본이고 서버는 사본이다.** 이 호출이 실패해도 앱은 아무것도 잃지 않으므로,
+     *    부르는 쪽은 실패를 **화면에 띄우지 않는다**(조용히 다음 기회에 다시 민다).
+     *
+     * 🔴 **서버는 단어를 돌려주지 않는다.** 당기기가 없다 — 받은 개수와 서버가 아는 총 개수만 온다.
+     *
+     * ⚠ 한 번에 500개까지다. 더 많으면 `too-many` 가 오므로 부르는 쪽이 나눠 보낸다.
+     */
+    async syncWords(
+      words: ReadonlyArray<{
+        wordId: number;
+        word: string;
+        meanings?: string[];
+        language?: string | null;
+        categoryId?: number | null;
+        createdAt?: string;
+        updatedAt: string;
+        deletedAt?: string | null;
+      }>,
+    ): Promise<Result<{ accepted: number; dropped: number; total: number }>> {
+      if (!baseUrl) return { ok: false, reason: 'not-configured' };
+      if (!(await loadToken())) return { ok: false, reason: 'not-signed-in' };
+
+      const res = await req(
+        '/api/v1/words/sync',
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ app: cfg.appCode, words }),
+        },
+        true,
+      );
+      if (!res) return { ok: false, reason: 'offline' };
+      if (res.status === 401) {
+        await setSession(null, null);
+        return { ok: false, reason: 'unauthorized' };
+      }
+      if (!res.ok) return { ok: false, reason: mapFail(res.status) };
+      try {
+        const j = (await res.json()) as { accepted?: number; dropped?: number; total?: number };
+        return { ok: true, accepted: j.accepted ?? 0, dropped: j.dropped ?? 0, total: j.total ?? 0 };
       } catch {
         return { ok: false, reason: 'error' };
       }

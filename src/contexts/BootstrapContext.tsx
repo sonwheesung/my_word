@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { AppState } from 'react-native';
 import { commonServer, ensureDeviceSession } from '../services/commonServer/client';
+import { syncService } from '../services/syncService';
 import { noticeService } from '../services/noticeService';
 import type { AnnouncementItem, Bootstrap } from '../services/commonServer/types';
 
@@ -54,6 +55,22 @@ export function BootstrapProvider({ children }: { children: React.ReactNode }) {
       if (result.ok) setBoot(result.data);
       setReadIds(stored);
       setLoaded(true);
+
+      /*
+       * 단어 밀기 — **부팅을 막지 않는다.**
+       *
+       * 🔴 `setLoaded(true)` **뒤에** 떼어 둔다. 앞에 두면 단어가 많은 사용자의 첫 화면이
+       *    네트워크를 기다리게 되는데, 이 기능은 사용자에게 아무 값도 주지 않는다
+       *    (기기가 정본이고 서버는 분석 창고다). **값을 안 주는 일이 화면을 막으면 안 된다.**
+       *
+       * 🔴 결과를 보지 않고 화면도 안 바꾼다. 실패하면 다음 부팅이 다시 민다.
+       * ⚠ `await` 하지 않는다 — 이 effect 가 끝나야 할 이유가 없다.
+       */
+      void syncService.pushOnce().then((r) => {
+        if (__DEV__ && r.pushed > 0) {
+          console.log(`[sync] 단어 ${r.pushed}개 밀었다 · 남은 ${r.remaining}개`);
+        }
+      });
     })();
 
     return () => {

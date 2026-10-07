@@ -144,3 +144,9 @@ export const EXAM_HISTORY_MAX = 20;
  * ⚠ 이 값은 **안내 문구용**이다. 실제 포기는 SDK 타임아웃이 한다 — 두 값을 섞지 않는다.
  */
 export const EXAM_EXPECTED_WAIT_SEC = 90;
+
+// --- 단어 밀기 (2026-10-07 신설) ---
+// 🔴 **기기가 정본이고 서버는 사본이자 분석 창고다.** 이 키가 깨져도 앱은 멀쩡히 돌고,
+//    최악의 경우 전부 다시 밀 뿐이다(서버가 멱등이다).
+// ⚠ 백업에 담지 않는다 — 기기별 진행 상태이고, 복원한 기기에서 다시 밀면 그만이다.
+export const SYNC_STATE_KEY = '@my_word_sync_state';
