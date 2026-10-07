@@ -2,6 +2,23 @@ import i18n from '../i18n';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import type { Category, CategoryRequest, Word, WordRequest } from '../types/word';
+import { getDb } from '../db';
+import { categoryRepo, resultRepo, wordRepo } from '../db/repo';
+
+/*
+ * 🔴 **2026-10-07: 단어의 정본이 SQLite 로 옮겨졌다.**
+ *
+ * 각 메서드는 `getDb()` 가 드라이버를 주면 SQLite 를, `null` 을 주면 **옛 구현**을 쓴다.
+ * `null` 이 되는 경우는 둘이다 — 웹(Puppeteer 검증 전용이라 SQLite 를 안 켠다)과
+ * DB 를 못 연 사고. 둘 다 앱이 멀쩡히 돌아야 하므로 **옛 구현을 지우지 않고 남긴다.**
+ *
+ * ⚠ 그래서 이 파일에 같은 일을 하는 코드가 두 벌 있다. 보기 싫지만 의도한 것이다 —
+ *   운영 중인 앱에서 저장 엔진을 바꾸는 동안 **되돌릴 길**이 있어야 한다.
+ *   동기화까지 끝나고 한 릴리스가 조용히 지나가면 옛 쪽을 지운다.
+ *
+ * 🔴 `@my_word_next_id` 는 **그대로 AsyncStorage 에 있다.** 백업의 `repairNextId` 가 그 값을
+ *   고쳐 주는 구조라, id 발급을 옮기면 그쪽이 같이 흔들린다. 작은 값 하나라 옮길 이득도 없다.
+ */
 
 // AsyncStorage 키
 const CATEGORIES_KEY = '@my_word_categories';
@@ -80,10 +97,14 @@ export interface StoredQuizResult {
 
 export const categoryStorage = {
   async getAll(): Promise<Category[]> {
+    const db = getDb();
+    if (db !== null) return categoryRepo.getAll(db);
     return getCollection<Category>(CATEGORIES_KEY);
   },
 
   async getById(id: number): Promise<Category | undefined> {
+    const db = getDb();
+    if (db !== null) return categoryRepo.getById(db, id);
     const categories = await this.getAll();
     return categories.find((c) => c.categoryId === id);
   },
@@ -144,20 +165,31 @@ export const categoryStorage = {
 
 export const wordStorage = {
   async getAll(): Promise<Word[]> {
+    const db = getDb();
+    if (db !== null) return wordRepo.getAll(db);
     return getCollection<Word>(WORDS_KEY);
   },
 
+  /** 🔴 SQLite 에서는 인덱스로 거른다. 전체를 읽어 JS 로 거르던 것이 이 전환의 이유다 */
   async getByCategoryId(categoryId: number): Promise<Word[]> {
+    const db = getDb();
+    if (db !== null) return wordRepo.getByCategoryId(db, categoryId);
     const words = await this.getAll();
     return words.filter((w) => w.categoryId === categoryId);
   },
 
   async getById(id: number): Promise<Word | undefined> {
+    const db = getDb();
+    if (db !== null) return wordRepo.getById(db, id);
     const words = await this.getAll();
     return words.find((w) => w.wordId === id);
   },
 
   async create(data: WordRequest): Promise<Word> {
+    const db = getDb();
+    if (db !== null) {
+      return wordRepo.create(db, await getNextId(), data, new Date().toISOString());
+    }
     const words = await this.getAll();
     const now = new Date().toISOString();
     const newWord: Word = {
@@ -177,6 +209,13 @@ export const wordStorage = {
   },
 
   async update(id: number, data: WordRequest): Promise<Word> {
+    const db = getDb();
+    if (db !== null) {
+      const updated = wordRepo.update(db, id, data, new Date().toISOString());
+      // 🔴 없는 id 는 옛 구현과 **같은 예외**를 던진다. 화면이 그 문구를 보고 있다
+      if (updated === undefined) throw new Error(i18n.t('단어를 찾을 수 없습니다'));
+      return updated;
+    }
     const words = await this.getAll();
     const index = words.findIndex((w) => w.wordId === id);
     if (index === -1) throw new Error(i18n.t('단어를 찾을 수 없습니다'));
@@ -195,6 +234,11 @@ export const wordStorage = {
   },
 
   async delete(id: number): Promise<void> {
+    const db = getDb();
+    if (db !== null) {
+      wordRepo.delete(db, id);
+      return;
+    }
     let words = await this.getAll();
     words = words.filter((w) => w.wordId !== id);
     await setCollection(WORDS_KEY, words);
@@ -205,6 +249,8 @@ export const wordStorage = {
 
 export const quizResultStorage = {
   async getAll(): Promise<StoredQuizResult[]> {
+    const db = getDb();
+    if (db !== null) return resultRepo.getAll(db);
     return getCollection<StoredQuizResult>(QUIZ_RESULTS_KEY);
   },
 
@@ -234,6 +280,12 @@ export const quizResultStorage = {
         userAnswer: r.userAnswer,
         takenAt: now,
       });
+    }
+    const db = getDb();
+    if (db !== null) {
+      // 🔴 한 판을 한 트랜잭션으로. 반쯤 저장된 결과는 정답률을 조용히 틀리게 만든다
+      resultRepo.saveResults(db, newResults);
+      return;
     }
     await setCollection(QUIZ_RESULTS_KEY, [...existing, ...newResults]);
   },

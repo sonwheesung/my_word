@@ -1,5 +1,7 @@
 import { APP_VERSION, LANGUAGE_KEY, NOTICE_READ_KEY, NOTIFY_ENABLED_KEY, NOTIFY_PROMPTED_KEY, NOTIFY_TIME_KEY, SRS_KEY, THEME_KEY } from '../constants/appConfig';
 import { BACKUP_KEYS, readRaw, writeRaw } from '../utils/storage';
+import { getDb } from '../db';
+import { backupRepo } from '../db/repo';
 import type { Category, Word } from '../types/word';
 import type { StoredQuizResult } from '../utils/storage';
 
@@ -137,9 +139,50 @@ function repairNextId(nextId: number, words: Word[], results: StoredQuizResult[]
   return Math.max(safe, max);
 }
 
+/** 설정 묶음 읽기. 두 경로(SQLite · 옛 저장소)가 같은 것을 쓴다 */
+async function readSettings(): Promise<BackupSettings> {
+  const [theme, language, readNotices, notifyEnabled, notifyTime, notifyPrompted] = await Promise.all([
+    readRaw(THEME_KEY),
+    readRaw(LANGUAGE_KEY),
+    readRaw(NOTICE_READ_KEY),
+    readRaw(NOTIFY_ENABLED_KEY),
+    readRaw(NOTIFY_TIME_KEY),
+    readRaw(NOTIFY_PROMPTED_KEY),
+  ]);
+  const settings: BackupSettings = {};
+  if (theme) settings.theme = theme;
+  if (language) settings.language = language;
+  if (readNotices) settings.readNotices = readNotices;
+  if (notifyEnabled) settings.notifyEnabled = notifyEnabled;
+  if (notifyTime) settings.notifyTime = notifyTime;
+  if (notifyPrompted) settings.notifyPrompted = notifyPrompted;
+  return settings;
+}
+
 export const backupService = {
   /** 지금 기기의 상태를 백업 객체로 만든다. 날짜·id 를 **손대지 않고 그대로** 담는다 */
   async create(): Promise<BackupFile> {
+    /*
+     * 🔴 SQLite 가 정본이면 거기서 읽는다(2026-10-07).
+     *    **파일 포맷은 한 글자도 안 바뀐다** — 1.7.0 사용자가 이 파일을 복원할 수 있어야 한다.
+     */
+    const db = getDb();
+    if (db !== null) {
+      const words = backupRepo.words(db);
+      const quizResults = backupRepo.quizResults(db);
+      return {
+        schemaVersion: BACKUP_SCHEMA_VERSION,
+        appVersion: APP_VERSION,
+        exportedAt: new Date().toISOString(),
+        categories: backupRepo.categories(db),
+        words,
+        quizResults,
+        nextId: repairNextId(Number((await readRaw(BACKUP_KEYS.nextId)) ?? 0), words, quizResults),
+        settings: await readSettings(),
+        exams: backupRepo.exams(db),
+      };
+    }
+
     const [categories, words, quizResults, nextIdRaw, exams] = await Promise.all([
       readJsonArray<Category>(BACKUP_KEYS.categories),
       readJsonArray<Word>(BACKUP_KEYS.words),
@@ -148,23 +191,7 @@ export const backupService = {
       readJsonArray<unknown>(BACKUP_KEYS.exams),
     ]);
 
-    const [theme, language, readNotices, notifyEnabled, notifyTime, notifyPrompted] =
-      await Promise.all([
-        readRaw(THEME_KEY),
-        readRaw(LANGUAGE_KEY),
-        readRaw(NOTICE_READ_KEY),
-        readRaw(NOTIFY_ENABLED_KEY),
-        readRaw(NOTIFY_TIME_KEY),
-        readRaw(NOTIFY_PROMPTED_KEY),
-      ]);
-
-    const settings: BackupSettings = {};
-    if (theme) settings.theme = theme;
-    if (language) settings.language = language;
-    if (readNotices) settings.readNotices = readNotices;
-    if (notifyEnabled) settings.notifyEnabled = notifyEnabled;
-    if (notifyTime) settings.notifyTime = notifyTime;
-    if (notifyPrompted) settings.notifyPrompted = notifyPrompted;
+    const settings = await readSettings();
 
     return {
       schemaVersion: BACKUP_SCHEMA_VERSION,
@@ -263,9 +290,29 @@ export const backupService = {
    *   옛값이면 다음 id 가 겹칠 뿐 데이터가 사라지지는 않는다.
    */
   async restore(backup: BackupFile): Promise<void> {
-    await writeRaw(BACKUP_KEYS.categories, JSON.stringify(backup.categories));
-    await writeRaw(BACKUP_KEYS.words, JSON.stringify(backup.words));
-    await writeRaw(BACKUP_KEYS.quizResults, JSON.stringify(backup.quizResults));
+    /*
+     * ⚠ SQLite 가 정본이면 옛 키를 **안 덮는다.** 덮으면 이사 전 스냅샷이 사라져
+     *   되돌릴 길이 없어진다(`db/index.ts` 머리 주석의 "전환의 대가").
+     */
+    if (getDb() === null) {
+      await writeRaw(BACKUP_KEYS.categories, JSON.stringify(backup.categories));
+      await writeRaw(BACKUP_KEYS.words, JSON.stringify(backup.words));
+      await writeRaw(BACKUP_KEYS.quizResults, JSON.stringify(backup.quizResults));
+    }
+    // 🔴 SQLite 가 정본이면 거기로 복원한다. 한 트랜잭션이라 반쯤 복원된 상태가 없다
+    const db = getDb();
+    if (db !== null) {
+      backupRepo.restore(
+        db,
+        {
+          categories: backup.categories,
+          words: backup.words,
+          quizResults: backup.quizResults,
+          ...(Array.isArray(backup.exams) ? { exams: backup.exams } : {}),
+        },
+        new Date().toISOString(),
+      );
+    }
     await writeRaw(BACKUP_KEYS.nextId, String(backup.nextId));
     // 옛 백업에는 이 키가 없다 — 그때는 **지금 기기의 기록을 지우지 않는다.**
     // (설정을 "없으면 건드리지 않는다"로 다루는 것과 같은 규율)

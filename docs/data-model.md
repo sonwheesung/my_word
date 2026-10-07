@@ -178,3 +178,58 @@ Category (1) ── (N) Word (1) ── (N) StoredQuizResult
 | 연속 학습 | 단어 등록일 또는 퀴즈일이 있는 날(로컬 날짜). 오늘이 아니면 어제부터 거꾸로 센다 | 홈 · 마이 |
 | 일별 활동 | 그날 추가한 단어 수 + 그날 퀴즈 결과 수 | 마이 히트맵 |
 | 복습 만기 | 위 SrsStore | 홈 배너 · 카테고리 뱃지 · 복습 모드 · 알림 문구 |
+
+---
+
+## 🔴 로컬 SQLite — 단어의 정본 (2026-10-07 전환)
+
+단어 저장이 **AsyncStorage(JSON 한 덩어리) → 기기 SQLite** 로 옮겨졌다.
+구조는 `mission` 에서 승계했다(그쪽은 Re:Read 에서 승계).
+
+```
+src/db/schema.ts            표 5개 · Expand-only · 순수(expo 를 모른다)
+src/db/migrate.ts           러너 · SqlDriver · 다운그레이드 거부
+src/db/importFromLegacy.ts  AsyncStorage → SQLite 이사
+src/db/repo.ts              읽기·쓰기. storage.ts 와 시그니처가 같다
+src/db/index.ts             expo-sqlite 연결(여기만 안다) · 부팅
+```
+
+파일: `files/SQLite/myword.db` (⚠ `databases/` 가 아니다 — 거긴 AsyncStorage 의 RKStorage 다)
+
+| 표 | 담는 것 |
+|---|---|
+| `categories` | 카테고리 |
+| `words` | 단어. 뜻·예문·태그는 JSON 문자열 |
+| `quiz_results` | 퀴즈 결과 |
+| `exams` | AI 시험 기록 |
+| `meta` | `schema_version` · `legacy_imported_at` |
+
+### 🔴 이사가 지키는 것 넷
+
+1. **옛 데이터를 지우지 않는다.** `@my_word_*` 는 이사 뒤에도 그대로다 — 되돌릴 길
+2. **멱등이다.** 부팅마다 불러도 안전하다(표식이 있으면 건너뛴다)
+3. **`wordId` 를 새로 매기지 않는다.** `quiz_results.word_id` 와 `@my_word_srs` 가 참조한다 —
+   다시 매기면 **정답률이 엉뚱한 단어에 붙고 오류는 안 난다**
+4. **한 트랜잭션이다.** 반쯤 옮겨진 상태로 끝나지 않는다. 표식은 맨 마지막에 찍는다
+
+실패하면 던지고, `db/index.ts` 가 받아 **옛 저장소로 계속 돈다.** 이사 실패로 앱을 못 쓰게 만들지 않는다.
+
+✅ **실기기 검증 (2026-10-07 · AVD `my_word`)**: 단어 15개가 든 기기에 덮어 설치 →
+`wordId` **101~115 그대로** · 퀴즈 결과가 가리키는 단어 일치 · 뜻 보존 ·
+홈 숫자가 이사 전과 **완전히 동일**(15 단어 · 78% · 복습 15) · 옛 저장소 2498B 그대로.
+
+### ⚠ 아직 두 벌이다
+
+`utils/storage.ts` 는 `getDb()` 가 `null` 이면 **옛 구현**을 쓴다. `null` 이 되는 경우는
+웹(Puppeteer 검증 전용이라 SQLite 를 안 켠다)과 DB 를 못 연 사고다.
+동기화까지 끝나고 한 릴리스가 조용히 지나가면 옛 쪽을 지운다.
+
+🔴 `@my_word_next_id` 는 **그대로 AsyncStorage 에 있다.** 백업의 `repairNextId` 가 그 값을 고쳐
+주는 구조라 옮기면 그쪽이 같이 흔들린다.
+
+### 🔴 되돌릴 수 없는 릴리스다
+
+이사 뒤 새 단어는 SQLite 에만 들어간다. 옛 키는 **이사 시점 스냅샷으로 멈춘다.**
+그래서 이 버전보다 낮은 버전으로 되돌리면 그 뒤에 추가한 단어가 안 보인다.
+네이티브 모듈(`expo-sqlite`)이 늘었으므로 **OTA 로도 못 나간다** — 스토어 빌드이고
+`runtimeVersion` 을 1.6.0 → **1.8.0** 으로 올렸다(`app.json` · `strings.xml` 양쪽).

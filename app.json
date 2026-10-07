@@ -3,7 +3,7 @@
     "name": "My Word",
     "slug": "my-word-front",
     "version": "1.7.0",
-    "runtimeVersion": "1.6.0",
+    "runtimeVersion": "1.8.0",
     "updates": {
       "url": "https://u.expo.dev/4b78845e-3f18-437c-ad1b-edd7e72bdc5f",
       "checkAutomatically": "ON_LOAD",

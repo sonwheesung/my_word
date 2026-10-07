@@ -66,6 +66,18 @@ my_word/
 
 화면별 동작은 [`screens.md`](screens.md).
 
+### 로컬 DB (`src/db/`, 2026-10-07 신설)
+
+단어의 정본이 AsyncStorage 에서 **기기 SQLite** 로 옮겨졌다. 자세한 것은 [`data-model.md`](data-model.md).
+
+| 파일 | 하는 일 | expo 를 아나 |
+|---|---|---|
+| `schema.ts` · `migrate.ts` · `importFromLegacy.ts` · `repo.ts` | 스키마 · 러너 · 이사 · 읽기쓰기 | ❌ **순수** |
+| `index.ts` | `expo-sqlite` 연결 · 부팅 | ✅ 여기만 |
+
+🔴 **순수 모듈로 나눈 이유**: 가드가 `node:sqlite` 에 **진짜 DB 를 세워** 같은 코드를 돈다
+(`__tests__/db.test.ts` 31개). 에뮬레이터 없이 스키마와 이사가 검증된다. mission 승계.
+
 ### 서비스 (`src/services/`)
 
 | 파일 | 하는 일 | 네트워크 |

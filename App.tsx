@@ -3,6 +3,9 @@ import { View, Text, ScrollView, BackHandler, Alert } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import i18n, { initLanguage } from './src/i18n';
+import { bootLocalDb } from './src/db';
+import { parseArray } from './src/db/importFromLegacy';
+import { BACKUP_KEYS, readRaw } from './src/utils/storage';
 import HomeScreen from './src/screens/HomeScreen';
 import ManageWordsScreen from './src/screens/ManageWordsScreen';
 import AddWordScreen from './src/screens/AddWordScreen';
@@ -521,7 +524,42 @@ export default function App() {
     initLanguage().finally(() => setLanguageReady(true));
   }, []);
 
-  if (!languageReady) {
+  /*
+   * 🔴 **로컬 DB 를 열고 이사를 끝낸 뒤에 그린다**(2026-10-07).
+   *
+   *    순서가 중요하다. 이사가 끝나기 전에 화면이 단어를 읽으면 **빈 SQLite 를 읽고
+   *    "단어가 없습니다"를 보여준다.** 사용자에게는 단어가 사라진 것으로 보이고,
+   *    거기서 카테고리를 다시 만들면 진짜로 꼬인다.
+   *
+   * ⚠ 이사는 동기 SQLite + 키 네 개 읽기라 밀리초 단위다. 언어 설정을 기다리는 것과 같은 창이다.
+   * ⚠ 실패해도 **막지 않는다.** `bootLocalDb` 가 null 을 주면 옛 저장소로 계속 돈다.
+   */
+  const [dbReady, setDbReady] = useState(false);
+  useEffect(() => {
+    (async () => {
+      try {
+        const [categories, words, quizResults, exams] = await Promise.all([
+          readRaw(BACKUP_KEYS.categories),
+          readRaw(BACKUP_KEYS.words),
+          readRaw(BACKUP_KEYS.quizResults),
+          readRaw(BACKUP_KEYS.exams),
+        ]);
+        bootLocalDb(() => ({
+          categories: parseArray(categories),
+          words: parseArray(words),
+          quizResults: parseArray(quizResults),
+          exams: parseArray(exams),
+        }));
+      } catch (error: any) {
+        // 여기서 막으면 앱이 아예 안 열린다. 옛 저장소로 계속 간다
+        console.warn('[db] 부팅 실패, 옛 저장소로 계속한다:', error);
+      } finally {
+        setDbReady(true);
+      }
+    })();
+  }, []);
+
+  if (!languageReady || !dbReady) {
     return <View style={{ flex: 1, backgroundColor: '#8CC5A0' }} />;
   }
 
