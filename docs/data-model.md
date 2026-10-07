@@ -31,6 +31,11 @@
 | `@my_word_exam_prefs` | `EXAM_PREFS_KEY` · appConfig.ts | `ExamPrefs` JSON | 🚫 | 카테고리별로 고른 **단어의 언어** |
 | `@my_word_sync_state` | `SYNC_STATE_KEY` · appConfig.ts | `SyncState` JSON | 🚫 | 단어를 어디까지 밀었나(기기별 진행 상태) |
 
+`SyncState` = `{ lastUpdatedAt, lastSyncedAt, serverTotal, rewoundFor }`
+🔴 **`serverTotal` 은 진단용이 아니다** — 내 단어 수보다 작으면 서버가 행을 잃은 것이라 장부를
+`null` 로 되감아 전부 다시 민다. `rewoundFor` 는 같은 숫자로 두 번 되감지 않기 위한 표식이다
+(없으면 서버가 끝내 다 못 받는 상태에서 **부팅마다 전부 다시 민다**). 자세한 것은 `services-api.md`.
+
 **SecureStore** (키 이름만 적는다. 값은 자격증명이다)
 
 | 키 | 용도 |

@@ -38,11 +38,23 @@ export interface SyncState {
   lastUpdatedAt: string | null;
   /** 마지막으로 민 시각(진단용) */
   lastSyncedAt: string | null;
-  /** 서버가 아는 총 개수(진단용) */
+  /** 서버가 아는 총 개수. 🔴 진단용이 아니다 — `needsRewind` 가 이것으로 장부를 의심한다 */
   serverTotal: number | null;
+  /**
+   * 마지막으로 **되감았을 때의** `serverTotal`.
+   *
+   * 🔴 같은 숫자로는 두 번 되감지 않기 위한 것이다. 서버가 어떤 이유로 끝내 다 받지 못하면
+   *    이것이 없으면 **부팅마다 전부 다시 밀게 된다.**
+   */
+  rewoundFor: number | null;
 }
 
-export const EMPTY_STATE: SyncState = { lastUpdatedAt: null, lastSyncedAt: null, serverTotal: null };
+export const EMPTY_STATE: SyncState = {
+  lastUpdatedAt: null,
+  lastSyncedAt: null,
+  serverTotal: null,
+  rewoundFor: null,
+};
 
 /** 🔴 어떤 입력에도 던지지 않는다 — 상태 하나가 깨졌다고 동기화가 멈추면 안 된다 */
 export function parseState(raw: string | null): SyncState {
@@ -59,7 +71,32 @@ export function parseState(raw: string | null): SyncState {
     lastUpdatedAt: typeof o.lastUpdatedAt === 'string' ? o.lastUpdatedAt : null,
     lastSyncedAt: typeof o.lastSyncedAt === 'string' ? o.lastSyncedAt : null,
     serverTotal: typeof o.serverTotal === 'number' && Number.isFinite(o.serverTotal) ? o.serverTotal : null,
+    rewoundFor: typeof o.rewoundFor === 'number' && Number.isFinite(o.rewoundFor) ? o.rewoundFor : null,
   };
+}
+
+/**
+ * **장부를 되감아야 하는가.** 순수 함수다.
+ *
+ * 🔴 **2026-10-07 실기기에서 찾았다.** 기기 장부는 *"10:46 까지 다 밀었다"* 인데 서버에는
+ *    단어가 **17개 중 1개**뿐이었다. 그런데 서버는 매번 자기가 가진 수(`total`)를 돌려주고
+ *    기기는 그걸 `serverTotal` 로 **저장까지 하고 있었다** — 증거를 손에 들고 안 본 것이다.
+ *
+ * 🔴 **이 구멍은 스스로 닫히지 않는다.** `pushOnce` 는 밀 것이 없으면(`batch.length === 0`)
+ *    서버에 **아예 묻지 않고** 돌아간다. 그래서 한 번 어긋나면 그 침묵이 **영구적**이다.
+ *    밀기는 실패를 화면에 안 띄우는 기능이라 아무도 눈치채지 못한다.
+ *
+ * ⚠ **모르는 것으로 되감지 않는다.** `serverTotal` 이 `null`(아직 한 번도 못 물어봄)이거나
+ *   `lastUpdatedAt` 이 `null`(아직 한 번도 안 밂)이면 되감을 것이 없다.
+ *
+ * ⚠ **같은 숫자로 두 번 되감지 않는다**(`rewoundFor`). 서버가 끝내 다 못 받는 상태라면
+ *   그것 없이는 **부팅마다 전부 다시 밀게 된다.** 되감기는 고치려는 시도이지 재시도 루프가 아니다.
+ */
+export function needsRewind(state: SyncState, localCount: number): boolean {
+  if (state.lastUpdatedAt === null) return false;
+  if (state.serverTotal === null) return false;
+  if (state.serverTotal >= localCount) return false;
+  return state.rewoundFor !== state.serverTotal;
 }
 
 /**
@@ -124,7 +161,12 @@ export const syncService = {
 
       const state = await this.loadState();
       const words = await wordService.getWords();
-      const batch = pickChanged(words, state.lastUpdatedAt);
+      /*
+       * 🔴 **서버가 나보다 적게 들고 있으면 장부를 되감아 전부 다시 민다**(`needsRewind`).
+       *    서버 쓰기는 멱등(같은 키에 덮어쓰기)이라 다시 미는 비용은 줄 갱신뿐이다.
+       */
+      const rewind = needsRewind(state, words.length);
+      const batch = pickChanged(words, rewind ? null : state.lastUpdatedAt);
       if (batch.length === 0) return { pushed: 0, remaining: 0 };
 
       let result = await commonServer.syncWords(toPayload(batch));
@@ -150,6 +192,8 @@ export const syncService = {
         lastUpdatedAt: last === undefined ? state.lastUpdatedAt : last.updatedAt,
         lastSyncedAt: new Date().toISOString(),
         serverTotal: result.total,
+        // 되감았다는 사실을 남긴다 — 같은 숫자로 또 되감지 않기 위해서다
+        rewoundFor: rewind ? state.serverTotal : state.rewoundFor,
       });
       /*
        * ⚠ 방금 민 것을 빼고 센다. `pickChanged` 는 경계를 `>=` 로 보므로(같은 밀리초를 빠뜨리지

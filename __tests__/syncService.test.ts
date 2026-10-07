@@ -15,7 +15,13 @@ declare const __dirname: string;
 const fs = require('fs') as { readFileSync(p: string, enc: string): string };
 const path = require('path') as { join(...parts: string[]): string };
 
-import { EMPTY_STATE, parseState, pickChanged, toPayload } from '../src/services/syncService';
+import {
+  EMPTY_STATE,
+  needsRewind,
+  parseState,
+  pickChanged,
+  toPayload,
+} from '../src/services/syncService';
 import type { Word } from '../src/types/word';
 
 let seq = 0;
@@ -132,6 +138,8 @@ describe('parseState — 어떤 입력에도 던지지 않는다', () => {
       lastUpdatedAt: '2026-10-01T00:00:00.000Z',
       lastSyncedAt: '2026-10-02T00:00:00.000Z',
       serverTotal: 12,
+      // 옛 저장본에는 없는 칸이다 — 없으면 null 로 읽어야 한다(2026-10-07 추가)
+      rewoundFor: null,
     });
   });
 
@@ -185,5 +193,158 @@ describe('🔴 밀기만 한다 (소스 훑기)', () => {
     for (const banned of ['memo', 'examples', 'tags']) {
       expect(body).not.toContain(banned);
     }
+  });
+});
+
+describe('🔴 needsRewind — 서버가 나보다 적게 들고 있으면 장부를 의심한다', () => {
+  const st = (over: Partial<typeof EMPTY_STATE> = {}) => ({ ...EMPTY_STATE, ...over });
+
+  it('🔴 실기기에서 난 그 상태: 다 밀었다고 믿는데 서버엔 1개', () => {
+    expect(needsRewind(st({ lastUpdatedAt: '2026-10-07T10:46:03.837Z', serverTotal: 1 }), 17)).toBe(true);
+  });
+
+  it('서버가 나만큼 들고 있으면 되감지 않는다', () => {
+    expect(needsRewind(st({ lastUpdatedAt: 'x', serverTotal: 17 }), 17)).toBe(false);
+  });
+
+  it('서버가 더 많아도 되감지 않는다 (지운 단어가 서버에 남는다)', () => {
+    expect(needsRewind(st({ lastUpdatedAt: 'x', serverTotal: 20 }), 17)).toBe(false);
+  });
+
+  it('⚠ 아직 한 번도 안 밀었으면 되감을 것이 없다', () => {
+    expect(needsRewind(st({ lastUpdatedAt: null, serverTotal: 1 }), 17)).toBe(false);
+  });
+
+  it('⚠ 서버 수를 모르면 되감지 않는다 — 모르는 것으로 판단하지 않는다', () => {
+    expect(needsRewind(st({ lastUpdatedAt: 'x', serverTotal: null }), 17)).toBe(false);
+    // 🔴 되감은 적이 있는 상태에서도 그렇다. `null >= n` 이 false 라 이 줄이 없으면
+    //    `rewoundFor !== null` 이 참이 되어 **모르는 채로 되감는다**(변이 테스트가 짚었다)
+    expect(needsRewind(st({ lastUpdatedAt: 'x', serverTotal: null, rewoundFor: 3 }), 17)).toBe(false);
+  });
+
+  it('🔴 같은 숫자로 두 번 되감지 않는다 (부팅마다 전부 다시 미는 것을 막는다)', () => {
+    expect(needsRewind(st({ lastUpdatedAt: 'x', serverTotal: 1, rewoundFor: 1 }), 17)).toBe(false);
+  });
+
+  it('어긋난 숫자가 달라지면 다시 한 번 되감는다', () => {
+    expect(needsRewind(st({ lastUpdatedAt: 'x', serverTotal: 5, rewoundFor: 1 }), 17)).toBe(true);
+  });
+
+  it('단어가 0개면 되감지 않는다 (0 < 0 이 아니다)', () => {
+    expect(needsRewind(st({ lastUpdatedAt: 'x', serverTotal: 0 }), 0)).toBe(false);
+  });
+
+  it('parseState 가 rewoundFor 를 읽는다', () => {
+    expect(parseState(JSON.stringify({ rewoundFor: 3 })).rewoundFor).toBe(3);
+    expect(parseState(JSON.stringify({ rewoundFor: 'x' })).rewoundFor).toBeNull();
+    expect(parseState(JSON.stringify({ rewoundFor: NaN })).rewoundFor).toBeNull();
+  });
+});
+
+// ── 🔴 pushOnce 의 **동작**을 잰다 ──────────────────────────────────────────
+//
+// 위의 `needsRewind` 테스트는 순수 함수다. 그것만으로는 **그 답을 실제로 쓰는가**를 못 본다 —
+// 변이 테스트에서 둘이 그대로 빠져나갔다(되감기를 계산만 하고 안 쓰기 · 되감은 사실을 안 남기기).
+//
+// ⚠ 단어는 **시각을 직접 쥐고** 만든다. 진짜 저장소로 연달아 만들면 `updatedAt` 이 같은
+//   밀리초에 몰리고, `pickChanged` 가 경계를 `>=` 로 보므로 매번 전부 다시 밀린다 —
+//   그건 설계대로이지 결함이 아니라서, 그대로 두면 되감기를 재는 눈이 멀어 버린다.
+
+import AsyncStorageForPush from '@react-native-async-storage/async-storage';
+import { syncService } from '../src/services/syncService';
+
+const sent: number[][] = [];
+// ⚠ 이름이 `mock` 으로 시작해야 한다 — jest 가 목 공장 안의 바깥 변수 접근을 그것만 허용한다
+let mockWords: Word[] = [];
+
+jest.mock('../src/services/commonServer/client', () => ({
+  commonServer: { isConfigured: () => true, syncWords: jest.fn() },
+  ensureDeviceSession: jest.fn(async () => true),
+}));
+
+jest.mock('../src/services/wordService', () => ({
+  wordService: { getWords: jest.fn(async () => mockWords) },
+}));
+
+describe('🔴 pushOnce — 되감기를 실제로 쓰는가', () => {
+  const { commonServer } = require('../src/services/commonServer/client');
+
+  /** 서버가 늘 `total` 을 말하게 한다. 받은 것은 `sent` 에 쌓인다 */
+  function serverSays(total: number | 'accumulate'): void {
+    let held = 0;
+    commonServer.syncWords.mockImplementation(async (payload: { wordId: number }[]) => {
+      sent.push(payload.map((p) => p.wordId));
+      held += payload.length;
+      return { ok: true, accepted: payload.length, total: total === 'accumulate' ? held : total };
+    });
+  }
+
+  beforeEach(async () => {
+    await AsyncStorageForPush.clear();
+    sent.length = 0;
+    mockWords = [1, 2, 3].map((n) =>
+      w('2026-10-0' + n + 'T00:00:00.000Z', { wordId: n, word: 'w' + n }),
+    );
+    serverSays('accumulate');
+  });
+
+  it('처음에는 전부 민다', async () => {
+    const r = await syncService.pushOnce();
+    expect(r.pushed).toBe(3);
+    expect(sent[0]).toEqual([1, 2, 3]);
+  });
+
+  it('두 번째는 밀 것이 없다 (서버가 나만큼 들고 있다)', async () => {
+    await syncService.pushOnce();
+    // ⚠ 경계가 `>=` 라 마지막 하나는 늘 다시 간다. 서버 쓰기가 멱등이라 괜찮다
+    const r = await syncService.pushOnce();
+    expect(r.pushed).toBe(1);
+    expect(sent[1]).toEqual([3]);
+  });
+
+  it('🔴 서버가 잃어버리면 전부 다시 민다 (실기기에서 난 그 상태)', async () => {
+    await syncService.pushOnce();
+    serverSays(1); // 주체 정리 · 복원 · 결함 — 이유가 무엇이든 서버가 적게 들고 있다
+    /*
+     * ⚠ **어긋남은 한 라운드 뒤에 발견된다.** 기기가 서버의 수를 아는 길은 밀어 보고 듣는 것뿐이라,
+     *   이 호출은 아직 옛 숫자(3)를 들고 판단한다. 새 숫자(1)를 들은 **다음** 호출이 되감는다.
+     *   🔴 그래서 경계를 `>=` 로 둔 것이 여기서도 일한다 — 밀 것이 늘 하나는 있어서
+     *   라운드가 끊기지 않는다. `>` 였다면 어긋난 기기가 **아무것도 안 보내며 영원히 조용하다.**
+     */
+    await syncService.pushOnce();
+    expect(sent[sent.length - 1]).toEqual([3]);
+
+    await syncService.pushOnce();
+    expect(sent[sent.length - 1]).toEqual([1, 2, 3]);
+  });
+
+  it('🔴 같은 숫자로는 두 번 되감지 않는다 (부팅마다 전부 다시 밀지 않는다)', async () => {
+    await syncService.pushOnce();
+    serverSays(1);
+    await syncService.pushOnce(); // 새 숫자를 듣는다
+    await syncService.pushOnce(); // 어긋남을 보고 한 번 되감는다
+    const after = sent.length;
+    await syncService.pushOnce();
+    await syncService.pushOnce();
+    // 그 뒤로는 경계 뒤의 한 개씩만 간다. 전부(3개)가 다시 가면 안 된다
+    expect(sent.slice(after).every((batch) => batch.length === 1)).toBe(true);
+  });
+
+  it('⚠ 서버가 더 많이 들고 있어도 되감지 않는다 (지운 단어가 서버에 남는다)', async () => {
+    await syncService.pushOnce();
+    serverSays(99);
+    await syncService.pushOnce();
+    await syncService.pushOnce();
+    const r = await syncService.pushOnce();
+    expect(r.pushed).toBe(1);
+  });
+
+  it('🔴 되감은 사실이 저장본에 남는다', async () => {
+    await syncService.pushOnce();
+    serverSays(1);
+    await syncService.pushOnce(); // 새 숫자를 듣는다
+    expect((await syncService.loadState()).rewoundFor).toBeNull();
+    await syncService.pushOnce(); // 되감는다
+    expect((await syncService.loadState()).rewoundFor).toBe(1);
   });
 });
