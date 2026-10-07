@@ -47,6 +47,21 @@ export interface BackupFile {
    */
   nextId: number;
   settings: BackupSettings;
+  /**
+   * AI 시험 기록 (2026-10-07 추가).
+   *
+   * 🔴 **`schemaVersion` 을 올리지 않았다. 올리면 안 된다.**
+   *    `parse` 가 `schemaVersion > BACKUP_SCHEMA_VERSION` 을 `newer-schema` 로 **거부**하므로,
+   *    2 로 올리면 **1.7.0 사용자가 새 백업을 복원할 수 없게 된다.** 운영 중인 앱이다.
+   *    옵셔널 필드를 더하는 것은 양방향으로 안전하다:
+   *      옛 앱이 새 백업을 읽으면 → 모르는 키를 무시하고 나머지를 복원한다(실측: `parse` 는
+   *                                 categories·words·quizResults 만 검사한다)
+   *      새 앱이 옛 백업을 읽으면 → 이 키가 없으니 `[]` 로 본다
+   *    1.5.0 백업을 넣을 때도 같은 판단이었다(*"schemaVersion 1 안 올림"*).
+   *
+   * ⚠ 그래서 **옵셔널이다.** 필수로 만들면 옛 백업이 `corrupt` 가 된다.
+   */
+  exams?: unknown[];
 }
 
 export type BackupError =
@@ -125,11 +140,12 @@ function repairNextId(nextId: number, words: Word[], results: StoredQuizResult[]
 export const backupService = {
   /** 지금 기기의 상태를 백업 객체로 만든다. 날짜·id 를 **손대지 않고 그대로** 담는다 */
   async create(): Promise<BackupFile> {
-    const [categories, words, quizResults, nextIdRaw] = await Promise.all([
+    const [categories, words, quizResults, nextIdRaw, exams] = await Promise.all([
       readJsonArray<Category>(BACKUP_KEYS.categories),
       readJsonArray<Word>(BACKUP_KEYS.words),
       readJsonArray<StoredQuizResult>(BACKUP_KEYS.quizResults),
       readRaw(BACKUP_KEYS.nextId),
+      readJsonArray<unknown>(BACKUP_KEYS.exams),
     ]);
 
     const [theme, language, readNotices, notifyEnabled, notifyTime, notifyPrompted] =
@@ -159,6 +175,7 @@ export const backupService = {
       quizResults,
       nextId: repairNextId(Number(nextIdRaw ?? 0), words, quizResults),
       settings,
+      exams,
     };
   },
 
@@ -209,6 +226,9 @@ export const backupService = {
         categories: categories as Category[],
         words: typedWords,
         quizResults: typedResults,
+        // ⚠ 배열이 아니면 **없는 것으로 본다.** 여기서 `corrupt` 를 내면 시험 기록 하나 때문에
+        //   단어 전부를 복원하지 못한다 — 잃는 쪽이 비교가 안 되게 크다.
+        exams: Array.isArray(raw.exams) ? (raw.exams as unknown[]) : [],
         nextId: repairNextId(
           typeof raw.nextId === 'number' ? raw.nextId : 0,
           typedWords,
@@ -247,6 +267,11 @@ export const backupService = {
     await writeRaw(BACKUP_KEYS.words, JSON.stringify(backup.words));
     await writeRaw(BACKUP_KEYS.quizResults, JSON.stringify(backup.quizResults));
     await writeRaw(BACKUP_KEYS.nextId, String(backup.nextId));
+    // 옛 백업에는 이 키가 없다 — 그때는 **지금 기기의 기록을 지우지 않는다.**
+    // (설정을 "없으면 건드리지 않는다"로 다루는 것과 같은 규율)
+    if (Array.isArray(backup.exams)) {
+      await writeRaw(BACKUP_KEYS.exams, JSON.stringify(backup.exams));
+    }
 
     // 🔴 복습 스케줄을 버린다. 백업에 담지 않는 파생값이라 이력에서 다시 만들어진다.
     //    srsService 는 "결과 개수가 다르면 재생"으로 스스로 고치지만, **개수만 같고 내용이

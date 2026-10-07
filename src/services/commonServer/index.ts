@@ -1,6 +1,6 @@
 // 공통 서버 클라이언트 SDK.
 //
-// ⚠️ 원본: common_server/client/index.ts 에서 복사 (2026-09-14, SDK_VERSION 2026-09-14).
+// ⚠️ 원본: common_server/client/index.ts 에서 복사 (2026-10-07, SDK_VERSION 2026-10-07).
 //    이 파일은 손으로 고치지 말 것 — 서버 계약이 바뀌면 원본을 갱신하고 다시 복사한다.
 //    (앱 4~5개 규모엔 monorepo·npm 패키지 오버헤드가 이득보다 크다는 판단)
 //
@@ -12,6 +12,7 @@ import type {
   Bootstrap,
   CommonServerConfig,
   EntitlementView,
+  ExamResponse,
   MyInquiry,
   Result,
   Subject,
@@ -23,9 +24,18 @@ import type {
 export type * from './types';
 
 /** 앱에 복사할 때 이 값을 복사본 주석에 남긴다 — 서버 계약이 바뀌었는지 판단하는 유일한 단서다. */
-export const SDK_VERSION = '2026-09-14'; // 공지 영어 본문(titleEn·bodyEn) + localizeAnnouncement(). 추가만이라 쓰는 앱만 재복사한다(지금은 My Word)
+export const SDK_VERSION = '2026-10-07'; // AI 시험(generateExam·reportQuestion) + req() 호출별 타임아웃. 추가만이라 쓰는 앱만 재복사한다(지금은 My Word)
 
 const DEFAULT_TIMEOUT_MS = 10000;
+
+/**
+ * AI 시험 생성만 쓰는 타임아웃 (SDK 2026-10-07).
+ *
+ * 프로덕션 실측: 단어 3개 → **34.5초**. 20문제 콜드 시험은 호출 2번 순차라 **90초 안팎** 추정.
+ * 서버 라우트의 `maxDuration` 이 300초이므로 그보다 짧게 두어 **앱이 먼저 포기하게** 한다 —
+ * 서버가 먼저 끊기면 사용자는 아무 응답도 못 받는데 원가는 나간다.
+ */
+const EXAM_TIMEOUT_MS = 120000;
 
 /**
  * 포그라운드 복귀 하트비트의 최소 간격. **SDK가 들고 있는다** — 앱마다 구현하면 어긋나고,
@@ -92,9 +102,23 @@ export function createCommonServer(cfg: CommonServerConfig) {
   let lastBeatAt = 0;
 
   /** 응답 없이 매달리지 않도록 타임아웃을 건다(사용자가 로딩에 갇히는 것 방지). */
-  async function req(path: string, init?: RequestInit, withAuth = false): Promise<Response | null> {
+  async function req(
+    path: string,
+    init?: RequestInit,
+    withAuth = false,
+    /**
+     * 이 호출만 다른 타임아웃을 쓴다.
+     *
+     * 🔴 AI 시험 생성 때문에 생겼다(SDK 2026-10-07). 기본 10초로는 **반드시 abort 된다** —
+     *   프로덕션 실측이 단어 3개에 34.5초였고 20문제 콜드 시험은 90초 안팎으로 추정된다.
+     *   abort 는 `offline` 로 떨어지므로, 없으면 **서버는 멀쩡히 문제를 만들고 앱만 "오프라인"이라고
+     *   말한다**(그리고 그 호출의 원가는 이미 나갔다).
+     * ⚠ 기본값을 올리지 않는다. 부팅 조회가 90초 매달리면 그게 더 나쁘다.
+     */
+    overrideTimeoutMs?: number,
+  ): Promise<Response | null> {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const timer = setTimeout(() => controller.abort(), overrideTimeoutMs ?? timeoutMs);
     const headers: Record<string, string> = { ...((init?.headers as Record<string, string>) ?? {}) };
     // 토큰이 없으면 헤더를 붙이지 않는다. 서버는 **헤더가 있는데 무효면 401**이고 익명으로 강등하지 않는다
     // (강등하면 로그인 사용자의 문의가 귀속 없이 저장돼 답변을 영영 못 받는다).
@@ -463,6 +487,94 @@ export function createCommonServer(cfg: CommonServerConfig) {
       try {
         const j = (await res.json()) as { tickets?: MyInquiry[] };
         return { ok: true, inquiries: j.tickets ?? [] };
+      } catch {
+        return { ok: false, reason: 'error' };
+      }
+    },
+
+    /**
+     * AI 시험 한 판 받기 (SDK 2026-10-07).
+     *
+     * 🔴 **이 호출만 느리다.** 타임아웃을 `EXAM_TIMEOUT_MS`(120초)로 올려 쓴다 — 기본 10초로는
+     *   서버가 멀쩡히 문제를 만드는 동안 앱이 abort 하고 `offline` 이라고 말한다.
+     *   **그 호출의 원가는 이미 나갔으므로 가장 나쁜 실패다.**
+     *
+     * ⚠ `ok: true` 인데 `questions` 가 비어 있는 경우는 없다 — 서버가 0개면 503 을 준다.
+     * ⚠ `degraded` 가 채워져 오면 **새 문제를 못 만들고 창고에서만 낸 것**이다. 시험은 정상이고
+     *   앱은 안내를 띄울지 말지만 고르면 된다(에러가 아니다).
+     * ⚠ `remaining` 은 구독자면 `null`(무제한)이다. 숫자 0 과 구별해서 다룬다.
+     */
+    async generateExam(args: {
+      language: string;
+      uiLang: string;
+      count?: number;
+      words: { word: string; meaning?: string }[];
+    }): Promise<Result<{ exam: ExamResponse }>> {
+      if (!baseUrl) return { ok: false, reason: 'not-configured' };
+      if (!(await loadToken())) return { ok: false, reason: 'not-signed-in' };
+
+      const res = await req(
+        '/api/v1/ai/exam/generate',
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ app: cfg.appCode, ...args }),
+        },
+        true,
+        EXAM_TIMEOUT_MS,
+      );
+      if (!res) return { ok: false, reason: 'offline' };
+      if (res.status === 401) {
+        await setSession(null, null);
+        return { ok: false, reason: 'unauthorized' };
+      }
+      // 403 = 무료 횟수를 다 썼다. `rate-limited` 로 접으면 "기다리면 된다"로 읽히므로 따로 둔다.
+      if (res.status === 403) return { ok: false, reason: 'quota-exhausted' };
+      // 503 = 창고도 비고 모델도 못 불렀다. 재시도가 의미 있다.
+      if (res.status === 503) return { ok: false, reason: 'unavailable' };
+      if (!res.ok) return { ok: false, reason: mapFail(res.status) };
+      try {
+        const j = (await res.json()) as ExamResponse;
+        if (!Array.isArray(j.questions) || j.questions.length === 0) {
+          return { ok: false, reason: 'error' };
+        }
+        return { ok: true, exam: j };
+      } catch {
+        return { ok: false, reason: 'error' };
+      }
+    },
+
+    /**
+     * 틀린 문제 신고 (SDK 2026-10-07). **모델을 부르지 않아 빠르다.**
+     *
+     * ⚠ 같은 사람이 같은 문제를 또 신고하면 `recorded: false` 로 **성공**이 온다.
+     *   사용자 입장에서는 이미 신고한 것이므로 실패로 그리지 않는다.
+     */
+    async reportQuestion(
+      questionId: string,
+      reason: 'wrong' | 'unclear' | 'offensive' | 'other',
+    ): Promise<Result<{ recorded: boolean; quarantined: boolean }>> {
+      if (!baseUrl) return { ok: false, reason: 'not-configured' };
+      if (!(await loadToken())) return { ok: false, reason: 'not-signed-in' };
+
+      const res = await req(
+        '/api/v1/ai/report',
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ app: cfg.appCode, questionId, reason }),
+        },
+        true,
+      );
+      if (!res) return { ok: false, reason: 'offline' };
+      if (res.status === 401) {
+        await setSession(null, null);
+        return { ok: false, reason: 'unauthorized' };
+      }
+      if (!res.ok) return { ok: false, reason: mapFail(res.status) };
+      try {
+        const j = (await res.json()) as { recorded?: boolean; quarantined?: boolean };
+        return { ok: true, recorded: j.recorded === true, quarantined: j.quarantined === true };
       } catch {
         return { ok: false, reason: 'error' };
       }

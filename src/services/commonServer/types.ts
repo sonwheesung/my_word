@@ -1,6 +1,6 @@
 // 공통 서버 클라이언트 SDK — 타입.
 //
-// ⚠️ 원본: common_server/client/types.ts 에서 복사 (2026-09-14, SDK_VERSION 2026-09-14).
+// ⚠️ 원본: common_server/client/types.ts 에서 복사 (2026-10-07, SDK_VERSION 2026-10-07).
 //    이 파일은 손으로 고치지 말 것 — 서버 계약이 바뀌면 원본을 갱신하고 다시 복사한다.
 //    (앱 4~5개 규모엔 monorepo·npm 패키지 오버헤드가 이득보다 크다는 판단)
 //
@@ -18,6 +18,12 @@ export type FailReason =
   | 'not-found' // 앱 미등록/비활성 (서버에 app_code가 없음)
   | 'unauthorized' // 로그인 실패 / 세션 만료·무효 (세션은 이 시점에 폐기된다)
   | 'not-signed-in' // 로컬에 세션이 없음 — 서버에 물어보지도 않은 상태
+  // ── AI 시험 (SDK 2026-10-07) ──
+  // 🔴 둘을 'rate-limited' 로 접지 않는다. 사용자가 할 일이 서로 다르다:
+  //    quota-exhausted → 기다려도 안 풀린다. 구독해야 한다
+  //    unavailable     → 기다리면 풀린다. 재시도가 의미 있다
+  | 'quota-exhausted' // 무료 시험 횟수를 다 썼다 (403)
+  | 'unavailable' // 창고도 비고 모델도 못 불렀다 (503). **무료 횟수는 소모되지 않았다**
   | 'error'; // 서버 오류
 
 export type Result<T> = ({ ok: true } & T) | { ok: false; reason: FailReason };
@@ -111,4 +117,51 @@ export interface CommonServerConfig {
   timeoutMs?: number;
   /** 세션 영속화. 없으면 메모리 전용 — 로그인 없는 앱은 넘기지 않아도 된다. */
   storage?: SessionStorage;
+}
+
+// ── AI 시험 (SDK 2026-10-07) ──────────────────────────────────────────────
+//
+// 🔴 **객관식 정답을 앱이 받는다.** 숨기면 채점마다 서버를 불러야 하고, 그러면 구독을 끊은
+//    사람이 재시험조차 못 치고 오프라인에서 이어 풀 수도 없다. 잃는 것은 "앱을 뜯으면 정답을
+//    알 수 있다"인데 그건 자기 학습을 자기가 망치는 것이라 막을 가치가 없다.
+
+export interface ExamQuestion {
+  id: string;
+  /** 이 문제가 묻는 단어. 사용자 단어장의 단어와 같은 문자열이다(정규화된 형태) */
+  word: string;
+  /** `meaning` | `form` | `usage` — 같은 단어의 문제가 서로 다른 축을 묻는다 */
+  axis: string;
+  /** `choice` | `blank`. 지금은 전부 choice 다(blank 는 다음 단계) */
+  format: string;
+  /** 문제 본문. **대상 언어로 쓰여 있다**(일본어 시험이면 일본어) */
+  prompt: string;
+  /** 보기 4개. **전부 대상 언어다** — 창고를 여러 언어 사용자가 나눠 쓰기 때문이다 */
+  choices: string[];
+  /** `choices` 의 인덱스 */
+  answerIndex: number;
+  /**
+   * 요청한 UI 언어의 뜻과 해설.
+   * 🔴 **`null` 일 수 있다.** 그 언어의 해설이 아직 만들어지지 않은 문제다 —
+   *    화면이 이 칸을 비워 둔 채로 그릴 수 있어야 한다. 에러가 아니다.
+   */
+  meaning: string | null;
+  explanation: string | null;
+}
+
+export interface ExamResponse {
+  ok: true;
+  examId: string | null;
+  language: string;
+  questions: ExamQuestion[];
+  /** 남은 무료 판수. **구독자는 `null`**(무제한) — 0 과 구별해서 다룬다 */
+  remaining: number | null;
+  subscribed: boolean;
+  /** 이번에 새로 만든 문제 수. 0 이면 전부 창고에서 나왔다(= 빨랐다) */
+  created: number;
+  /**
+   * 새 문제를 못 만든 사유. `null` 이면 정상.
+   * `daily` · `budget` · `cooldown` · `word-cap` · `not-configured` · 모델 실패 코드.
+   * ⚠ **에러가 아니다.** 시험은 정상으로 나왔고 창고에서만 낸 것이다.
+   */
+  degraded: string | null;
 }

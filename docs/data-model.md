@@ -27,6 +27,8 @@
 | `@my_word_ad_free` | `AD_FREE_KEY` · appConfig.ts | `'1'` · `'0'` | 🚫 | 광고 제거 구매 **캐시**. 진실은 Play 구매 이력 |
 | `@my_word_srs` | `SRS_KEY` · appConfig.ts | `SrsStore` JSON, 비우면 `''` | 🚫 | 복습 만기 캐시(파생값) |
 | `@my_word_flashcard_prefs` | `FLASHCARD_PREFS_KEY` · appConfig.ts | `FlashcardPrefs` JSON | 🚫 | 이 기기의 카드 보기 취향 |
+| `@my_word_exams` | `EXAMS_KEY` · appConfig.ts | `ExamRecord[]` JSON (최근 20판) | ✅ | AI 시험 기록(문제 · 내 답 · 점수) |
+| `@my_word_exam_prefs` | `EXAM_PREFS_KEY` · appConfig.ts | `ExamPrefs` JSON | 🚫 | 카테고리별로 고른 **단어의 언어** |
 
 **SecureStore** (키 이름만 적는다. 값은 자격증명이다)
 
@@ -99,6 +101,42 @@
 
 `{ order: 'created' | 'shuffle' | 'due', frontIsWord: boolean, autoSpeak: boolean, lastCategoryId: number | null }`
 어떤 값이 와도 throw 하지 않고, 이상한 값은 기본값(`created` · `true` · `false` · `null`)으로 돌린다.
+
+
+### ExamRecord (`@my_word_exams`)
+
+AI 시험 한 판. **문제 본문을 그대로 담는다** — 재시험과 성적표가 읽어야 하고, 서버에 다시 묻는 것은
+돈이 들며 구독을 끊으면 물을 수도 없다.
+
+| 필드 | 뜻 |
+|---|---|
+| `examId` | 서버가 준 시험 id. 없으면 `local-<시각>` |
+| `language` | 시험 대상 언어(`ja` 등) |
+| `takenAt` | ISO. 최신순 정렬의 축 |
+| `questions` | `ExamQuestion[]` — 본문 · 보기 4개 · 정답 번호 · 뜻 · 해설 |
+| `answers` | `(number \| null)[]` — `null` 은 넘긴 문제 |
+| `score` | `correct` · `wrong` · `skipped` · `total` · `accuracy` |
+
+- 🔴 **최근 20판(`EXAM_HISTORY_MAX`)만 남긴다.** 무제한이면 백업이 커져 복원이 실패할 수 있다
+- 🔴 **정답 번호를 기기가 갖는다.** 숨기면 채점마다 서버를 불러야 하고 그러면 구독을 끊은 사람이
+  재시험조차 못 치고 오프라인에서 이어 풀 수도 없다. 잃는 것은 *"앱을 뜯으면 정답을 알 수 있다"* 인데
+  그건 자기 학습을 자기가 망치는 것이라 막을 가치가 없다
+- ⚠ `questions[].meaning` · `explanation` 은 **`null` 일 수 있다** — 그 언어로 아직 만들어지지 않은 문제다
+- 🔴 **백업에 담지만 `schemaVersion` 을 올리지 않았다.** 올리면 1.7.0 사용자가 새 백업을 `newer-schema`
+  로 거부한다. 옵셔널 필드를 더하는 것이라 양방향으로 안전하다(`__tests__/backupService.test.ts` 가 지킨다)
+
+### ExamPrefs (`@my_word_exam_prefs`)
+
+```
+languageByCategory   { "<categoryId>": "ja" | "en" | "ko" | "zh" }
+lastCategoryId       마지막에 고른 카테고리
+```
+
+🔴 **`BACKUP_KEYS` 에 일부러 넣지 않았다.** 학습 기록이 아니라 이 기기에서의 선택이고,
+백업에 담으면 복원한 기기의 설정이 조용히 바뀐다(`FlashcardPrefs` 와 같은 판단).
+
+⚠ **모르는 언어 코드는 읽을 때 버린다.** 서버가 모르는 코드를 받으면 400 이므로,
+저장본이 오염돼도 그 값이 요청까지 흘러가지 않게 한다.
 
 ## 관계와 삭제
 

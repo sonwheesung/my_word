@@ -13,7 +13,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { backupService, BACKUP_SCHEMA_VERSION } from '../src/services/backupService';
 import { quizService } from '../src/services/quizService';
-import { wordStorage } from '../src/utils/storage';
+import { wordStorage, BACKUP_KEYS, readRaw, writeRaw } from '../src/utils/storage';
 import type { Word, Category } from '../src/types/word';
 
 const CATEGORIES_KEY = '@my_word_categories';
@@ -278,5 +278,89 @@ describe('summarize — 확인 화면이 보여줄 숫자', () => {
     await seedRealisticData();
     const summary = backupService.summarize(await backupService.create());
     expect(summary).toMatchObject({ words: 3, categories: 2, quizResults: 5 });
+  });
+});
+
+/**
+ * 🔴 AI 시험 기록을 백업에 더했을 때의 하위 호환 (2026-10-07).
+ *
+ * 운영 중인 앱이고 1.7.0 사용자가 아직 쓰고 있다. 그 사람들이 **새 백업을 복원할 수 있어야** 한다.
+ * `parse` 가 `schemaVersion > BACKUP_SCHEMA_VERSION` 을 거부하므로, 버전을 올리면 그 길이 막힌다.
+ * 그래서 "올리지 않았다"를 주석이 아니라 **검사로** 지킨다.
+ */
+describe('🔴 시험 기록 — 하위 호환', () => {
+  it('schemaVersion 을 올리지 않았다 (옛 앱이 새 백업을 읽을 수 있어야 한다)', () => {
+    expect(BACKUP_SCHEMA_VERSION).toBe(1);
+  });
+
+  it('새 백업도 schemaVersion 1 로 나간다', async () => {
+    const backup = await backupService.create();
+    expect(backup.schemaVersion).toBe(1);
+  });
+
+  it('옛 백업(시험 기록 없음)이 그대로 열린다', () => {
+    const old = JSON.stringify({
+      schemaVersion: 1,
+      appVersion: '1.7.0',
+      exportedAt: '2026-09-14T00:00:00.000Z',
+      categories: [],
+      words: [],
+      quizResults: [],
+      nextId: 0,
+      settings: {},
+    });
+    const result = backupService.parse(old);
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.data.exams).toEqual([]);
+  });
+
+  it('🔴 옛 백업을 복원할 때 지금 기기의 시험 기록을 지우지 않는다', async () => {
+    await writeRaw(BACKUP_KEYS.exams, JSON.stringify([{ examId: 'keep-me' }]));
+    const old = backupService.parse(
+      JSON.stringify({
+        schemaVersion: 1,
+        appVersion: '1.7.0',
+        exportedAt: '2026-09-14T00:00:00.000Z',
+        categories: [],
+        words: [],
+        quizResults: [],
+        nextId: 0,
+        settings: {},
+      }),
+    );
+    expect(old.ok).toBe(true);
+    if (!old.ok) return;
+    // parse 가 [] 로 채우므로 그대로 복원하면 지워진다 — restore 가 빈 배열을 어떻게 다루는지 본다.
+    await backupService.restore({ ...old.data, exams: undefined });
+    expect(await readRaw(BACKUP_KEYS.exams)).toContain('keep-me');
+  });
+
+  it('시험 기록이 배열이 아니어도 corrupt 가 아니다 (단어 전부를 잃지 않는다)', () => {
+    const weird = JSON.stringify({
+      schemaVersion: 1,
+      appVersion: '1.8.0',
+      exportedAt: '2026-10-07T00:00:00.000Z',
+      categories: [],
+      words: [],
+      quizResults: [],
+      nextId: 0,
+      settings: {},
+      exams: 'not an array',
+    });
+    const result = backupService.parse(weird);
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.data.exams).toEqual([]);
+  });
+
+  it('시험 기록이 왕복한다', async () => {
+    await writeRaw(BACKUP_KEYS.exams, JSON.stringify([{ examId: 'e1' }, { examId: 'e2' }]));
+    const text = backupService.serialize(await backupService.create());
+    await writeRaw(BACKUP_KEYS.exams, '[]');
+    const parsed = backupService.parse(text);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    await backupService.restore(parsed.data);
+    const after = JSON.parse((await readRaw(BACKUP_KEYS.exams)) ?? '[]');
+    expect(after).toHaveLength(2);
   });
 });

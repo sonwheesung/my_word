@@ -30,6 +30,15 @@ interface HomeScreenProps {
   onStartQuiz: () => void;
   /** 플래시카드. 채점하지 않고 카드만 넘겨보는 모드라 퀴즈와 입구를 따로 둔다 */
   onFlashcards: () => void;
+  /**
+   * AI 시험. 🔴 **첫 줄 네 번째 칸으로 넣지 않는다.**
+   *
+   * 첫 줄은 2026-09-10 에 두 칸 → 세 칸이 되면서 카드 폭이 154 → **99**(360 기준)로 줄었고,
+   * 그때 부제를 지우고 제목을 두 줄까지 받게 해서 겨우 맞췄다. 네 칸이면 71 이 되어
+   * 「플래시카드」가 세 줄로 터진다 — 그 판단은 이미 안 A 로 끝난 자리다.
+   * 그래서 **전용 띠**로 둔다(기획 C안). 새 기능이고 설명이 필요하므로 띠가 오히려 맞다.
+   */
+  onAiExam: () => void;
   /** 복습 배너. 만기인 단어 id 를 그대로 넘겨 카테고리를 가로질러 출제한다 */
   onStartReview: (wordIds: number[]) => void;
   onViewStatistics: () => void;
@@ -77,6 +86,7 @@ export default function HomeScreen({
   onAddWord,
   onStartQuiz,
   onFlashcards,
+  onAiExam,
   onStartReview,
   onViewStatistics,
   onMyPage,
@@ -144,10 +154,11 @@ export default function HomeScreen({
       case 'manageCategories': return onManageCategories();
       case 'startQuiz': return onStartQuiz();
       case 'flashcards': return onFlashcards();
+      case 'aiExam': return onAiExam();
       case 'statistics': return onViewStatistics();
       case 'myPage': return onMyPage();
     }
-  }, [onAddWord, onNavigateToManageWords, onManageCategories, onStartQuiz, onFlashcards, onViewStatistics, onMyPage]);
+  }, [onAddWord, onNavigateToManageWords, onManageCategories, onStartQuiz, onFlashcards, onAiExam, onViewStatistics, onMyPage]);
 
   /**
    * 복습 배너를 눌렀을 때. 만기 단어를 여기서 뽑아 넘긴다.
@@ -345,6 +356,33 @@ export default function HomeScreen({
             </TouchableOpacity>
           ))}
         </View>
+
+        {/*
+          AI 시험 — 전용 띠(기획 C안).
+          🔴 첫 줄에 네 번째 칸으로 넣지 않은 이유는 props 주석에 있다(폭 99 → 71).
+          ⚠ 인터넷이 필요한 **유일한 학습 기능**이라 그 사실을 띠 안에 적는다.
+            미리 회색으로 만들지는 않는다 — 이 앱의 규율이 "서버가 죽어도 화면은 멀쩡히"다.
+        */}
+        <TouchableOpacity
+          style={[styles.examBand, { backgroundColor: colors.card }, cardShadow]}
+          onPress={() => handlePress('aiExam')}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={t('AI 시험')}
+        >
+          <View style={[styles.examIcon, { backgroundColor: colors.primaryLight }]}>
+            <MaterialIcons name="auto-awesome" size={24} color={colors.primary} />
+          </View>
+          <View style={styles.examTexts}>
+            <Text style={[styles.examTitle, { color: colors.text }]} numberOfLines={1}>
+              {t('AI 시험')}
+            </Text>
+            <Text style={[styles.examSubtitle, { color: colors.textSecondary }]} numberOfLines={2}>
+              {t('내 단어로 문제를 만들어요 · 인터넷 필요')}
+            </Text>
+          </View>
+          <MaterialIcons name="chevron-right" size={20} color={colors.textTertiary} />
+        </TouchableOpacity>
 
         {/* 서브 메뉴 - 4열 소형 카드 */}
         <View style={styles.secondaryGrid}>
@@ -573,6 +611,32 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
   },
+
+  // ── AI 시험 전용 띠 (2026-10-07) ──
+  // 🔴 가로 전체를 쓰므로 글자가 길어져도 터지지 않는다. 첫 줄 네 번째 칸으로 넣지 않은
+  //    이유가 그것이다(그 자리는 360 기준 71 이 된다).
+  examBand: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    marginBottom: 12,
+    // 터치 영역 바닥. 띠가 얇아지면 누르기 어려워진다
+    minHeight: 64,
+  },
+  examIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  examTexts: { flex: 1 },
+  examTitle: { fontSize: 15, fontWeight: 'bold' },
+  // ⚠ 부제를 둘 수 있는 것이 띠의 이득이다. 첫 줄 카드는 폭이 좁아 부제를 지웠다
+  examSubtitle: { fontSize: 12, marginTop: 2, lineHeight: 16 },
 
   // ── 서브 카드 (4열) ──
   secondaryGrid: {

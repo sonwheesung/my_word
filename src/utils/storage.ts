@@ -8,6 +8,9 @@ const CATEGORIES_KEY = '@my_word_categories';
 const WORDS_KEY = '@my_word_words';
 const QUIZ_RESULTS_KEY = '@my_word_quiz_results';
 const NEXT_ID_KEY = '@my_word_next_id';
+// AI 시험 기록 (2026-10-07). 🔴 **학습 기록이라 백업에 담는다** — 플래시카드 취향과 다른 축이다.
+//    상한이 있어(`EXAM_HISTORY_MAX`) 백업이 끝없이 커지지 않는다.
+const EXAMS_KEY = '@my_word_exams';
 
 // 웹 환경에서는 localStorage 사용, 모바일에서는 AsyncStorage 사용
 const isWeb = Platform.OS === 'web';
@@ -248,6 +251,9 @@ export const BACKUP_KEYS = {
   words: WORDS_KEY,
   quizResults: QUIZ_RESULTS_KEY,
   nextId: NEXT_ID_KEY,
+  // 🔴 `@my_word_exam_prefs`(기기 취향)는 **일부러 없다** — 복원한 기기의 설정이 조용히 바뀐다.
+  //    `@my_word_srs`(파생값)도 없다. 플래시카드 때와 같은 판단이다.
+  exams: EXAMS_KEY,
 } as const;
 
 export async function readRaw(key: string): Promise<string | null> {
@@ -265,7 +271,7 @@ export async function writeRaw(key: string, value: string): Promise<void> {
 // --- 전체 초기화 (디버깅/리셋용) ---
 
 export async function clearAllData(): Promise<void> {
-  const keys = [CATEGORIES_KEY, WORDS_KEY, QUIZ_RESULTS_KEY, NEXT_ID_KEY];
+  const keys = [CATEGORIES_KEY, WORDS_KEY, QUIZ_RESULTS_KEY, NEXT_ID_KEY, EXAMS_KEY];
   if (isWeb) {
     for (const key of keys) {
       await storageImpl.removeItem(key);

@@ -10,6 +10,9 @@ import CategoryManageScreen from './src/screens/CategoryManageScreen';
 import QuizSetupScreen from './src/screens/QuizSetupScreen';
 import FlashcardSetupScreen from './src/screens/FlashcardSetupScreen';
 import FlashcardScreen from './src/screens/FlashcardScreen';
+import ExamSetupScreen from './src/screens/ExamSetupScreen';
+import ExamScreen from './src/screens/ExamScreen';
+import ExamResultScreen from './src/screens/ExamResultScreen';
 import QuizScreen from './src/screens/QuizScreen';
 import QuizResultScreen from './src/screens/QuizResultScreen';
 import StatisticsScreen from './src/screens/StatisticsScreen';
@@ -28,6 +31,8 @@ import { versionService, isBlocking } from './src/services/versionService';
 import type { GateDecision } from './src/services/versionService';
 import type { QuizMode, QuizDirection, QuizAnswerType } from './src/screens/QuizSetupScreen';
 import type { CardOrder } from './src/services/flashcardService';
+import type { ExamLanguage } from './src/services/examService';
+import { getCurrentLanguage } from './src/i18n/language';
 import type { QuizResult } from './src/services/quizService';
 
 // 에러 바운더리: 렌더링 에러를 화면에 표시
@@ -63,7 +68,7 @@ class ErrorBoundary extends React.Component<
   }
 }
 
-type Screen = 'home' | 'manageWords' | 'addWord' | 'editWord' | 'manageCategories' | 'quizSetup' | 'quiz' | 'quizResult' | 'statistics' | 'myPage' | 'importWords' | 'settings' | 'support' | 'notice' | 'flashcardSetup' | 'flashcard';
+type Screen = 'home' | 'manageWords' | 'addWord' | 'editWord' | 'manageCategories' | 'quizSetup' | 'quiz' | 'quizResult' | 'statistics' | 'myPage' | 'importWords' | 'settings' | 'support' | 'notice' | 'flashcardSetup' | 'flashcard' | 'examSetup' | 'exam' | 'examResult';
 
 function AppContent() {
   const { t } = useTranslation();
@@ -99,6 +104,14 @@ function AppContent() {
   const [flashcard, setFlashcard] = useState<
     { categoryId: number; order: CardOrder; frontIsWord: boolean; autoSpeak: boolean } | null
   >(null);
+
+  /**
+   * AI 시험. 플래시카드와 같은 이유로 **하나로 묶는다** — 카테고리와 언어가 늘 함께 정해지고
+   * 함께 버려진다. 🔴 진입점이 홈 하나뿐이라 `from` 변수가 필요 없다.
+   */
+  const [exam, setExam] = useState<{ categoryId: number; language: ExamLanguage } | null>(null);
+  /** 결과 화면이 읽을 시험 id. 기록은 저장소에 있고 이 값은 **어느 판인지**만 가리킨다 */
+  const [examResultId, setExamResultId] = useState<string>('');
 
   // 공지 화면에서 돌아갈 곳(홈 또는 설정) — 진입점이 두 개라 따로 기억한다
   const [noticeFrom, setNoticeFrom] = useState<Screen>('home');
@@ -146,6 +159,7 @@ function AppContent() {
       case 'manageWords':
       case 'quizSetup':
       case 'flashcardSetup':
+      case 'examSetup':
       case 'statistics':
       case 'myPage':
       case 'settings':
@@ -176,6 +190,17 @@ function AppContent() {
         break;
       case 'quizResult':
         setRetryWordIds(undefined);
+        setCurrentScreen('home');
+        break;
+      case 'exam':
+        /*
+         * 🔴 **여기서 아무것도 하지 않는다.** 시험 화면이 자기 `BackHandler` 로 먼저 잡는다
+         *    (풀던 중이면 막고, 아니면 스스로 `onBack` 을 부른다).
+         *    여기서 또 화면을 바꾸면 **문제를 만드는 데 돈이 든 시험이 말없이 버려진다.**
+         */
+        break;
+      case 'examResult':
+        setExamResultId('');
         setCurrentScreen('home');
         break;
       default:
@@ -339,6 +364,50 @@ function AppContent() {
     );
   }
 
+  if (currentScreen === 'examSetup') {
+    return (
+      <ExamSetupScreen
+        onBack={() => setCurrentScreen('home')}
+        onStart={(categoryId, language) => {
+          setExam({ categoryId, language });
+          setCurrentScreen('exam');
+        }}
+      />
+    );
+  }
+
+  if (currentScreen === 'exam' && exam) {
+    return (
+      <ExamScreen
+        categoryId={exam.categoryId}
+        language={exam.language}
+        // 해설을 어느 언어로 받을지. 🔴 앱 언어를 그대로 보낸다 — 단어의 언어와 다른 축이다
+        uiLang={getCurrentLanguage()}
+        onBack={() => setCurrentScreen('examSetup')}
+        onFinish={(examId) => {
+          setExamResultId(examId);
+          setCurrentScreen('examResult');
+        }}
+      />
+    );
+  }
+
+  if (currentScreen === 'examResult') {
+    return (
+      <ExamResultScreen
+        examId={examResultId}
+        onBack={() => {
+          setExamResultId('');
+          setCurrentScreen('home');
+        }}
+        onHome={() => {
+          setExamResultId('');
+          setCurrentScreen('home');
+        }}
+      />
+    );
+  }
+
   if (currentScreen === 'quizResult') {
     const correctCount = quizResults.filter((r) => r.isCorrect).length;
     const wrongWordIds = [...new Set(quizResults.filter(r => !r.isCorrect).map(r => r.wordId))];
@@ -404,6 +473,7 @@ function AppContent() {
         }}
         onStartQuiz={() => setCurrentScreen('quizSetup')}
         onFlashcards={() => setCurrentScreen('flashcardSetup')}
+      onAiExam={() => setCurrentScreen('examSetup')}
         onStartReview={(wordIds) => {
           setQuizFrom('home');
           setQuizCategoryId(null); // 전 카테고리 횡단

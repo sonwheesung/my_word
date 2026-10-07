@@ -61,6 +61,31 @@ Screen → Service → utils/storage.ts (AsyncStorage / localStorage)
 
 🔴 이 파일과 플래시카드 화면 둘, `FlipCard` 는 퀴즈 결과를 쓰지 않는다. `__tests__/flashcardService.test.ts` 가 소스를 읽어 지킨다.
 
+## examService.ts (AI 시험)
+
+| 함수 | 반환 | 설명 |
+|------|------|------|
+| `examService.loadPrefs()` · `savePrefs(prefs)` | `ExamPrefs` | 저장 실패는 삼킨다 |
+| `examService.buildSeeds(categoryId, limit?)` | `SeedPlan` | 만기·취약 조회가 실패하면 무작위로 내려앉는다 |
+| `examService.getRecords()` · `saveRecord(record)` | `ExamRecord[]` | 🔴 **저장 실패는 삼키지 않는다** — 성적표가 비면 사용자가 알아야 한다 |
+| `pickSeeds(words, dueIds, weakIds, limit?, rng?)` | `SeedPlan` | 순수 함수. 만기 4 · 취약 3 · 무작위 3. **앞이 비면 뒤가 채운다** |
+| `scoreExam(questions, answers)` | `ExamScore` | 순수 함수. 🔴 **넘긴 문제를 분모에서 빼지 않는다** |
+| `detectLanguage(text)` · `detectCategoryLanguage(words)` · `countLanguages(words)` | | 순수 함수. 판정 불가면 `null` — **추측으로 보내지 않는다** |
+| `parseRecords(raw)` · `parseExamPrefs(raw)` · `trimRecords(records, max?)` | | 순수 함수. 어떤 입력에도 throw 하지 않는다 |
+| `toSeedPayload(plan)` | `{word, meaning?}[]` | 뜻은 첫 번째만 보낸다 |
+
+🔴 **이 파일과 시험 화면 셋은 퀴즈 결과를 쓰지 않는다.** 기획은 *"내 단어 문제만 반영하고 재시험은
+반영하지 않는다"* 로 정했는데 **재시험을 구분하는 코드가 아직 없다** — 구분 못 하는 상태에서 쓰면
+재시험이 정답률을 부풀린다. `__tests__/examService.test.ts` 가 네 파일의 소스를 읽어 지킨다.
+
+⚠ `detectLanguage` 는 `utils/text.ts` 의 `detectSpeechLanguage` 와 **일부러 따로 둔다.**
+그쪽은 발음용 BCP-47(`ja-JP`)이고 한자를 중국어로 떨어뜨리는데, 이쪽은 서버가 받는 짧은 코드이고
+**한자를 일본어로 본다**(이 앱 사용자의 단어장이 일본어가 압도적이다). 섞으면 한쪽을 고칠 때 다른 쪽이 틀어진다.
+
+🔴 서버 호출은 `examService` 가 아니라 **SDK**(`commonServer.generateExam` · `reportQuestion`)가 한다.
+`generateExam` 만 타임아웃이 **120초**다 — 기본 10초로는 서버가 멀쩡히 문제를 만드는 동안 앱이 abort 하고
+`offline` 이라고 말한다(그 호출의 원가는 이미 나갔으므로 가장 나쁜 실패다).
+
 ## shareService.ts (CSV)
 
 | 함수 | 설명 |

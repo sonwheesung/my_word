@@ -102,3 +102,45 @@ export const OPEN_SOURCE_LICENSES_URL = `${LEGAL_BASE_URL}/open-source-licenses.
 export const SUPPORT_CONTENT_MAX = 2000;
 // 서버가 요구하는 최소 길이
 export const SUPPORT_CONTENT_MIN = 5;
+
+// --- AI 단어 시험 (2026-10-07 신설) ---
+// 🔴 **새 키 둘만 더한다. 기존 키를 건드리지 않는다.** 운영 중인 앱이라 스키마를 늘리지 않는다
+//    (플래시카드 때와 같은 규율).
+//
+// 🔴 **이 기능은 서버를 부른다.** 이 앱의 다른 모든 기능과 다르다 —
+//    사용자가 저장한 단어와 그 사람이 적은 뜻이 기기 밖으로 나간다.
+//    `CLAUDE.md`·README·처리방침의 *"학습 데이터는 기기 안에만 있다"* 를 함께 고쳐야 한다
+//    (사장님 승인 받음, 2026-09-23). 사용자 기기에 나가기 **전에** 고친다.
+
+/** 친 시험 기록(문제·내 답·점수). 백업에 담는다 — 학습 기록이다 */
+export const EXAMS_KEY = '@my_word_exams';
+/**
+ * 시험 취향(카테고리별 언어 선택 · 마지막 설정).
+ * ⚠ 백업에 담지 않는다 — 기기별 취향이다(`FLASHCARD_PREFS_KEY` 와 같은 판단).
+ */
+export const EXAM_PREFS_KEY = '@my_word_exam_prefs';
+
+/** 시험 한 판의 문제 수. 🔴 서버의 `DEFAULT_EXAM_SIZE` 와 같아야 한다 */
+export const EXAM_SIZE = 20;
+
+/**
+ * 서버에 보낼 씨앗 단어 수. 문제 수보다 적다 — 단어 하나가 문제 여럿을 준다.
+ * 만기 4 + 취약 3 + 무작위 3 = 10 (`examService.pickSeeds`).
+ */
+export const EXAM_SEED_COUNT = 10;
+
+/**
+ * 몇 판까지 남기나.
+ * ⚠ 백업 크기를 정하는 값이다 — 무제한이면 복원이 실패할 수 있다(기획의 리스크 표).
+ * 🙋 사장님 미결정(제안 20).
+ */
+export const EXAM_HISTORY_MAX = 20;
+
+/**
+ * 🔴 **기다리는 시간의 전제. 40초가 아니라 90초다.**
+ *
+ * 2026-10-07 프로덕션 실측: 단어 3개에 **34.5초**. 20문제 콜드 시험은 서버가 호출을 2번
+ * 순차로 돌려 **90초 안팎**으로 추정된다. SDK 타임아웃은 120초다.
+ * ⚠ 이 값은 **안내 문구용**이다. 실제 포기는 SDK 타임아웃이 한다 — 두 값을 섞지 않는다.
+ */
+export const EXAM_EXPECTED_WAIT_SEC = 90;
