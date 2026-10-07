@@ -215,7 +215,10 @@ export default function ExamResultScreen({ examId, onBack, onHome }: ExamResultS
     );
   }
 
-  const { score } = record;
+  // 🔴 최신 회차를 보여준다. 성적표(회차별)는 아래 "회차" 줄이 담당한다
+  const latest = record.attempts[record.attempts.length - 1];
+  const score = latest?.score ?? { correct: 0, wrong: 0, skipped: 0, total: 0, accuracy: 0 };
+  const answers = latest?.answers ?? [];
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -318,7 +321,7 @@ export default function ExamResultScreen({ examId, onBack, onHome }: ExamResultS
         <Text style={[styles.sectionLabel, { color: colors.text }]}>{t('문제 다시 보기')}</Text>
 
         {record.questions.map((question, index) => {
-          const answer = record.answers[index];
+          const answer = answers[index];
           const correct = answer === question.answerIndex;
           const skipped = answer === null || answer === undefined;
           const isReported = reported.has(question.id);

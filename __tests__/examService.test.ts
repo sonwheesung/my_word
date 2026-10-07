@@ -37,6 +37,7 @@ import {
   scoreExam,
   toSeedPayload,
   trimRecords,
+  type ExamAnswer,
   type ExamRecord,
 } from '../src/services/examService';
 import { EXAM_SEED_COUNT } from '../src/constants/appConfig';
@@ -295,8 +296,7 @@ function makeRecord(examId: string, takenAt: string): ExamRecord {
     language: 'ja',
     takenAt,
     questions,
-    answers: [0],
-    score: scoreExam(questions, [0]),
+    attempts: [{ answers: [0], score: scoreExam(questions, [0]), takenAt }],
   };
 }
 
@@ -330,7 +330,7 @@ describe('parseRecords — 🔴 어떤 입력에도 던지지 않는다', () => 
     const raw = JSON.stringify([
       { examId: 'x', takenAt: '2026-10-07T00:00:00.000Z', language: 'ja', questions, answers: [1] },
     ]);
-    expect(parseRecords(raw)[0].score.correct).toBe(1);
+    expect(parseRecords(raw)[0].attempts[0].score.correct).toBe(1);
   });
 });
 
@@ -393,6 +393,7 @@ const FILES = [
   'src/screens/ExamSetupScreen.tsx',
   'src/screens/ExamScreen.tsx',
   'src/screens/ExamResultScreen.tsx',
+  'src/screens/ExamHistoryScreen.tsx',
 ];
 
 /** 주석을 걷어낸다 — 주석에 적힌 "부르지 않는다"가 금지어로 잡히면 안 된다 */
@@ -404,8 +405,19 @@ function readSource(rel: string): string {
   return fs.readFileSync(path.join(__dirname, '..', rel), 'utf8');
 }
 
-describe('🔴 시험은 아직 통계에 쓰지 않는다 (소스 훑기)', () => {
-  it('훑을 파일이 실제로 존재한다 — 없는 파일을 지키며 초록이 되는 것을 막는다', () => {
+describe('🔴 화면은 통계를 쓰지 않는다 (소스 훑기)', () => {
+  /*
+   * 🔴 **이 describe 는 2026-10-07 Phase 5 에서 규칙이 바뀌어 갱신됐다.**
+   *
+   *    전에는 "examService 와 화면 넷 전부 통계를 안 쓴다" 였다. 재시험을 구분할 수 없었기
+   *    때문이다. 이제 회차 구조가 생겨 1회차를 구분할 수 있으므로 `recordFirstAttempt` 한 곳만
+   *    통계를 쓴다. **옛 검사가 빨개져서 이 갱신이 일어났다** — 가드가 제 일을 한 것이다
+   *    (common_server CLAUDE.md 의 "진화형 가드 결함": 제품이 바뀌었는데 검사를 같이 안 고치는 것).
+   *
+   * 🔴 **파일을 옮기거나 이름을 바꾸면 FILES 배열도 같이 고친다.**
+   *    안 고치면 가드가 없는 파일을 지키면서 초록이 된다.
+   */
+  it('훑을 파일이 실제로 존재한다', () => {
     expect(FILES.length).toBeGreaterThan(0);
     for (const rel of FILES) {
       expect(() => readSource(rel)).not.toThrow();
@@ -414,8 +426,9 @@ describe('🔴 시험은 아직 통계에 쓰지 않는다 (소스 훑기)', () 
   });
 
   const FORBIDDEN = ['saveQuizResults', 'recordAnswers', 'quizResultStorage'];
+  const SCREENS = FILES.filter((f) => f.includes('/screens/'));
 
-  for (const rel of FILES) {
+  for (const rel of SCREENS) {
     for (const needle of FORBIDDEN) {
       it(`${rel} 에 ${needle} 가 없다`, () => {
         expect(stripComments(readSource(rel))).not.toContain(needle);
@@ -425,15 +438,14 @@ describe('🔴 시험은 아직 통계에 쓰지 않는다 (소스 훑기)', () 
 
   it('🔴 examService 는 quizService 를 읽기로만 쓴다 (취약 단어 조회)', () => {
     const source = stripComments(readSource('src/services/examService.ts'));
-    // 읽기 하나만 허용한다. 다른 quizService 호출이 생기면 여기서 걸린다.
     const calls = source.match(/quizService\.\w+/g) ?? [];
     expect(new Set(calls)).toEqual(new Set(['quizService.getWeakWordIds']));
   });
 
-  it('🔴 examService 는 srsService 를 읽기로만 쓴다 (만기 조회)', () => {
+  it('🔴 examService 가 srsService 에 쓰는 것은 recordAnswers 하나뿐이다', () => {
     const source = stripComments(readSource('src/services/examService.ts'));
     const calls = source.match(/srsService\.\w+/g) ?? [];
-    expect(new Set(calls)).toEqual(new Set(['srsService.getDueWordIds']));
+    expect(new Set(calls)).toEqual(new Set(['srsService.getDueWordIds', 'srsService.recordAnswers']));
   });
 });
 
@@ -508,5 +520,252 @@ describe('ExamRecord 에 categoryId', () => {
   it('숫자가 아니면 없는 것으로 본다', () => {
     const rec = { ...makeRecord('x', '2026-10-07T00:00:00.000Z'), categoryId: 'nope' };
     expect(parseRecords(JSON.stringify([rec]))[0].categoryId).toBeUndefined();
+  });
+});
+
+// ── 재시험 · 성적표 (Phase 5) ───────────────────────────────────────────────
+
+describe('🔴 회차 — 옛 기록을 1회차로 옮긴다', () => {
+  it('옛 모양(answers·score 가 기록에 직접)이 1회차가 된다', () => {
+    const questions = [makeQuestion(1)];
+    const raw = JSON.stringify([
+      { examId: 'old', takenAt: '2026-10-01T00:00:00.000Z', language: 'ja', questions, answers: [1] },
+    ]);
+    const parsed = parseRecords(raw);
+    expect(parsed[0].attempts).toHaveLength(1);
+    expect(parsed[0].attempts[0].answers).toEqual([1]);
+    expect(parsed[0].attempts[0].score.correct).toBe(1);
+    expect(parsed[0].attempts[0].takenAt).toBe('2026-10-01T00:00:00.000Z');
+  });
+
+  it('새 모양(attempts)은 그대로 읽는다', () => {
+    const questions = [makeQuestion(0)];
+    const raw = JSON.stringify([
+      {
+        examId: 'n', takenAt: '2026-10-01T00:00:00.000Z', language: 'ja', questions,
+        attempts: [
+          { answers: [0], takenAt: '2026-10-01T00:00:00.000Z' },
+          { answers: [1], takenAt: '2026-10-02T00:00:00.000Z' },
+        ],
+      },
+    ]);
+    const parsed = parseRecords(raw);
+    expect(parsed[0].attempts).toHaveLength(2);
+    expect(parsed[0].attempts[0].score.correct).toBe(1);
+    expect(parsed[0].attempts[1].score.correct).toBe(0);
+  });
+
+  it('회차에 점수가 없으면 다시 센다', () => {
+    const questions = [makeQuestion(2)];
+    const raw = JSON.stringify([
+      { examId: 'x', takenAt: '2026-10-01T00:00:00.000Z', language: 'ja', questions, attempts: [{ answers: [2] }] },
+    ]);
+    expect(parseRecords(raw)[0].attempts[0].score.correct).toBe(1);
+  });
+
+  it('깨진 회차는 버리고 나머지는 살린다', () => {
+    const questions = [makeQuestion(0)];
+    const raw = JSON.stringify([
+      {
+        examId: 'x', takenAt: '2026-10-01T00:00:00.000Z', language: 'ja', questions,
+        attempts: [{ answers: [0] }, null, 42, { noAnswers: true }],
+      },
+    ]);
+    expect(parseRecords(raw)[0].attempts).toHaveLength(1);
+  });
+
+  it('회차도 answers 도 없으면 그 기록을 버린다', () => {
+    const raw = JSON.stringify([
+      { examId: 'x', takenAt: '2026-10-01T00:00:00.000Z', language: 'ja', questions: [makeQuestion(0)] },
+    ]);
+    // 회차가 0개면 성적표에 보여줄 것이 없다 — 기록 자체는 살리되 회차는 비어 있다
+    const parsed = parseRecords(raw);
+    expect(parsed[0].attempts).toEqual([]);
+  });
+});
+
+// ── 🔴 통계는 1회차만 (소스 훑기) ───────────────────────────────────────────
+
+describe('🔴 통계 쓰기는 한 곳에서만 일어난다', () => {
+  const src = () => stripComments(readSource('src/services/examService.ts'));
+
+  it('화면 셋은 통계를 안 쓴다', () => {
+    for (const rel of ['src/screens/ExamSetupScreen.tsx', 'src/screens/ExamScreen.tsx', 'src/screens/ExamResultScreen.tsx']) {
+      const s = stripComments(readSource(rel));
+      for (const banned of ['saveQuizResults', 'recordAnswers', 'quizResultStorage']) {
+        expect(s).not.toContain(banned);
+      }
+    }
+  });
+
+  it('🔴 examService 에서 통계 쓰기가 recordFirstAttempt 안에만 있다', () => {
+    const s = src();
+    const start = s.indexOf('async recordFirstAttempt');
+    expect(start).toBeGreaterThan(-1);
+    const end = s.indexOf('async addAttempt');
+    expect(end).toBeGreaterThan(start);
+    const inside = s.slice(start, end);
+    const outside = s.slice(0, start) + s.slice(end);
+    // 안에는 있고
+    expect(inside).toContain('saveResults');
+    expect(inside).toContain('recordAnswers');
+    // 🔴 밖에는 없다
+    expect(outside).not.toContain('saveResults');
+    expect(outside).not.toContain('recordAnswers');
+  });
+
+  it('🔴 1회차가 아니면 바로 돌아간다 (재시험이 통계를 못 건드린다)', () => {
+    const s = src();
+    const start = s.indexOf('async recordFirstAttempt');
+    const guard = s.slice(start, start + 300);
+    expect(guard).toMatch(/attempts\.length\s*!==\s*1/);
+  });
+
+  it('🔴 addAttempt 가 recordFirstAttempt 를 부르지 않는다', () => {
+    const s = src();
+    const start = s.indexOf('async addAttempt');
+    const end = s.indexOf('async saveRecord');
+    expect(s.slice(start, end)).not.toContain('recordFirstAttempt');
+  });
+
+  it('🔴 가짜 wordId 를 쓰지 않는다 (없는 단어를 가리키는 통계를 안 만든다)', () => {
+    expect(src()).not.toMatch(/wordId:\s*0\b/);
+  });
+});
+
+// ── 🔴 recordFirstAttempt 의 **동작**을 잰다 ────────────────────────────────
+//
+// 위의 소스 훑기는 "어디서 부르나" 를 본다. 그것만으로는 **무엇을 쓰는가**를 못 본다 —
+// 2026-10-07 변이 테스트에서 셋이 그대로 빠져나갔다(못 찾은 단어를 쓰기 · 넘긴 문제를 쓰기 ·
+// 아예 안 부르기). 그래서 진짜 저장소에 써 보고 결과를 읽는다.
+
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { examService } from '../src/services/examService';
+import { quizResultStorage, wordStorage } from '../src/utils/storage';
+
+async function seedWords(words: string[]): Promise<number[]> {
+  const ids: number[] = [];
+  for (const word of words) {
+    const saved = await wordStorage.create({ categoryId: 1, word, meanings: ['뜻'], examples: [] });
+    ids.push(saved.wordId);
+  }
+  return ids;
+}
+
+function recordWith(questions: ExamQuestion[], answers: ExamAnswer[]): ExamRecord {
+  const now = '2026-10-07T00:00:00.000Z';
+  return {
+    examId: 'beh-' + Math.random(),
+    language: 'ja',
+    categoryId: 1,
+    takenAt: now,
+    questions,
+    attempts: [{ answers, score: scoreExam(questions, answers), takenAt: now }],
+  };
+}
+
+describe('🔴 recordFirstAttempt — 무엇을 쓰는가', () => {
+  beforeEach(async () => {
+    await AsyncStorage.clear();
+  });
+
+  it('내 단어의 답만 통계에 쓴다', async () => {
+    const [id] = await seedWords(['機会']);
+    const q = makeQuestion(0, { word: '機会' });
+    await examService.recordFirstAttempt(recordWith([q], [0]));
+    const saved = await quizResultStorage.getAll();
+    expect(saved).toHaveLength(1);
+    expect(saved[0]).toMatchObject({ wordId: id, isCorrect: true, quizType: 'ai_exam' });
+  });
+
+  it('🔴 단어장에 없는 단어는 통계에 안 쓴다 (없는 단어를 가리키는 행을 안 만든다)', async () => {
+    await seedWords(['機会']);
+    const mine = makeQuestion(0, { word: '機会' });
+    const notMine = makeQuestion(0, { word: '전혀_없는_단어' });
+    await examService.recordFirstAttempt(recordWith([mine, notMine], [0, 0]));
+    const saved = await quizResultStorage.getAll();
+    expect(saved).toHaveLength(1);
+    expect(saved[0].word).toBe('機会');
+    // 🔴 가짜 번호가 섞이지 않았다
+    expect(saved.every((r) => r.wordId > 0)).toBe(true);
+  });
+
+  it('🔴 넘긴 문제는 통계에 안 쓴다', async () => {
+    await seedWords(['機会', '遠慮']);
+    const a = makeQuestion(0, { word: '機会' });
+    const b = makeQuestion(0, { word: '遠慮' });
+    await examService.recordFirstAttempt(recordWith([a, b], [0, null]));
+    const saved = await quizResultStorage.getAll();
+    expect(saved).toHaveLength(1);
+    expect(saved[0].word).toBe('機会');
+  });
+
+  it('틀린 답은 오답으로 쓴다', async () => {
+    await seedWords(['機会']);
+    const q = makeQuestion(2, { word: '機会' });
+    await examService.recordFirstAttempt(recordWith([q], [0]));
+    expect((await quizResultStorage.getAll())[0].isCorrect).toBe(false);
+  });
+
+  it('🔴 2회차 이상이면 아무것도 안 쓴다 (재시험이 정답률을 부풀리지 않는다)', async () => {
+    await seedWords(['機会']);
+    const q = makeQuestion(0, { word: '機会' });
+    const rec = recordWith([q], [0]);
+    rec.attempts.push({ answers: [0], score: scoreExam([q], [0]), takenAt: '2026-10-08T00:00:00.000Z' });
+    await examService.recordFirstAttempt(rec);
+    expect(await quizResultStorage.getAll()).toHaveLength(0);
+  });
+
+  it('회차가 없으면 아무것도 안 쓴다', async () => {
+    await seedWords(['機会']);
+    const rec = recordWith([makeQuestion(0, { word: '機会' })], [0]);
+    rec.attempts = [];
+    await examService.recordFirstAttempt(rec);
+    expect(await quizResultStorage.getAll()).toHaveLength(0);
+  });
+
+  it('전부 넘겼으면 아무것도 안 쓴다', async () => {
+    await seedWords(['機会']);
+    const q = makeQuestion(0, { word: '機会' });
+    await examService.recordFirstAttempt(recordWith([q], [null]));
+    expect(await quizResultStorage.getAll()).toHaveLength(0);
+  });
+
+  it('앞뒤 공백이 있어도 내 단어로 알아본다', async () => {
+    const [id] = await seedWords(['機会']);
+    const q = makeQuestion(0, { word: '  機会  ' });
+    await examService.recordFirstAttempt(recordWith([q], [0]));
+    expect((await quizResultStorage.getAll())[0].wordId).toBe(id);
+  });
+});
+
+describe('🔴 addAttempt — 재시험', () => {
+  beforeEach(async () => {
+    await AsyncStorage.clear();
+  });
+
+  it('회차가 쌓이고 통계는 안 움직인다', async () => {
+    await seedWords(['機会']);
+    const q = makeQuestion(0, { word: '機会' });
+    const rec = recordWith([q], [0]);
+    await examService.saveRecord(rec);
+    await examService.recordFirstAttempt(rec);
+    const before = (await quizResultStorage.getAll()).length;
+
+    const after = await examService.addAttempt(rec.examId, [1]);
+    expect(after?.attempts).toHaveLength(2);
+    expect(after?.attempts[1].score.correct).toBe(0);
+    // 🔴 재시험이 통계를 안 건드렸다
+    expect((await quizResultStorage.getAll()).length).toBe(before);
+  });
+
+  it('없는 시험이면 null 이고 던지지 않는다', async () => {
+    expect(await examService.addAttempt('없는id', [0])).toBeNull();
+  });
+});
+
+describe('🔴 ExamScreen 이 1회차를 실제로 기록한다 (배선)', () => {
+  it('recordFirstAttempt 를 부른다', () => {
+    expect(stripComments(readSource('src/screens/ExamScreen.tsx'))).toContain('recordFirstAttempt');
   });
 });

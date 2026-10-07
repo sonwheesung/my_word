@@ -38,10 +38,23 @@ import type { AppLanguage } from '../i18n/language';
  *   재시험을 구분하는 코드가 생기기 전까지는 통계에 넣지 않는다.
  */
 
+/**
+ * 🔴 이 화면은 **두 모드**다.
+ *
+ * ```
+ * 새 시험   categoryId · language 를 받아 서버에서 문제를 만든다 (느리다 · 돈이 든다)
+ * 재시험    retryExamId 를 받아 **저장된 문제를 그대로 다시 낸다** (빠르다 · 공짜 · 오프라인에서도 된다)
+ * ```
+ *
+ * 🔴 재시험이 서버를 안 부르는 것이 기획의 약속을 지키는 방법이다 —
+ *    *"구독 해지 뒤에도 객관식 재시험까지 된다"*.
+ */
 interface ExamScreenProps {
-  categoryId: number;
-  language: ExamLanguage;
+  categoryId?: number;
+  language?: ExamLanguage;
   uiLang: AppLanguage;
+  /** 있으면 재시험이다. 저장된 문제를 다시 낸다 */
+  retryExamId?: string;
   onBack: () => void;
   onFinish: (examId: string) => void;
 }
@@ -100,9 +113,11 @@ export default function ExamScreen({
   categoryId,
   language,
   uiLang,
+  retryExamId,
   onBack,
   onFinish,
 }: ExamScreenProps) {
+  const isRetry = retryExamId !== undefined && retryExamId !== '';
   const { t } = useTranslation();
   const { colors } = useTheme();
   const { toast, showToast, hideToast } = useToast();
@@ -133,6 +148,30 @@ export default function ExamScreen({
     setPhase('loading');
     (async () => {
       try {
+        // ── 재시험 ── 저장된 문제를 그대로 낸다. 서버를 부르지 않는다
+        if (isRetry) {
+          const records = await examService.getRecords();
+          const found = records.find((r) => r.examId === retryExamId);
+          if (!alive) return;
+          if (found === undefined || found.questions.length === 0) {
+            setFailure('no-words');
+            setPhase('failed');
+            return;
+          }
+          setQuestions(found.questions);
+          setAnswers(found.questions.map(() => null));
+          setExamId(found.examId);
+          setIndex(0);
+          setPicked(null);
+          setPhase('solving');
+          return;
+        }
+
+        if (categoryId === undefined || language === undefined) {
+          setFailure('error');
+          setPhase('failed');
+          return;
+        }
         const plan = await examService.buildSeeds(categoryId);
         const words = toSeedPayload(plan);
         if (!alive) return;
@@ -188,7 +227,7 @@ export default function ExamScreen({
     return () => {
       alive = false;
     };
-  }, [attempt, categoryId, language, uiLang]);
+  }, [attempt, categoryId, isRetry, language, retryExamId, uiLang]);
 
   /**
    * 🔴 풀던 중에 뒤로가기를 막는다.
@@ -231,18 +270,32 @@ export default function ExamScreen({
     }
 
     // 마지막 문제 — 기록을 남기고 결과로 넘어간다
-    const score = scoreExam(questions, nextAnswers);
-    void examService
-      .saveRecord({
-        examId,
-        language,
-        // 🔴 단어 담기가 이 값을 쓴다 — 담을 단어장이 어디인지
-        categoryId,
-        takenAt: new Date().toISOString(),
-        questions,
-        answers: nextAnswers,
-        score,
-      })
+    const now = new Date().toISOString();
+    /*
+     * 🔴 재시험이면 **회차만 더한다.** `addAttempt` 는 통계를 건드리지 않는다 —
+     *    같은 문제를 다시 풀면 외워서 맞히므로 정답률이 부푼다(`examService` 머리 주석).
+     */
+    const save = isRetry
+      ? examService.addAttempt(examId, nextAnswers).then(() => undefined)
+      : (() => {
+          const record = {
+            examId,
+            ...(language === undefined ? {} : { language }),
+            // 🔴 단어 담기가 이 값을 쓴다 — 담을 단어장이 어디인지
+            ...(categoryId === undefined ? {} : { categoryId }),
+            takenAt: now,
+            questions,
+            attempts: [
+              { answers: nextAnswers, score: scoreExam(questions, nextAnswers), takenAt: now },
+            ],
+          } as Parameters<typeof examService.saveRecord>[0];
+          return examService
+            .saveRecord(record)
+            // 🔴 1회차만 통계에 쓴다. 저장이 끝난 뒤에 부른다
+            .then(() => examService.recordFirstAttempt(record));
+        })();
+
+    void save
       .then(() => onFinish(examId))
       .catch((error: any) => {
         // 🔴 저장 실패를 삼키지 않는다 — 성적표가 비면 사용자가 알아야 한다
@@ -250,7 +303,7 @@ export default function ExamScreen({
         showToast(t('성적을 저장하지 못했어요'), 'error');
         onFinish(examId);
       });
-  }, [answers, categoryId, current, examId, index, language, onFinish, picked, questions, showToast, t]);
+  }, [answers, categoryId, current, examId, index, isRetry, language, onFinish, picked, questions, showToast, t]);
 
   // ── 기다리는 화면 ────────────────────────────────────────────────────────
   if (phase === 'loading') {
@@ -262,16 +315,21 @@ export default function ExamScreen({
         <View style={styles.waitBox}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={[styles.waitTitle, { color: colors.text }]}>
-            {t('내 단어로 문제를 만들고 있어요')}
+            {isRetry ? t('시험을 불러오고 있어요') : t('내 단어로 문제를 만들고 있어요')}
           </Text>
-          <Text style={[styles.waitElapsed, { color: colors.primaryStrong }]}>
-            {t('{{sec}}초', { sec: elapsed })}
-          </Text>
-          <Text style={[styles.waitHint, { color: colors.textSecondary }]}>
-            {over
-              ? t('거의 다 됐어요. 조금만 더 기다려 주세요')
-              : t('{{sec}}초쯤 걸려요. 앱을 닫지 말아 주세요', { sec: EXAM_EXPECTED_WAIT_SEC })}
-          </Text>
+          {/* ⚠ 재시험은 저장소만 읽으므로 초를 세는 것이 의미가 없다 */}
+          {!isRetry && (
+            <Text style={[styles.waitElapsed, { color: colors.primaryStrong }]}>
+              {t('{{sec}}초', { sec: elapsed })}
+            </Text>
+          )}
+          {!isRetry && (
+            <Text style={[styles.waitHint, { color: colors.textSecondary }]}>
+              {over
+                ? t('거의 다 됐어요. 조금만 더 기다려 주세요')
+                : t('{{sec}}초쯤 걸려요. 앱을 닫지 말아 주세요', { sec: EXAM_EXPECTED_WAIT_SEC })}
+            </Text>
+          )}
         </View>
       </View>
     );

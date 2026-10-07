@@ -16,6 +16,7 @@ import FlashcardScreen from './src/screens/FlashcardScreen';
 import ExamSetupScreen from './src/screens/ExamSetupScreen';
 import ExamScreen from './src/screens/ExamScreen';
 import ExamResultScreen from './src/screens/ExamResultScreen';
+import ExamHistoryScreen from './src/screens/ExamHistoryScreen';
 import QuizScreen from './src/screens/QuizScreen';
 import QuizResultScreen from './src/screens/QuizResultScreen';
 import StatisticsScreen from './src/screens/StatisticsScreen';
@@ -71,7 +72,7 @@ class ErrorBoundary extends React.Component<
   }
 }
 
-type Screen = 'home' | 'manageWords' | 'addWord' | 'editWord' | 'manageCategories' | 'quizSetup' | 'quiz' | 'quizResult' | 'statistics' | 'myPage' | 'importWords' | 'settings' | 'support' | 'notice' | 'flashcardSetup' | 'flashcard' | 'examSetup' | 'exam' | 'examResult';
+type Screen = 'home' | 'manageWords' | 'addWord' | 'editWord' | 'manageCategories' | 'quizSetup' | 'quiz' | 'quizResult' | 'statistics' | 'myPage' | 'importWords' | 'settings' | 'support' | 'notice' | 'flashcardSetup' | 'flashcard' | 'examSetup' | 'exam' | 'examResult' | 'examHistory';
 
 function AppContent() {
   const { t } = useTranslation();
@@ -115,6 +116,8 @@ function AppContent() {
   const [exam, setExam] = useState<{ categoryId: number; language: ExamLanguage } | null>(null);
   /** 결과 화면이 읽을 시험 id. 기록은 저장소에 있고 이 값은 **어느 판인지**만 가리킨다 */
   const [examResultId, setExamResultId] = useState<string>('');
+  /** 재시험으로 다시 풀 시험. 🔴 설정 화면을 거치지 않고 바로 문제로 간다(문제가 이미 있다) */
+  const [retryExamId, setRetryExamId] = useState<string>('');
 
   // 공지 화면에서 돌아갈 곳(홈 또는 설정) — 진입점이 두 개라 따로 기억한다
   const [noticeFrom, setNoticeFrom] = useState<Screen>('home');
@@ -195,6 +198,9 @@ function AppContent() {
         setRetryWordIds(undefined);
         setCurrentScreen('home');
         break;
+      case 'examHistory':
+        setCurrentScreen('examSetup');
+        break;
       case 'exam':
         /*
          * 🔴 **여기서 아무것도 하지 않는다.** 시험 화면이 자기 `BackHandler` 로 먼저 잡는다
@@ -204,6 +210,7 @@ function AppContent() {
         break;
       case 'examResult':
         setExamResultId('');
+        setRetryExamId('');
         setCurrentScreen('home');
         break;
       default:
@@ -371,6 +378,7 @@ function AppContent() {
     return (
       <ExamSetupScreen
         onBack={() => setCurrentScreen('home')}
+        onHistory={() => setCurrentScreen('examHistory')}
         onStart={(categoryId, language) => {
           setExam({ categoryId, language });
           setCurrentScreen('exam');
@@ -379,17 +387,35 @@ function AppContent() {
     );
   }
 
-  if (currentScreen === 'exam' && exam) {
+  if (currentScreen === 'exam' && (exam || retryExamId)) {
     return (
       <ExamScreen
-        categoryId={exam.categoryId}
-        language={exam.language}
+        {...(exam === null ? {} : { categoryId: exam.categoryId, language: exam.language })}
+        {...(retryExamId ? { retryExamId } : {})}
         // 해설을 어느 언어로 받을지. 🔴 앱 언어를 그대로 보낸다 — 단어의 언어와 다른 축이다
         uiLang={getCurrentLanguage()}
-        onBack={() => setCurrentScreen('examSetup')}
+        onBack={() => {
+          // 재시험이면 성적표로, 새 시험이면 설정으로 돌아간다
+          const back = retryExamId ? 'examHistory' : 'examSetup';
+          setRetryExamId('');
+          setCurrentScreen(back);
+        }}
         onFinish={(examId) => {
+          setRetryExamId('');
           setExamResultId(examId);
           setCurrentScreen('examResult');
+        }}
+      />
+    );
+  }
+
+  if (currentScreen === 'examHistory') {
+    return (
+      <ExamHistoryScreen
+        onBack={() => setCurrentScreen('examSetup')}
+        onRetry={(examId) => {
+          setRetryExamId(examId);
+          setCurrentScreen('exam');
         }}
       />
     );

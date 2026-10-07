@@ -8,6 +8,7 @@ import { readRaw, writeRaw } from '../utils/storage';
 import { getDb } from '../db';
 import { examRepo } from '../db/repo';
 import { quizService } from './quizService';
+import { quizResultStorage } from '../utils/storage';
 import { srsService } from './srsService';
 import { wordService } from './wordService';
 import type { ExamQuestion } from './commonServer/types';
@@ -16,17 +17,17 @@ import type { Word } from '../types/word';
 /**
  * AI 단어 시험 — **씨앗 고르기 · 언어 판정 · 채점 · 기록.**
  *
- * 🔴 **이 파일은 퀴즈 결과를 쓰지 않는다**(`quizService.saveQuizResults` · `srsService.recordAnswers`).
+ * 🔴 **통계에는 1회차만 쓴다. 재시험은 절대 안 쓴다**(2026-10-07 Phase 5 에서 켰다).
  *
- *    기획은 *"내 단어 문제만 통계에 반영하고 **재시험은 반영하지 않는다**"* 로 정했는데,
- *    **재시험을 구분하는 코드가 아직 없다**(다음 단계다). 구분 못 하는 상태에서 통계에 쓰면
- *    같은 문제를 다시 풀어 맞힌 것이 정답률을 부풀린다 — 플래시카드가 *"뒤집어 보고 넘긴 것을
- *    정답으로 세면 정답률이 조용히 부푼다"* 로 막아 둔 것과 **똑같은 사고**다.
- *    정답률·스트릭·통계·간격 복습 만기가 전부 `@my_word_quiz_results` 에서 파생되므로
- *    여기서 한 번 잘못 쓰면 그 넷이 동시에 흔들린다.
+ *    기획: *"내 단어 문제만 통계에 반영하고 **재시험은 반영하지 않는다**"*.
+ *    같은 문제를 다시 풀면 **외워서 맞힌다** — 그걸 정답률에 넣으면 숫자가 조용히 부푼다.
+ *    플래시카드가 *"뒤집어 보고 넘긴 것을 정답으로 세면 정답률이 조용히 부푼다"* 로 막아 둔 것과
+ *    같은 사고다. 정답률·스트릭·통계·간격 복습 만기가 전부 `@my_word_quiz_results` 에서
+ *    파생되므로 여기서 한 번 잘못 쓰면 **그 넷이 동시에 흔들린다.**
  *
- *    ⚠ 이건 "아직 안 만든 기능"이 맞다(플래시카드와 달리 결정이 아니다).
- *      재시험 구분이 들어오면 **그때** 통계 연결을 켠다. 순서를 지키는 것이 요점이다.
+ *    그래서 통계 쓰기는 **`recordFirstAttempt` 한 곳에서만** 일어나고, 그 함수는
+ *    `attempts.length === 1` 일 때만 쓴다. `__tests__/examService.test.ts` 가 소스를 읽어
+ *    **다른 어디에서도 통계를 쓰지 않는 것**을 지킨다.
  *
  * ⚠ 만기·취약 조회는 `srsService`·`quizService` 를 **읽기만** 한다. 읽기라서 위 규칙과 어긋나지 않는다.
  *
@@ -283,6 +284,13 @@ export function collectNewWords(
  * ⚠ 문제 본문을 그대로 담는다. 재시험과 성적표가 이걸 읽어야 하고, 서버에 다시 묻는 것은
  *   **돈이 든다**(그리고 구독을 끊으면 물을 수도 없다).
  */
+/** 한 회차. 🔴 **문제는 회차 밖에 있다** — 같은 문제를 다시 푸는 것이 재시험이다 */
+export interface ExamAttempt {
+  answers: ExamAnswer[];
+  score: ExamScore;
+  takenAt: string;
+}
+
 export interface ExamRecord {
   /** 서버가 준 시험 id. 없으면 로컬에서 만든 값 */
   examId: string;
@@ -294,8 +302,54 @@ export interface ExamRecord {
   categoryId?: number;
   takenAt: string;
   questions: ExamQuestion[];
-  answers: ExamAnswer[];
-  score: ExamScore;
+  /**
+   * 회차 목록. **1회차가 `[0]`** 이고 뒤로 쌓인다.
+   *
+   * 🔴 통계에 들어가는 것은 `[0]` 뿐이다(머리 주석). 성적표는 전부 보여준다.
+   * ⚠ 옛 기록은 `answers`·`score` 를 직접 들고 있었다. `parseRecords` 가 그것을 1회차로 옮긴다 —
+   *   **마이그레이션을 따로 돌리지 않는다**(저장본은 읽을 때 고친다).
+   */
+  attempts: ExamAttempt[];
+}
+
+/**
+ * 회차를 읽는다. **옛 모양(`answers`·`score` 가 기록에 직접 있는 것)을 1회차로 옮긴다.**
+ *
+ * 🔴 저장본을 고치는 마이그레이션을 돌리지 않는다 — 읽을 때 고친다. 운영 중인 앱이라
+ *    저장본을 건드리는 쪽이 늘 더 위험하다(SRS·백업이 같은 규율이다).
+ */
+function parseAttempts(obj: Record<string, unknown>, questions: ExamQuestion[]): ExamAttempt[] {
+  const out: ExamAttempt[] = [];
+  const raw = obj.attempts;
+  if (Array.isArray(raw)) {
+    for (const entry of raw) {
+      if (typeof entry !== 'object' || entry === null) continue;
+      const a = entry as Record<string, unknown>;
+      if (!Array.isArray(a.answers)) continue;
+      const answers = a.answers as ExamAnswer[];
+      out.push({
+        answers,
+        score:
+          typeof a.score === 'object' && a.score !== null
+            ? (a.score as ExamScore)
+            : scoreExam(questions, answers),
+        takenAt: typeof a.takenAt === 'string' ? a.takenAt : String(obj.takenAt ?? ''),
+      });
+    }
+  }
+  // 옛 모양: 기록이 answers·score 를 직접 들고 있다
+  if (out.length === 0 && Array.isArray(obj.answers)) {
+    const answers = obj.answers as ExamAnswer[];
+    out.push({
+      answers,
+      score:
+        typeof obj.score === 'object' && obj.score !== null
+          ? (obj.score as ExamScore)
+          : scoreExam(questions, answers),
+      takenAt: String(obj.takenAt ?? ''),
+    });
+  }
+  return out;
 }
 
 /** 🔴 어떤 입력에도 던지지 않는다. 기록 하나가 깨졌다고 시험을 못 치면 안 된다 */
@@ -312,7 +366,7 @@ export function parseRecords(raw: string | null): ExamRecord[] {
   for (const entry of parsed) {
     if (typeof entry !== 'object' || entry === null) continue;
     const obj = entry as Record<string, unknown>;
-    if (!Array.isArray(obj.questions) || !Array.isArray(obj.answers)) continue;
+    if (!Array.isArray(obj.questions)) continue;
     if (typeof obj.examId !== 'string' || typeof obj.takenAt !== 'string') continue;
     out.push({
       examId: obj.examId,
@@ -322,11 +376,7 @@ export function parseRecords(raw: string | null): ExamRecord[] {
         : {}),
       takenAt: obj.takenAt,
       questions: obj.questions as ExamQuestion[],
-      answers: obj.answers as ExamAnswer[],
-      score:
-        typeof obj.score === 'object' && obj.score !== null
-          ? (obj.score as ExamScore)
-          : scoreExam(obj.questions as ExamQuestion[], obj.answers as ExamAnswer[]),
+      attempts: parseAttempts(obj, obj.questions as ExamQuestion[]),
     });
   }
   return out;
@@ -402,6 +452,80 @@ export const examService = {
    * 🔴 **퀴즈 결과에는 쓰지 않는다**(파일 머리 주석). 여기 쓰는 것은 이 키 하나뿐이다.
    * ⚠ 저장이 실패하면 **삼키지 않고 알린다** — 성적표가 비면 사용자가 알아야 한다.
    */
+  /**
+   * 🔴 **1회차만 통계에 쓴다. 여기가 이 파일에서 통계를 쓰는 유일한 곳이다.**
+   *
+   * 쓰는 것은 둘이다 — 퀴즈 결과(정답률·스트릭의 원천)와 간격 복습 만기.
+   * 넘긴 문제(`null`)는 **쓰지 않는다**: 모르겠다고 넘긴 것을 오답으로 세면 만기가 당겨지고,
+   * 정답으로 셀 수는 더더욱 없다. 퀴즈 화면도 안 푼 문제를 저장하지 않는다.
+   *
+   * ⚠ 실패해도 던지지 않는다. 통계가 한 판 빠지는 것보다 성적이 안 남는 쪽이 나쁘다.
+   */
+  async recordFirstAttempt(record: ExamRecord): Promise<void> {
+    if (record.attempts.length !== 1) return;
+    const attempt = record.attempts[0];
+    if (attempt === undefined) return;
+
+    try {
+      /*
+       * 🔴 **`wordId` 를 반드시 내 단어장에서 찾아 쓴다.**
+       *
+       *    문제는 단어를 **글자로만** 들고 있다(서버의 창고가 공용이라 사용자의 번호를 모른다).
+       *    여기서 못 찾은 것을 0 같은 가짜 번호로 넣으면 **없는 단어를 가리키는 통계**가 생기고,
+       *    정답률 화면이 그걸 조용히 섞어 보여준다. 크래시도 경고도 없다.
+       *    → **못 찾으면 그 문제는 통계에 안 쓴다.** 기획의 *"내 단어 문제만 반영한다"* 가 이것이다.
+       */
+      const owned = new Map((await wordService.getWords()).map((w) => [w.word.trim(), w.wordId]));
+
+      const rows = record.questions
+        .map((q, i) => ({ q, answer: attempt.answers[i], wordId: owned.get(q.word.trim()) }))
+        // 넘긴 문제는 쓰지 않는다 — 오답으로 세면 만기가 당겨지고 정답으로는 더더욱 못 센다
+        .filter((x) => x.answer !== null && x.answer !== undefined && x.wordId !== undefined)
+        .map(({ q, answer, wordId }) => ({
+          wordId: wordId as number,
+          isCorrect: answer === q.answerIndex,
+          quizType: 'ai_exam',
+          answerType: 'multiple_choice',
+          word: q.word,
+          correctAnswer: q.choices[q.answerIndex],
+          userAnswer: typeof answer === 'number' ? q.choices[answer] : undefined,
+        }));
+
+      if (rows.length === 0) return;
+
+      await quizResultStorage.saveResults(rows);
+      // 간격 복습 만기도 같이 움직인다. 🔴 결과를 먼저 저장한 뒤에 부른다 —
+      //    srsService 가 "결과 개수"로 증분 가능 여부를 판정하기 때문이다
+      await srsService.recordAnswers(rows.map((r) => ({ wordId: r.wordId, isCorrect: r.isCorrect })));
+    } catch (error: any) {
+      // 통계가 한 판 빠지는 것보다 성적이 안 남는 쪽이 나쁘다. 삼키되 남긴다
+      console.warn('시험 결과 통계 반영 실패:', error);
+    }
+  },
+
+  /**
+   * 재시험 한 회차를 더한다.
+   *
+   * 🔴 **통계를 건드리지 않는다.** 같은 문제를 다시 풀면 외워서 맞히므로, 넣으면 정답률이 부푼다.
+   *    이 함수가 `recordFirstAttempt` 를 부르지 않는 것이 그 규칙의 전부다.
+   *
+   * ⚠ 없는 시험이면 아무것도 하지 않는다(던지지 않는다).
+   */
+  async addAttempt(examId: string, answers: ExamAnswer[]): Promise<ExamRecord | null> {
+    const records = await this.getRecords();
+    const target = records.find((r) => r.examId === examId);
+    if (target === undefined) return null;
+    const next: ExamRecord = {
+      ...target,
+      attempts: [
+        ...target.attempts,
+        { answers, score: scoreExam(target.questions, answers), takenAt: new Date().toISOString() },
+      ],
+    };
+    await this.saveRecord(next);
+    return next;
+  },
+
   async saveRecord(record: ExamRecord): Promise<void> {
     const db = getDb();
     if (db !== null) {

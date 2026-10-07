@@ -103,7 +103,7 @@ src/
 ├── contexts/              Bootstrap(공지·버전) · Purchase(광고제거) · Theme · Notification(학습 알림)
 ├── hooks/                 useInterstitialAd · useToast
 ├── i18n/                  🔴 **한국어 원문이 곧 키다** — locales/{en,ja}.json (ko 는 키가 원문이라 파일 없음)
-├── screens/               18개 (아래)
+├── screens/               19개 (아래)
 ├── services/              word · category · quiz · srs(간격 복습) · flashcard · exam(AI 시험) · dictionary · share · support · notice · version · notification
 │                          backup(순수 로직) · backupFile(파일 입출력 — 네이티브는 여기만)
 │   └── commonServer/      ⚠ 공통 서버 SDK — **손으로 고치지 말 것**(원본에서 재복사)
@@ -114,7 +114,7 @@ src/
 **라우팅에 React Navigation 을 쓰지 않는다.** `App.tsx` 의 `useState<Screen>` 하나로 전환하고,
 각 화면은 `onBack` · `onNavigate*` 콜백을 props 로 받는다.
 
-### 화면 18개
+### 화면 19개
 
 | 묶음 | 화면 |
 |---|---|
@@ -122,7 +122,7 @@ src/
 | 퀴즈 | QuizSetup · Quiz · QuizResult |
 | 플래시카드 | FlashcardSetup · Flashcard (채점하지 않는다) |
 | 기록 | Statistics · MyPage |
-| AI 시험 | ExamSetup · Exam · ExamResult — 🔴 **인터넷이 필요한 유일한 묶음** |
+| AI 시험 | ExamSetup · Exam · ExamResult · ExamHistory(성적표·재시험) |
 | 기타 | Settings · Support(문의) · Notice(공지) |
 
 ---

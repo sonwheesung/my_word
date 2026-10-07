@@ -45,14 +45,14 @@ my_word/
     ├── contexts/                Bootstrap(공지 · 버전 · 기기 세션) · Purchase(광고 제거) · Theme · Notification(학습 알림)
     ├── hooks/                   useInterstitialAd(+ .web) · useToast
     ├── i18n/                    index · language(저장된 언어 → 기기 언어 → en) · locales/{en,ja}.json (ko 는 키가 원문이라 파일이 없다)
-    ├── screens/                 화면 18개 (아래)
+    ├── screens/                 화면 19개 (아래)
     ├── services/                비즈니스 로직 (아래)
     │   └── commonServer/        ⚠ 공통 서버 SDK 복사본. 손으로 고치지 않는다(원본에서 재복사)
     ├── types/                   word.ts
     └── utils/                   storage(저장소 추상화 · BACKUP_KEYS) · srs(FSRS 계산) · date · text · speech · notificationSchedule
 ```
 
-### 화면 (`src/screens/`, 화면 18개)
+### 화면 (`src/screens/`, 화면 19개)
 
 | 묶음 | 파일 |
 |---|---|
@@ -61,7 +61,7 @@ my_word/
 | 퀴즈 | `QuizSetupScreen.tsx` · `QuizScreen.tsx` · `QuizResultScreen.tsx` |
 | 플래시카드 | `FlashcardSetupScreen.tsx` · `FlashcardScreen.tsx` |
 | 기록 | `StatisticsScreen.tsx` · `MyPageScreen.tsx` |
-| AI 시험 | `ExamSetupScreen.tsx` · `ExamScreen.tsx` · `ExamResultScreen.tsx` — 🔴 **인터넷이 필요한 유일한 학습 묶음** |
+| AI 시험 | `ExamSetupScreen.tsx` · `ExamScreen.tsx` · `ExamResultScreen.tsx` · `ExamHistoryScreen.tsx` — 🔴 인터넷이 필요한 것은 **새 문제를 만들 때뿐**이다(재시험·성적표는 기기에서 끝난다) |
 | 기타 | `SettingsScreen.tsx` · `SupportScreen.tsx` · `NoticeScreen.tsx` |
 
 화면별 동작은 [`screens.md`](screens.md).

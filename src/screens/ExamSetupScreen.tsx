@@ -46,6 +46,11 @@ import type { Category } from '../types/word';
 interface ExamSetupScreenProps {
   onBack: () => void;
   onStart: (categoryId: number, language: ExamLanguage) => void;
+  /**
+   * 성적표로. 🔴 **진입점을 여기 둔 이유** — 시험을 치러 온 사람이 지난 성적을 보고 싶어 한다.
+   * 홈에 또 하나를 두면 홈이 길어지고, 설정에 두면 아무도 못 찾는다.
+   */
+  onHistory: () => void;
 }
 
 const LANGUAGE_LABEL: Record<ExamLanguage, string> = {
@@ -55,7 +60,7 @@ const LANGUAGE_LABEL: Record<ExamLanguage, string> = {
   zh: '중국어',
 };
 
-export default function ExamSetupScreen({ onBack, onStart }: ExamSetupScreenProps) {
+export default function ExamSetupScreen({ onBack, onStart, onHistory }: ExamSetupScreenProps) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const { toast, showToast, hideToast } = useToast();
@@ -211,7 +216,11 @@ export default function ExamSetupScreen({ onBack, onStart }: ExamSetupScreenProp
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar style={colors.isDark ? 'light' : 'dark'} />
-      <ScreenHeader title={t('AI 시험')} onBack={onBack} />
+      <ScreenHeader
+        title={t('AI 시험')}
+        onBack={onBack}
+        rightButton={{ text: t('성적표'), onPress: onHistory }}
+      />
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <View style={styles.section}>
