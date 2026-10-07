@@ -201,8 +201,13 @@ src/db/index.ts             expo-sqlite 연결(여기만 안다) · 부팅
 | `categories` | 카테고리 |
 | `words` | 단어. 뜻·예문·태그는 JSON 문자열 |
 | `quiz_results` | 퀴즈 결과 |
-| `exams` | AI 시험 기록 |
+| `exams` | AI 시험 기록 (+ `category_id` · v2) |
 | `meta` | `schema_version` · `legacy_imported_at` |
+
+**v2 (2026-10-07)**: `exams.category_id` 추가. 🔴 **V1 을 고치지 않고 덧붙였다** —
+이미 v1 을 지나간 기기가 있고(그날 에뮬레이터가 그랬다) V1 을 고치면 그 기기는 변경을 영원히 못 받는다.
+단어 담기가 이 값을 쓴다(담을 단어장이 어디인지). 옛 기록에는 없으므로 NULL 을 허용한다.
+✅ 실기기에서 v1 → v2 올라가는 것과 옛 행이 사는 것을 확인했다.
 
 ### 🔴 이사가 지키는 것 넷
 

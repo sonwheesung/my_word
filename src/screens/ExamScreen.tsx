@@ -18,7 +18,7 @@ import { FONT, RADIUS, SPACING } from '../constants/design';
 import { EXAM_EXPECTED_WAIT_SEC, EXAM_SIZE } from '../constants/appConfig';
 import { useTheme } from '../contexts/ThemeContext';
 import { useToast } from '../hooks/useToast';
-import { commonServer } from '../services/commonServer/client';
+import { commonServer, ensureDeviceSession } from '../services/commonServer/client';
 import { examService, scoreExam, toSeedPayload, type ExamAnswer, type ExamLanguage } from '../services/examService';
 import type { ExamQuestion } from '../services/commonServer/types';
 import type { AppLanguage } from '../i18n/language';
@@ -74,6 +74,14 @@ function failMessage(reason: string): { title: string; body: string; retryable: 
       };
     case 'not-configured':
     case 'not-signed-in':
+    case 'unauthorized':
+      /*
+       * 🔴 **세션이 끊긴 경우다. 이 화면에서 스스로 복구한다**(2026-10-07 에뮬레이터에서 잡았다).
+       *
+       *    SDK 는 401 을 받으면 토큰을 버린다. 그런데 기기 재등록은 부팅 때만 하므로,
+       *    그냥 두면 **「다시 시도」가 영원히 실패한다** — 사용자는 앱을 껐다 켜야 하는데
+       *    화면이 그 말을 안 해 준다. 그래서 재시도 전에 세션을 다시 만든다(아래 effect).
+       */
       return {
         title: '지금은 시험을 볼 수 없어요',
         body: '앱을 다시 시작한 뒤에도 같으면 문의해 주세요',
@@ -133,12 +141,25 @@ export default function ExamScreen({
           setPhase('failed');
           return;
         }
-        const result = await commonServer.generateExam({
+        let result = await commonServer.generateExam({
           language,
           uiLang,
           count: EXAM_SIZE,
           words,
         });
+        /*
+         * 🔴 **세션이 끊겼으면 한 번 되살리고 다시 해 본다.**
+         *    기기 세션은 부팅 때만 만들어지는데, 그 사이 서버에서 주체가 사라질 수 있다
+         *    (탈퇴 · 운영 정리). 그대로 두면 「다시 시도」가 영원히 실패한다.
+         * ⚠ **한 번만** 한다. 루프가 되면 재등록 레이트리밋(IP당 10회/600초)에 걸린다.
+         */
+        if (!result.ok && (result.reason === 'unauthorized' || result.reason === 'not-signed-in')) {
+          const revived = await ensureDeviceSession();
+          if (!alive) return;
+          if (revived) {
+            result = await commonServer.generateExam({ language, uiLang, count: EXAM_SIZE, words });
+          }
+        }
         if (!alive) return;
         if (!result.ok) {
           setFailure(result.reason);
@@ -215,6 +236,8 @@ export default function ExamScreen({
       .saveRecord({
         examId,
         language,
+        // 🔴 단어 담기가 이 값을 쓴다 — 담을 단어장이 어디인지
+        categoryId,
         takenAt: new Date().toISOString(),
         questions,
         answers: nextAnswers,
@@ -227,7 +250,7 @@ export default function ExamScreen({
         showToast(t('성적을 저장하지 못했어요'), 'error');
         onFinish(examId);
       });
-  }, [answers, current, examId, index, language, onFinish, picked, questions, showToast, t]);
+  }, [answers, categoryId, current, examId, index, language, onFinish, picked, questions, showToast, t]);
 
   // ── 기다리는 화면 ────────────────────────────────────────────────────────
   if (phase === 'loading') {

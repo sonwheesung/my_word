@@ -17,7 +17,9 @@ import { FONT, RADIUS, SPACING } from '../constants/design';
 import { useTheme } from '../contexts/ThemeContext';
 import { useToast } from '../hooks/useToast';
 import { commonServer } from '../services/commonServer/client';
-import { examService, type ExamRecord } from '../services/examService';
+import { collectNewWords, examService, type ExamRecord } from '../services/examService';
+import { dictionaryService } from '../services/dictionaryService';
+import { wordService } from '../services/wordService';
 
 /**
  * AI 시험 결과.
@@ -26,8 +28,9 @@ import { examService, type ExamRecord } from '../services/examService';
  *    점수는 `@my_word_exams` 에만 남고 정답률·스트릭·복습 만기는 움직이지 않는다.
  *    재시험을 구분하는 코드가 생기면 그때 연결한다 — 순서를 지키는 것이 요점이다.
  *
- * ⚠ **단어 담기는 아직 없다.** 기획의 핵심 가치(오답 보기가 곧 추천 단어)는 다음 단계다.
- *   여기서는 맞은 것·틀린 것과 해설만 보여준다.
+ * 🔴 **단어 담기가 이 화면의 진짜 값이다**(2026-10-07 추가).
+ *   기획: *"시험에 나온 없는 단어들 목록 보여주고 하나씩 선택해서 저장"*.
+ *   시험을 볼수록 단어장이 자란다 — 그게 구독의 값이고, 문제를 내 주는 것이 아니다.
  *
  * 🔴 **신고 버튼이 여기 있는 이유** — 창고를 모든 사용자가 나눠 쓰므로 틀린 문제는 한 명에게만
  *    가지 않는다. 문제를 본 직후가 신고할 수 있는 유일한 자리다.
@@ -50,6 +53,13 @@ export default function ExamResultScreen({ examId, onBack, onHome }: ExamResultS
   const [reported, setReported] = useState<Set<string>>(new Set());
   const [reporting, setReporting] = useState<string | null>(null);
 
+  /** 담을 수 있는 후보(오답 보기 중 내 단어장에 없는 것) */
+  const [candidates, setCandidates] = useState<string[]>([]);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [saving, setSaving] = useState(false);
+  /** 이번에 담은 단어. 다시 담지 못하게 하고 결과를 보여준다 */
+  const [saved, setSaved] = useState<Set<string>>(new Set());
+
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -67,6 +77,95 @@ export default function ExamResultScreen({ examId, onBack, onHome }: ExamResultS
       alive = false;
     };
   }, [examId]);
+
+  /**
+   * 후보를 고른다. **단어장 전체와 대조해야** 하므로 기록을 읽은 뒤에 한 번만 한다.
+   * ⚠ 실패해도 화면은 멀쩡해야 한다 — 후보가 없는 것으로 둔다.
+   */
+  useEffect(() => {
+    if (record === null) return;
+    let alive = true;
+    (async () => {
+      try {
+        const owned = await wordService.getWords();
+        if (!alive) return;
+        setCandidates(collectNewWords(record.questions, owned.map((w) => w.word)));
+      } catch (error: any) {
+        console.warn('단어 담기 후보 계산 실패:', error);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [record]);
+
+  const toggle = useCallback((word: string) => {
+    setPicked((prev) => {
+      const next = new Set(prev);
+      if (next.has(word)) next.delete(word);
+      else next.add(word);
+      return next;
+    });
+  }, []);
+
+  /**
+   * 고른 단어를 단어장에 담는다.
+   *
+   * 🔴 **뜻은 저장할 때 찾는다.** 후보를 보여줄 때 전부 찾으면 네트워크를 수십 번 때린다 —
+   *    사용자가 고른 것만 찾으면 보통 두세 번이다.
+   * ⚠ 뜻을 못 찾아도 **단어는 담는다.** 뜻이 비어 있어도 사용자가 나중에 채울 수 있고,
+   *   못 찾았다고 안 담으면 "눌렀는데 아무 일도 안 일어났다"가 된다.
+   * 🟢 사전이 감지한 언어를 함께 저장한다 — 발음 재생과 다음 시험의 언어 판정이 정확해진다.
+   */
+  const handleSave = useCallback(async () => {
+    if (saving || picked.size === 0 || record === null) return;
+    const categoryId = record.categoryId;
+    if (categoryId === undefined) {
+      showToast(t('이 시험은 어느 단어장에 담을지 알 수 없어요'), 'error');
+      return;
+    }
+    setSaving(true);
+    const done = new Set<string>();
+    try {
+      for (const word of picked) {
+        let meanings: string[] = [];
+        let examples: { example: string; translation?: string }[] = [];
+        let language: string | undefined;
+        try {
+          const found = await dictionaryService.lookup(word);
+          if (found.ok) {
+            meanings = found.data.meanings;
+            examples = found.data.examples;
+            language = found.data.detectedLanguage;
+          }
+        } catch {
+          // 뜻을 못 찾아도 단어는 담는다
+        }
+        await wordService.createWord({
+          categoryId,
+          word,
+          meanings,
+          examples,
+          ...(language === undefined ? {} : { language }),
+        });
+        done.add(word);
+      }
+      setSaved((prev) => new Set([...prev, ...done]));
+      setCandidates((prev) => prev.filter((w) => !done.has(w)));
+      setPicked(new Set());
+      showToast(t('{{count}}개 단어를 단어장에 담았어요', { count: done.size }), 'success');
+    } catch (error: any) {
+      console.warn('단어 담기 실패:', error);
+      // 🔴 몇 개는 들어갔을 수 있다. 들어간 것은 목록에서 빼 준다 — 두 번 담기지 않게
+      if (done.size > 0) {
+        setSaved((prev) => new Set([...prev, ...done]));
+        setCandidates((prev) => prev.filter((w) => !done.has(w)));
+      }
+      showToast(t('단어를 담지 못했어요'), 'error');
+    } finally {
+      setSaving(false);
+    }
+  }, [picked, record, saving, showToast, t]);
 
   const handleReport = useCallback(
     async (questionId: string) => {
@@ -138,6 +237,83 @@ export default function ExamResultScreen({ examId, onBack, onHome }: ExamResultS
             </Text>
           )}
         </View>
+
+        {/*
+          🔴 단어 담기 — 이 화면의 진짜 값이다.
+          점수보다 **위**에 두지 않는다(먼저 보고 싶은 것은 점수다). 바로 아래가 맞다.
+        */}
+        {candidates.length > 0 && (
+          <View style={[styles.pickBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.pickTitle, { color: colors.text }]}>
+              {t('시험에 나온 새 단어')}
+            </Text>
+            <Text style={[styles.pickHint, { color: colors.textSecondary }]}>
+              {t('단어장에 없는 단어예요. 담으면 다음 학습에 나와요')}
+            </Text>
+            <View style={styles.chipWrap}>
+              {candidates.map((word) => {
+                const on = picked.has(word);
+                return (
+                  <TouchableOpacity
+                    key={word}
+                    style={[
+                      styles.chip,
+                      { backgroundColor: colors.background, borderColor: colors.border },
+                      on && { backgroundColor: colors.primaryLight, borderColor: colors.primary },
+                    ]}
+                    onPress={() => toggle(word)}
+                    disabled={saving}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: on }}
+                  >
+                    <MaterialIcons
+                      name={on ? 'check-circle' : 'add-circle-outline'}
+                      size={16}
+                      color={on ? colors.primary : colors.textTertiary}
+                    />
+                    <Text
+                      style={[
+                        styles.chipText,
+                        { color: colors.text },
+                        on && { color: colors.primaryStrong, fontWeight: '700' },
+                      ]}
+                    >
+                      {word}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            <TouchableOpacity
+              style={[
+                styles.pickButton,
+                { backgroundColor: colors.primaryStrong },
+                (picked.size === 0 || saving) && styles.pickButtonDisabled,
+              ]}
+              onPress={() => void handleSave()}
+              disabled={picked.size === 0 || saving}
+              accessibilityRole="button"
+            >
+              {saving ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.pickButtonText}>
+                  {picked.size === 0
+                    ? t('담을 단어를 골라 주세요')
+                    : t('{{count}}개 담기', { count: picked.size })}
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {saved.size > 0 && candidates.length === 0 && (
+          <View style={[styles.pickBox, { backgroundColor: colors.successBg, borderColor: colors.successBorder }]}>
+            <Text style={[styles.pickTitle, { color: colors.successText }]}>
+              {t('{{count}}개 단어를 담았어요', { count: saved.size })}
+            </Text>
+          </View>
+        )}
 
         <Text style={[styles.sectionLabel, { color: colors.text }]}>{t('문제 다시 보기')}</Text>
 
@@ -255,6 +431,38 @@ const styles = StyleSheet.create({
   scoreValue: { fontSize: 44, fontWeight: '700' },
   scoreLine: { fontSize: FONT.body, marginTop: SPACING.xs },
   sectionLabel: { fontSize: FONT.label, fontWeight: '700', marginBottom: SPACING.md },
+  // ── 단어 담기 ──
+  pickBox: {
+    borderWidth: 1,
+    borderRadius: RADIUS.xl,
+    padding: SPACING.md,
+    marginBottom: SPACING.xl,
+  },
+  pickTitle: { fontSize: FONT.label, fontWeight: '700' },
+  pickHint: { fontSize: FONT.caption, marginTop: 2, lineHeight: 18 },
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm, marginTop: SPACING.md },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1,
+    borderRadius: RADIUS.pill,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    // 터치 영역 바닥
+    minHeight: 40,
+  },
+  chipText: { fontSize: FONT.body },
+  pickButton: {
+    borderRadius: RADIUS.md,
+    paddingVertical: SPACING.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+    marginTop: SPACING.md,
+  },
+  pickButtonDisabled: { opacity: 0.5 },
+  pickButtonText: { color: '#fff', fontSize: FONT.body, fontWeight: '700' },
   reviewCard: {
     borderWidth: 1,
     borderRadius: RADIUS.md,

@@ -194,7 +194,7 @@ export const wordRepo = {
         json(data.examples),
         json(data.tags ?? []),
         data.memo ?? '',
-        (data as { language?: string }).language ?? null,
+        data.language ?? null,
         now,
         now,
       ],
@@ -264,6 +264,50 @@ export const resultRepo = {
   },
 };
 
+// ── AI 시험 기록 ────────────────────────────────────────────────────────────
+
+/**
+ * 🔴 **`exams` 표를 만들어 놓고 안 쓰면 백업이 새 시험을 놓친다**(2026-10-07 실기기에서 잡았다).
+ *    이사는 옛 기록을 옮기는데 새 기록이 계속 AsyncStorage 로 가면, 표에는 옛것만 남고
+ *    `backupRepo.exams()` 가 그걸 읽는다. **반쯤 옮긴 상태가 가장 나쁘다.**
+ */
+export const examRepo = {
+  getAll(db: SqlDriver): unknown[] {
+    return backupRepo.exams(db);
+  },
+
+  /** 한 판을 넣고 상한을 넘으면 오래된 것을 버린다(백업이 끝없이 커지지 않게) */
+  save(db: SqlDriver, record: Record<string, unknown>, max: number): void {
+    db.tx(() => {
+      db.run(
+        `INSERT OR REPLACE INTO exams (exam_id, language, category_id, taken_at, questions, answers, score)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          String(record.examId ?? ''),
+          String(record.language ?? ''),
+          typeof record.categoryId === 'number' ? record.categoryId : null,
+          String(record.takenAt ?? ''),
+          json(record.questions),
+          json(record.answers),
+          (() => {
+            try {
+              return JSON.stringify(record.score ?? {});
+            } catch {
+              return '{}';
+            }
+          })(),
+        ],
+      );
+      db.run(
+        `DELETE FROM exams WHERE exam_id NOT IN (
+           SELECT exam_id FROM exams ORDER BY taken_at DESC LIMIT ?
+         )`,
+        [Math.max(1, max)],
+      );
+    });
+  },
+};
+
 // ── 백업 ────────────────────────────────────────────────────────────────────
 
 /**
@@ -276,12 +320,20 @@ export const backupRepo = {
   quizResults: (db: SqlDriver): StoredQuizResult[] => resultRepo.getAll(db),
   exams: (db: SqlDriver): unknown[] =>
     db
-      .all<{ exam_id: string; language: string; taken_at: string; questions: string; answers: string; score: string }>(
-        'SELECT * FROM exams ORDER BY taken_at DESC',
-      )
+      .all<{
+        exam_id: string;
+        language: string;
+        category_id: number | null;
+        taken_at: string;
+        questions: string;
+        answers: string;
+        score: string;
+      }>('SELECT * FROM exams ORDER BY taken_at DESC')
       .map((r) => ({
         examId: r.exam_id,
         language: r.language,
+        // ⚠ 옛 기록에는 없다. 없으면 키를 아예 안 넣는다(화면이 undefined 로 판단한다)
+        ...(r.category_id === null ? {} : { categoryId: r.category_id }),
         takenAt: r.taken_at,
         questions: arr(r.questions),
         answers: arr(r.answers),
@@ -372,11 +424,12 @@ export const backupRepo = {
           const o = raw as Record<string, unknown>;
           if (typeof o?.examId !== 'string') continue;
           db.run(
-            `INSERT OR REPLACE INTO exams (exam_id, language, taken_at, questions, answers, score)
-             VALUES (?, ?, ?, ?, ?, ?)`,
+            `INSERT OR REPLACE INTO exams (exam_id, language, category_id, taken_at, questions, answers, score)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
             [
               o.examId,
               String(o.language ?? ''),
+              typeof o.categoryId === 'number' ? o.categoryId : null,
               String(o.takenAt ?? now),
               json(o.questions),
               json(o.answers),

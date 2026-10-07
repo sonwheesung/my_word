@@ -32,6 +32,7 @@ import {
   isExamLanguage,
   parseExamPrefs,
   parseRecords,
+  collectNewWords,
   pickSeeds,
   scoreExam,
   toSeedPayload,
@@ -433,5 +434,79 @@ describe('🔴 시험은 아직 통계에 쓰지 않는다 (소스 훑기)', () 
     const source = stripComments(readSource('src/services/examService.ts'));
     const calls = source.match(/srsService\.\w+/g) ?? [];
     expect(new Set(calls)).toEqual(new Set(['srsService.getDueWordIds']));
+  });
+});
+
+// ── 단어 담기 ───────────────────────────────────────────────────────────────
+
+describe('🔴 collectNewWords — 시험이 단어장을 키운다', () => {
+  const q = (word: string, choices: string[], answerIndex: number): ExamQuestion =>
+    makeQuestion(answerIndex, { word, choices, id: `q-${word}-${choices.join('')}` });
+
+  it('오답 보기를 후보로 준다', () => {
+    const got = collectNewWords([q('機会', ['時代', '場所', '機会', '手段'], 2)], ['機会']);
+    expect(got).toEqual(['時代', '場所', '手段']);
+  });
+
+  it('🔴 정답은 후보가 아니다 (그 문제의 단어이고 이미 갖고 있다)', () => {
+    const got = collectNewWords([q('機会', ['機会', 'a', 'b', 'c'], 0)], []);
+    expect(got).not.toContain('機会');
+  });
+
+  it('🔴 시험이 물은 단어는 빼준다 — 내 단어장에서 온 것이다', () => {
+    // 遠慮 가 다른 문제의 오답 보기로 나와도, 그게 내 단어면 후보가 아니다
+    const got = collectNewWords(
+      [q('機会', ['遠慮', 'x', 'y', 'z'], 1), q('遠慮', ['a', 'b', 'c', '遠慮'], 3)],
+      [],
+    );
+    expect(got).not.toContain('遠慮');
+  });
+
+  it('이미 가진 단어는 빼준다', () => {
+    const got = collectNewWords([q('機会', ['機械', '危機', '期間', '機会'], 3)], ['機会', '機械']);
+    expect(got).toEqual(['危機', '期間']);
+  });
+
+  it('중복을 걷고 나온 순서를 지킨다', () => {
+    const got = collectNewWords(
+      [q('a', ['첫째', '둘째', 'a', '셋째'], 2), q('b', ['둘째', '넷째', 'b', '첫째'], 2)],
+      [],
+    );
+    expect(got).toEqual(['첫째', '둘째', '셋째', '넷째']);
+  });
+
+  it('공백만 있는 보기는 버린다', () => {
+    expect(collectNewWords([q('a', ['  ', 'ok', 'a', ''], 2)], [])).toEqual(['ok']);
+  });
+
+  it('앞뒤 공백이 있어도 이미 가진 것으로 본다', () => {
+    expect(collectNewWords([q('a', [' 機会 ', 'x', 'a', 'y'], 2)], ['機会'])).not.toContain('機会');
+  });
+
+  it('문제가 없으면 빈 배열', () => {
+    expect(collectNewWords([], ['機会'])).toEqual([]);
+  });
+
+  it('answerIndex 가 범위를 벗어나도 던지지 않는다', () => {
+    expect(() => collectNewWords([q('a', ['x', 'y', 'a', 'z'], 99)], [])).not.toThrow();
+  });
+});
+
+describe('ExamRecord 에 categoryId', () => {
+  it('있으면 보존된다', () => {
+    const rec = { ...makeRecord('c', '2026-10-07T00:00:00.000Z'), categoryId: 7 };
+    expect(parseRecords(JSON.stringify([rec]))[0].categoryId).toBe(7);
+  });
+
+  it('🔴 없어도 열린다 — 이 필드가 생기기 전에 친 시험', () => {
+    const old = makeRecord('old', '2026-10-01T00:00:00.000Z');
+    const parsed = parseRecords(JSON.stringify([old]));
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0].categoryId).toBeUndefined();
+  });
+
+  it('숫자가 아니면 없는 것으로 본다', () => {
+    const rec = { ...makeRecord('x', '2026-10-07T00:00:00.000Z'), categoryId: 'nope' };
+    expect(parseRecords(JSON.stringify([rec]))[0].categoryId).toBeUndefined();
   });
 });

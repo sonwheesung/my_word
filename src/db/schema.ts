@@ -103,8 +103,21 @@ CREATE TABLE exams (
 CREATE INDEX ix_exams_taken ON exams(taken_at);
 `;
 
+/*
+ * v2 — 시험 기록에 카테고리(2026-10-07).
+ *
+ * 🔴 V1 을 고치지 않고 **덧붙인다.** 이미 v1 을 지나간 기기가 있고(오늘 에뮬레이터가 그랬다),
+ *    V1 을 고치면 그 기기는 이 변경을 영원히 못 받는다. 그게 Expand-only 의 이유다.
+ *
+ * ⚠ 단어 담기가 이 값을 쓴다 — 담을 단어장이 어디인지. 없으면 화면이 "모르겠다"고 말한다.
+ *   옛 기록에는 없으므로 NULL 을 허용한다.
+ */
+const V2 = `
+ALTER TABLE exams ADD COLUMN category_id INTEGER;
+`;
+
 /**
  * 🔴 **덧붙이기만 한다.** 배열의 길이가 곧 스키마 버전이다.
  *    기존 항목을 고치면 이미 그 버전을 지나간 기기가 그 변경을 영원히 못 받는다.
  */
-export const MIGRATIONS: readonly string[] = [V1];
+export const MIGRATIONS: readonly string[] = [V1, V2];

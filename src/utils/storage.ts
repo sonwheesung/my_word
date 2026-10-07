@@ -200,6 +200,8 @@ export const wordStorage = {
       examples: data.examples || [],
       tags: data.tags ?? [],
       memo: data.memo ?? '',
+      // ⚠ 옛 경로도 담는다. 안 담으면 폴백(웹·DB 사고)에서만 언어가 조용히 사라진다
+      ...(data.language === undefined ? {} : { language: data.language }),
       createdAt: now,
       updatedAt: now,
     };

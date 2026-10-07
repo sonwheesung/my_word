@@ -5,6 +5,8 @@ import {
   EXAMS_KEY,
 } from '../constants/appConfig';
 import { readRaw, writeRaw } from '../utils/storage';
+import { getDb } from '../db';
+import { examRepo } from '../db/repo';
 import { quizService } from './quizService';
 import { srsService } from './srsService';
 import { wordService } from './wordService';
@@ -233,6 +235,46 @@ export function scoreExam(questions: ExamQuestion[], answers: readonly ExamAnswe
   };
 }
 
+// ── 단어 담기 ───────────────────────────────────────────────────────────────
+
+/**
+ * 🔴 **이 기능이 AI 시험의 정체다.**
+ *
+ * 기획: *"시험에 나온 없는 단어들 목록 보여주고 하나씩 선택해서 저장"*.
+ * 시험을 볼수록 단어장이 자란다 — 그게 구독의 진짜 값이고, 문제를 내 주는 것이 아니다.
+ *
+ * ## 후보는 **오답 보기**다
+ *
+ * 문제가 묻는 단어(`question.word`)는 **이미 사용자 단어장에 있다** — 그 단어로 시험을 만들었으니까.
+ * 값은 오답 보기에 있다. 그래서 서버 프롬프트가 *"오답 보기는 반드시 실재하는 단어"* 를
+ * 요구한다(`lib/ai.ts`) — 지어낸 단어를 담으면 **거짓을 외우게 된다.**
+ *
+ * ⚠ 정답 보기도 후보에서 뺀다. 정답은 곧 그 문제의 단어이고 이미 갖고 있다.
+ * ⚠ 중복을 걷고 **나온 순서**를 지킨다. 무작위로 섞으면 "아까 본 그 단어"를 찾기 어렵다.
+ */
+export function collectNewWords(
+  questions: readonly ExamQuestion[],
+  ownedWords: readonly string[],
+): string[] {
+  const owned = new Set(ownedWords.map((w) => w.trim()));
+  // 시험이 물은 단어도 뺀다 — 내 단어장에서 왔다
+  for (const q of questions) owned.add(q.word.trim());
+
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const q of questions) {
+    q.choices.forEach((choice, index) => {
+      // 정답은 그 문제의 단어다. 후보가 아니다
+      if (index === q.answerIndex) return;
+      const text = choice.trim();
+      if (!text || owned.has(text) || seen.has(text)) return;
+      seen.add(text);
+      out.push(text);
+    });
+  }
+  return out;
+}
+
 // ── 기록 ────────────────────────────────────────────────────────────────────
 
 /**
@@ -245,6 +287,11 @@ export interface ExamRecord {
   /** 서버가 준 시험 id. 없으면 로컬에서 만든 값 */
   examId: string;
   language: string;
+  /**
+   * 어느 카테고리로 쳤나. **단어 담기가 여기에 넣는다.**
+   * ⚠ 옵셔널이다 — 이 필드가 생기기 전에 친 시험에는 없다(`parseRecords` 가 없으면 넘긴다).
+   */
+  categoryId?: number;
   takenAt: string;
   questions: ExamQuestion[];
   answers: ExamAnswer[];
@@ -270,6 +317,9 @@ export function parseRecords(raw: string | null): ExamRecord[] {
     out.push({
       examId: obj.examId,
       language: typeof obj.language === 'string' ? obj.language : '',
+      ...(typeof obj.categoryId === 'number' && Number.isFinite(obj.categoryId)
+        ? { categoryId: obj.categoryId }
+        : {}),
       takenAt: obj.takenAt,
       questions: obj.questions as ExamQuestion[],
       answers: obj.answers as ExamAnswer[],
@@ -340,6 +390,9 @@ export const examService = {
   },
 
   async getRecords(): Promise<ExamRecord[]> {
+    const db = getDb();
+    // 🔴 SQLite 가 정본이면 거기서 읽는다. 안 그러면 백업(표를 읽는다)과 화면이 다른 것을 본다
+    if (db !== null) return trimRecords(parseRecords(JSON.stringify(examRepo.getAll(db))));
     return trimRecords(parseRecords(await readRaw(EXAMS_KEY)));
   },
 
@@ -350,6 +403,11 @@ export const examService = {
    * ⚠ 저장이 실패하면 **삼키지 않고 알린다** — 성적표가 비면 사용자가 알아야 한다.
    */
   async saveRecord(record: ExamRecord): Promise<void> {
+    const db = getDb();
+    if (db !== null) {
+      examRepo.save(db, record as unknown as Record<string, unknown>, EXAM_HISTORY_MAX);
+      return;
+    }
     const existing = parseRecords(await readRaw(EXAMS_KEY));
     const merged = trimRecords([record, ...existing.filter((r) => r.examId !== record.examId)]);
     await writeRaw(EXAMS_KEY, JSON.stringify(merged));

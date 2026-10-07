@@ -53,4 +53,9 @@ export interface WordRequest {
   }[];
   tags?: string[];
   memo?: string;
+  /**
+   * 어느 언어인가. 뜻 찾기가 감지한 값을 그대로 담는다(2026-10-07).
+   * ⚠ 없어도 된다 — 손으로 넣은 단어는 이 값이 없다.
+   */
+  language?: string;
 }

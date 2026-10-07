@@ -196,11 +196,12 @@ export function importFromLegacy(
         continue;
       }
       db.run(
-        `INSERT OR REPLACE INTO exams (exam_id, language, taken_at, questions, answers, score)
-         VALUES (?, ?, ?, ?, ?, ?)`,
+        `INSERT OR REPLACE INTO exams (exam_id, language, category_id, taken_at, questions, answers, score)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
         [
           id,
           str(o.language),
+          num(o.categoryId),
           str(o.takenAt, now),
           jsonArray(o.questions),
           jsonArray(o.answers),

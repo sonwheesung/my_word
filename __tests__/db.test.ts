@@ -18,7 +18,7 @@ import {
   runMigrations,
   type SqlDriver,
 } from '../src/db/migrate';
-import { MIGRATIONS, TABLE_NAMES } from '../src/db/schema';
+import { META_TABLE_SQL, MIGRATIONS, TABLE_NAMES } from '../src/db/schema';
 import {
   IMPORTED_KEY,
   alreadyImported,
@@ -362,5 +362,45 @@ describe('스키마가 실제로 지키는 것', () => {
     expect(names).toEqual(
       new Set(['ix_words_category', 'ix_words_word', 'ix_results_word', 'ix_results_taken', 'ix_exams_taken']),
     );
+  });
+});
+
+describe('🔴 v2 — 시험 기록의 카테고리 (Expand-only)', () => {
+  it('스키마 버전이 2다', () => {
+    expect(CODE_SCHEMA_VERSION).toBe(2);
+    expect(MIGRATIONS).toHaveLength(2);
+  });
+
+  it('category_id 칸이 생겼다', () => {
+    const db = fresh();
+    const cols = db.all<{ name: string }>('PRAGMA table_info(exams)').map((r) => r.name);
+    expect(cols).toContain('category_id');
+  });
+
+  it('🔴 v1 기기가 v2 로 올라간다 (덧붙이기만 했으므로)', () => {
+    // v1 만 적용된 DB 를 만든 뒤 러너를 돌린다
+    const db = makeDb();
+    db.exec(META_TABLE_SQL);
+    db.exec(MIGRATIONS[0]!);
+    db.run('INSERT INTO meta (key, value) VALUES (?, ?)', ['schema_version', '1']);
+    db.run('INSERT INTO exams (exam_id, language, taken_at, questions, answers, score) VALUES (?,?,?,?,?,?)', [
+      'old', 'ja', NOW, '[]', '[]', '{}',
+    ]);
+    expect(runMigrations(db)).toBe(2);
+    // 🔴 올리면서 옛 행이 살아 있어야 한다
+    expect(db.get<{ n: number }>('SELECT count(*) n FROM exams')?.n).toBe(1);
+    expect(db.get<{ category_id: number | null }>('SELECT category_id FROM exams')?.category_id).toBeNull();
+  });
+
+  it('이사가 categoryId 를 담는다', () => {
+    const db = fresh();
+    importFromLegacy(db, legacy({ exams: [{ examId: 'e', language: 'ja', takenAt: NOW, questions: [], answers: [], categoryId: 3 }] }), { now: NOW });
+    expect(db.get<{ category_id: number }>('SELECT category_id FROM exams')?.category_id).toBe(3);
+  });
+
+  it('옛 기록(카테고리 없음)도 들어간다', () => {
+    const db = fresh();
+    importFromLegacy(db, legacy(), { now: NOW });
+    expect(db.get<{ category_id: number | null }>('SELECT category_id FROM exams')?.category_id).toBeNull();
   });
 });
