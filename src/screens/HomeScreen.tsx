@@ -357,8 +357,29 @@ export default function HomeScreen({
           ))}
         </View>
 
+        {/* 서브 메뉴 - 4열 소형 카드 */}
+        <View style={styles.secondaryGrid}>
+          {SECONDARY_MENU.map((item) => (
+            <TouchableOpacity
+              key={item.key}
+              style={[
+                styles.secondaryCard,
+                { backgroundColor: colors.card },
+                cardShadow,
+              ]}
+              onPress={() => handlePress(item.key)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.iconCircleSmall, { backgroundColor: colors.primaryLight }]}>
+                <MaterialIcons name={item.icon} size={22} color={colors.primary} />
+              </View>
+              <Text style={[styles.secondaryTitle, { color: colors.text }]}>{t(item.title)}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
         {/*
-          AI 시험 — 전용 띠(기획 C안).
+          AI 시험 — 전용 띠(기획 C안). **메뉴 맨 아래**(2026-10-07 사장님 지시로 가운데에서 내렸다).
           🔴 첫 줄에 네 번째 칸으로 넣지 않은 이유는 props 주석에 있다(폭 99 → 71).
           ⚠ 인터넷이 필요한 **유일한 학습 기능**이라 그 사실을 띠 안에 적는다.
             미리 회색으로 만들지는 않는다 — 이 앱의 규율이 "서버가 죽어도 화면은 멀쩡히"다.
@@ -383,27 +404,6 @@ export default function HomeScreen({
           </View>
           <MaterialIcons name="chevron-right" size={20} color={colors.textTertiary} />
         </TouchableOpacity>
-
-        {/* 서브 메뉴 - 4열 소형 카드 */}
-        <View style={styles.secondaryGrid}>
-          {SECONDARY_MENU.map((item) => (
-            <TouchableOpacity
-              key={item.key}
-              style={[
-                styles.secondaryCard,
-                { backgroundColor: colors.card },
-                cardShadow,
-              ]}
-              onPress={() => handlePress(item.key)}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.iconCircleSmall, { backgroundColor: colors.primaryLight }]}>
-                <MaterialIcons name={item.icon} size={22} color={colors.primary} />
-              </View>
-              <Text style={[styles.secondaryTitle, { color: colors.text }]}>{t(item.title)}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
       </View>
 
       </ScrollView>
@@ -621,7 +621,9 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingVertical: 14,
     paddingHorizontal: 14,
-    marginBottom: 12,
+    // 🔴 맨 아래로 내렸으므로 여백을 **위에** 준다(2026-10-07). 아래에 두면 서브 카드와 붙고
+    //    띠 밑에 빈 공간이 뜬다
+    marginTop: 12,
     // 터치 영역 바닥. 띠가 얇아지면 누르기 어려워진다
     minHeight: 64,
   },

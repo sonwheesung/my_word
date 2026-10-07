@@ -323,7 +323,7 @@
 
 ## 16. ExamSetupScreen
 
-AI 시험 설정. **진입점은 홈의 전용 띠 하나뿐**이다.
+AI 시험 설정. **진입점은 홈 메뉴 맨 아래의 전용 띠 하나뿐**이다(2026-10-07 사장님 지시로 가운데에서 내렸다).
 
 **Props**: `onBack` · `onStart(categoryId, language)`
 
