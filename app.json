@@ -53,7 +53,8 @@
           "icon": "./assets/notification-icon.png",
           "color": "#4E9467"
         }
-      ]
+      ],
+      "expo-sqlite"
     ],
     "scheme": "myword",
     "extra": {
