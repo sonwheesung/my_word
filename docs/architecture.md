@@ -33,6 +33,7 @@ my_word/
     │   ├── BlockingGate.tsx              서버 점검 중 전체 화면(닫기 없음)
     │   ├── BottomSheet.tsx               아래에서 올라오는 공용 시트
     │   ├── FlipCard.tsx                  플래시카드 뒤집기(네이티브 드라이버)
+    │   ├── FlyingPills.tsx               담은 단어가 헤더 과녁으로 날아가는 연출(네이티브 드라이버)
     │   ├── MeaningList.tsx               뜻 번호 목록(단어 상세 · 카드 뒷면)
     │   ├── NotificationPromptSheet.tsx   첫 퀴즈 뒤 홈에서 한 번 뜨는 알림 권유
     │   ├── OnboardingPanel.tsx           첫 사용자 안내(큰 카드 + 3단계). 🔴 버튼 7개를 숨기는 건 단어 0개일 때뿐

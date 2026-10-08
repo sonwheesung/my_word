@@ -13,9 +13,23 @@ interface ScreenHeaderProps {
     text: string;
     onPress: () => void;
   };
+  /**
+   * 오른쪽에 직접 그릴 것 (2026-10-08 시안 #13).
+   *
+   * ⚠ **더하기만 한 칸이다.** `rightButton` 은 글자 버튼만 받는데, 시험 결과 화면은
+   *   담은 단어가 날아와 꽂히는 **과녁**(아이콘 + `+N` 뱃지)이 필요했다. 기존 19개 화면은
+   *   이 값을 안 주므로 아무것도 바뀌지 않는다.
+   * 🔴 `rightButton` 과 함께 주면 이쪽이 이긴다 — 둘을 같이 그리면 제목이 밀린다.
+   */
+  rightAccessory?: React.ReactNode;
 }
 
-export default function ScreenHeader({ title, onBack, rightButton }: ScreenHeaderProps) {
+export default function ScreenHeader({
+  title,
+  onBack,
+  rightButton,
+  rightAccessory,
+}: ScreenHeaderProps) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   // App 의 SafeAreaView 는 edges={['bottom']} 이라 상단 여백은 여기서 직접 준다.
@@ -46,7 +60,9 @@ export default function ScreenHeader({ title, onBack, rightButton }: ScreenHeade
       <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>
         {title}
       </Text>
-      {rightButton ? (
+      {rightAccessory !== undefined ? (
+        <View style={styles.rightButton}>{rightAccessory}</View>
+      ) : rightButton ? (
         <TouchableOpacity onPress={rightButton.onPress} style={styles.rightButton} hitSlop={HIT_SLOP}>
           <Text style={[styles.rightButtonText, { color: colors.primary }]}>{rightButton.text}</Text>
         </TouchableOpacity>

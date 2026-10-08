@@ -1,7 +1,8 @@
 import { useTranslation } from 'react-i18next';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,6 +12,7 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
 
+import FlyingPills, { type Flight } from '../components/FlyingPills';
 import ScreenHeader from '../components/ScreenHeader';
 import Toast from '../components/Toast';
 import { FONT, RADIUS, SPACING } from '../constants/design';
@@ -59,6 +61,24 @@ export default function ExamResultScreen({ examId, onBack, onHome }: ExamResultS
   const [saving, setSaving] = useState(false);
   /** 이번에 담은 단어. 다시 담지 못하게 하고 결과를 보여준다 */
   const [saved, setSaved] = useState<Set<string>>(new Set());
+
+  /*
+   * 담기 연출 (2026-10-08 시안 #13). 알약이 날아가는 동안 칩은 **초록 ✓ 로 남아 있고**,
+   * 다 날아간 뒤에 목록에서 빠진다. 바로 빼면 어디서 날아왔는지 안 보인다.
+   *
+   * ⚠ **토스트는 그대로 둔다.** 날아가는 것은 장식이고, 토스트가 *몇 개 담겼는지*를
+   *   확실히 말한다 — 연출을 못 보거나 중간에 스크롤한 사람에게도 남는다.
+   */
+  const [flying, setFlying] = useState<Set<string>>(new Set());
+  const [flights, setFlights] = useState<Flight[]>([]);
+  const [target, setTarget] = useState<{ x: number; y: number } | null>(null);
+  /** 과녁에 붙는 `+N`. 이 화면에 머무는 동안 쌓인다 */
+  const [landed, setLanded] = useState(0);
+
+  const chipRefs = useRef<Record<string, View | null>>({});
+  const targetRef = useRef<View | null>(null);
+  /** 과녁이 톡 튀는 크기. transform 뿐이라 네이티브 드라이버로 돈다 */
+  const bounce = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     let alive = true;
@@ -117,6 +137,53 @@ export default function ExamResultScreen({ examId, onBack, onHome }: ExamResultS
    *   못 찾았다고 안 담으면 "눌렀는데 아무 일도 안 일어났다"가 된다.
    * 🟢 사전이 감지한 언어를 함께 저장한다 — 발음 재생과 다음 시험의 언어 판정이 정확해진다.
    */
+  /**
+   * 화면 좌표를 잰다. 🔴 **부모가 달라도 비교할 수 있는 유일한 좌표계다** —
+   * 칩은 스크롤 안, 과녁은 헤더에 있다.
+   * ⚠ 못 재면 `null` 을 준다. 연출 하나 때문에 담기가 실패하면 안 된다.
+   */
+  const measure = (node: View | null): Promise<{ x: number; y: number } | null> =>
+    new Promise((resolve) => {
+      if (node === null) {
+        resolve(null);
+        return;
+      }
+      node.measureInWindow((x, y, w, h) => {
+        if (typeof x !== 'number' || Number.isNaN(x)) resolve(null);
+        else resolve({ x, y, width: w, height: h } as { x: number; y: number });
+      });
+    });
+
+  /** 날아갈 알을 세운다. 못 재면 조용히 건너뛰고 바로 목록에서 뺀다 */
+  const startFlight = useCallback(async (words: string[]) => {
+    const to = await measure(targetRef.current);
+    const froms = await Promise.all(words.map((w) => measure(chipRefs.current[w] ?? null)));
+    const built: Flight[] = [];
+    words.forEach((w, i) => {
+      const from = froms[i];
+      if (from !== null && from !== undefined) built.push({ word: w, from });
+    });
+    if (to === null || built.length === 0) {
+      setCandidates((prev) => prev.filter((w) => !words.includes(w)));
+      setFlying(new Set());
+      return;
+    }
+    setTarget(to);
+    setFlights(built);
+  }, []);
+
+  /** 다 날아왔다 — 이제 목록에서 빼고 과녁을 튕긴다 */
+  const handleFlightDone = useCallback(() => {
+    setLanded((n) => n + flights.length);
+    setCandidates((prev) => prev.filter((w) => !flying.has(w)));
+    setFlying(new Set());
+    setFlights([]);
+    Animated.sequence([
+      Animated.spring(bounce, { toValue: 1.35, useNativeDriver: true, speed: 50, bounciness: 14 }),
+      Animated.spring(bounce, { toValue: 1, useNativeDriver: true, speed: 30, bounciness: 10 }),
+    ]).start();
+  }, [bounce, flights.length, flying]);
+
   const handleSave = useCallback(async () => {
     if (saving || picked.size === 0 || record === null) return;
     const categoryId = record.categoryId;
@@ -151,9 +218,11 @@ export default function ExamResultScreen({ examId, onBack, onHome }: ExamResultS
         done.add(word);
       }
       setSaved((prev) => new Set([...prev, ...done]));
-      setCandidates((prev) => prev.filter((w) => !done.has(w)));
       setPicked(new Set());
       showToast(t('{{count}}개 단어를 단어장에 담았어요', { count: done.size }), 'success');
+      // 🔴 여기서 목록을 **지우지 않는다.** 알이 다 날아간 뒤 `handleFlightDone` 이 지운다
+      setFlying(new Set(done));
+      void startFlight([...done]);
     } catch (error: any) {
       console.warn('단어 담기 실패:', error);
       // 🔴 몇 개는 들어갔을 수 있다. 들어간 것은 목록에서 빼 준다 — 두 번 담기지 않게
@@ -165,7 +234,7 @@ export default function ExamResultScreen({ examId, onBack, onHome }: ExamResultS
     } finally {
       setSaving(false);
     }
-  }, [picked, record, saving, showToast, t]);
+  }, [picked, record, saving, showToast, startFlight, t]);
 
   const handleReport = useCallback(
     async (questionId: string) => {
@@ -223,7 +292,28 @@ export default function ExamResultScreen({ examId, onBack, onHome }: ExamResultS
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar style={colors.isDark ? 'light' : 'dark'} />
-      <ScreenHeader title={t('시험 결과')} onBack={onBack} />
+      {/*
+        담은 단어가 날아와 꽂히는 **과녁**(시안 #13). 누르는 버튼이 아니라 **표시**다 —
+        이 화면에서 단어장으로 가는 길을 새로 만들면 시험 결과를 덮어 버린다.
+      */}
+      <ScreenHeader
+        title={t('시험 결과')}
+        onBack={onBack}
+        rightAccessory={
+          <Animated.View
+            ref={targetRef}
+            collapsable={false}
+            style={[styles.target, { transform: [{ scale: bounce }] }]}
+          >
+            <MaterialIcons name="library-books" size={22} color={colors.primary} />
+            {landed > 0 && (
+              <View style={[styles.targetBadge, { backgroundColor: colors.primary }]}>
+                <Text style={styles.targetBadgeText}>+{landed}</Text>
+              </View>
+            )}
+          </Animated.View>
+        }
+      />
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <View style={[styles.scoreCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -256,29 +346,41 @@ export default function ExamResultScreen({ examId, onBack, onHome }: ExamResultS
             <View style={styles.chipWrap}>
               {candidates.map((word) => {
                 const on = picked.has(word);
+                const isFlying = flying.has(word);
                 return (
                   <TouchableOpacity
                     key={word}
+                    /*
+                     * ⚠ `collapsable={false}` 를 주지 않는다 — `TouchableOpacity` 가 안 받는다.
+                     *   대신 이 컴포넌트는 늘 opacity 를 들고 있어 안드로이드가 뷰를 합치지 않는다.
+                     *   그래도 measure 가 안 되면 `startFlight` 가 조용히 건너뛰고 목록만 지운다.
+                     */
+                    ref={(node) => {
+                      chipRefs.current[word] = node as unknown as View | null;
+                    }}
                     style={[
                       styles.chip,
                       { backgroundColor: colors.background, borderColor: colors.border },
                       on && { backgroundColor: colors.primaryLight, borderColor: colors.primary },
+                      // 담겨서 날아가는 중 — 초록 ✓ 로 바뀐다(시안 #13)
+                      isFlying && { backgroundColor: colors.successBg, borderColor: colors.success },
                     ]}
                     onPress={() => toggle(word)}
-                    disabled={saving}
+                    disabled={saving || isFlying}
                     accessibilityRole="checkbox"
                     accessibilityState={{ checked: on }}
                   >
                     <MaterialIcons
-                      name={on ? 'check-circle' : 'add-circle-outline'}
+                      name={on || isFlying ? 'check-circle' : 'add-circle-outline'}
                       size={16}
-                      color={on ? colors.primary : colors.textTertiary}
+                      color={isFlying ? colors.success : on ? colors.primary : colors.textTertiary}
                     />
                     <Text
                       style={[
                         styles.chipText,
                         { color: colors.text },
                         on && { color: colors.primaryStrong, fontWeight: '700' },
+                        isFlying && { color: colors.successText, fontWeight: '700' },
                       ]}
                     >
                       {word}
@@ -414,6 +516,14 @@ export default function ExamResultScreen({ examId, onBack, onHome }: ExamResultS
         </TouchableOpacity>
       </View>
 
+      {/*
+        날아가는 알약 (시안 #13). 🔴 **맨 위에, 그리고 Toast 보다 아래**에 둔다 —
+        스크롤·푸터 위를 가로질러 헤더까지 가야 하고, 토스트는 늘 보여야 한다.
+      */}
+      {flights.length > 0 && target !== null && (
+        <FlyingPills flights={flights} to={target} onDone={handleFlightDone} />
+      )}
+
       <Toast message={toast.message} type={toast.type} visible={toast.visible} onHide={hideToast} />
     </View>
   );
@@ -434,6 +544,21 @@ const styles = StyleSheet.create({
   scoreValue: { fontSize: 44, fontWeight: '700' },
   scoreLine: { fontSize: FONT.body, marginTop: SPACING.xs },
   sectionLabel: { fontSize: FONT.label, fontWeight: '700', marginBottom: SPACING.md },
+  // ── 담기 과녁(시안 #13) ──
+  target: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  targetBadge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  targetBadgeText: { color: '#FFFFFF', fontSize: FONT.micro, fontWeight: '700' },
+
   // ── 단어 담기 ──
   pickBox: {
     borderWidth: 1,

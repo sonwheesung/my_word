@@ -39,6 +39,15 @@ import {
 /** 메모 입력 상한. 남은 글자수를 보여주려면 화면도 이 값을 알아야 한다 */
 const MEMO_MAX = 500;
 
+/**
+ * 저장 버튼이 ✓ 로 머무는 시간 (2026-10-08 시안 #11).
+ *
+ * 🔴 **토스트를 띄우지 않는다.** 버튼이 그 자리에서 ✓ 로 바뀌는 것이 곧 확인이다 —
+ *    보고 있는 자리에서 답하는 쪽이 화면 아래 토스트보다 분명하고, 둘 다 하면 겹친다.
+ * ⚠ 너무 짧으면 못 보고, 너무 길면 다음 단어를 넣는 동안 거짓말이 된다.
+ */
+const SAVED_BADGE_MS = 1400;
+
 interface AddWordScreenProps {
   wordId?: number | null;
   onWordAdded: () => void;
@@ -68,6 +77,18 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
   const [showOptional, setShowOptional] = useState(false);
 
   /**
+   * 이번에 몇 개를 넣었나 (2026-10-08 시안 #11).
+   *
+   * 🔴 **저장해도 화면을 나가지 않는다.** 단어는 보통 여러 개를 몰아서 넣는데, 예전에는
+   *    한 개마다 화면을 나갔다가 다시 들어와야 했다. 나가지 않으면 **몇 개나 넣었는지**가
+   *    보이지 않으므로 이 숫자가 그 자리를 대신한다.
+   * ⚠ **수정 모드는 그대로 나간다** — 고칠 것 하나를 고치러 들어온 것이지 이어서 넣는 게 아니다.
+   */
+  const [savedCount, setSavedCount] = useState(0);
+  /** 방금 저장했다는 표시(버튼이 ✓ 로 바뀌는 동안). 스피너와는 다른 상태다 */
+  const [justSaved, setJustSaved] = useState(false);
+
+  /**
    * 뜻·예문 입력칸 참조.
    *
    * `+ 추가` 를 누르면 빈 칸만 생기고 커서는 그대로였다. 그래서 추가 → 새 칸 탭 → 입력,
@@ -75,6 +96,13 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
    */
   const meaningRefs = useRef<Array<TextInput | null>>([]);
   const exampleRefs = useRef<Array<TextInput | null>>([]);
+  /** 저장 뒤 커서를 되돌릴 곳. 안 되돌리면 "다음 단어"를 넣으려 매번 칸을 눌러야 한다 */
+  const wordInputRef = useRef<TextInput | null>(null);
+  /** ✓ 표시를 되돌리는 타이머. 🔴 화면을 떠날 때 반드시 끈다 */
+  const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (savedTimer.current !== null) clearTimeout(savedTimer.current);
+  }, []);
 
   const isEditMode = !!wordId;
 
@@ -334,8 +362,26 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
           tags,
           memo: memo.trim(),
         });
-        showToast(t('단어가 추가되었습니다'), 'success');
-        onWordAdded();
+        /*
+         * 🔴 **나가지 않는다**(2026-10-08 시안 #11). 입력칸만 비우고 커서를 단어 칸으로 돌린다.
+         *
+         * ⚠ `onWordAdded()` 를 안 부르므로 **앞 화면은 아직 모른다.** 괜찮다 —
+         *   `onBack` 과 `onWordAdded` 가 App 에서 같은 일(앞 화면으로)을 하고, 앞 화면은
+         *   다시 들어올 때 새로 읽는다. 나갈 때 한 번에 반영된다.
+         * ⚠ 카테고리는 **그대로 둔다.** 같은 단어장에 이어 넣는 것이 보통이라 매번 다시
+         *   고르게 하면 그게 더 번거롭다.
+         */
+        setWord('');
+        setMeanings(['']);
+        setExamples([{ example: '', translation: '' }]);
+        setTags([]);
+        setTagInput('');
+        setMemo('');
+        setSavedCount((n) => n + 1);
+        setJustSaved(true);
+        if (savedTimer.current !== null) clearTimeout(savedTimer.current);
+        savedTimer.current = setTimeout(() => setJustSaved(false), SAVED_BADGE_MS);
+        wordInputRef.current?.focus();
       }
     } catch (error: any) {
       console.warn('단어 저장 실패:', error);
@@ -382,6 +428,20 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
       <ScreenHeader title={isEditMode ? t('단어 수정') : t('단어 추가')} onBack={onBack} />
 
       {/*
+        이번에 몇 개 넣었나. 나가지 않고 이어서 넣으므로 **진행이 보이는 자리**가 필요하다.
+        ⚠ 0 일 때는 띄우지 않는다 — 들어오자마자 「이번에 0개」는 아무 말도 아니다.
+      */}
+      {savedCount > 0 && (
+        <View style={styles.savedCountRow}>
+          <View style={[styles.savedCountChip, { backgroundColor: colors.primaryLight }]}>
+            <Text style={[styles.savedCountText, { color: colors.primaryStrong }]}>
+              {t('이번에 {{count}}개', { count: savedCount })}
+            </Text>
+          </View>
+        </View>
+      )}
+
+      {/*
         저장 바를 키보드 위로 밀어 올린다. 없으면 메모나 뒤쪽 예문을 채울 때
         키보드가 입력칸과 저장 버튼을 함께 덮는다.
       */}
@@ -416,6 +476,7 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
             <Text style={[styles.label, { color: colors.textSecondary }]}>{t('단어')}</Text>
             <View style={styles.inlineRow}>
               <TextInput
+                ref={wordInputRef}
                 style={[styles.field, styles.flex, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
                 placeholder={t('단어를 입력하세요')}
                 placeholderTextColor={colors.textTertiary}
@@ -678,14 +739,27 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
           매번 맨 아래까지 내려야 저장할 수 있다.
         */}
         <View style={[styles.saveBar, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
+          {/*
+            스피너 → ✓ 저장했어요 → 저장하기. **한 자리에서 세 모습이 바뀐다**(시안 #11).
+            ⚠ ✓ 인 동안에도 누를 수 있게 둔다 — 다음 단어를 빨리 넣는 사람을 1.4초 막을 이유가 없다.
+          */}
           <TouchableOpacity
-            style={[styles.saveButton, { backgroundColor: colors.primaryStrong }, loading && styles.disabled]}
+            style={[
+              styles.saveButton,
+              { backgroundColor: justSaved ? colors.success : colors.primaryStrong },
+              loading && styles.disabled,
+            ]}
             onPress={handleSave}
             disabled={loading}
             accessibilityRole="button"
           >
             {loading ? (
               <ActivityIndicator color="#FFFFFF" />
+            ) : justSaved ? (
+              <View style={styles.savedRow}>
+                <MaterialIcons name="check" size={20} color="#FFFFFF" />
+                <Text style={styles.saveButtonText}>{t('저장했어요')}</Text>
+              </View>
             ) : (
               <Text style={styles.saveButtonText}>{t('저장하기')}</Text>
             )}
@@ -847,6 +921,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.xl,
     paddingVertical: SPACING.md,
   },
+  savedRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  savedCountRow: { paddingHorizontal: 16, paddingTop: 10, alignItems: 'flex-start' },
+  savedCountChip: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
+  savedCountText: { fontSize: 12, fontWeight: '700' },
   saveButton: {
     borderRadius: RADIUS.md,
     paddingVertical: SPACING.lg,
