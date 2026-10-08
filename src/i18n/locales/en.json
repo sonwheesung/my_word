@@ -137,6 +137,7 @@
   "다크": "Dark",
   "단어": "Word",
   "단어 *": "Word *",
+  "단어 {{words}} · 정답률 {{acc}}%": "{{words}} words · {{acc}}% correct",
   "단어 {{words}} · 카테고리 {{categories}} · 퀴즈 {{quizzes}}": "{{words}} words · {{categories}} categories · {{quizzes}} quizzes",
   "단어 · 카테고리 · 퀴즈 기록을 파일 하나로 저장해요": "Saves words, categories, and quiz history in one file",
   "단어 → 뜻": "Word → Meaning",
@@ -357,9 +358,12 @@
   "예문은 최대 {{count}}개까지 추가할 수 있습니다_one": "You can add up to {{count}} example",
   "예문은 최대 {{count}}개까지 추가할 수 있습니다_other": "You can add up to {{count}} examples",
   "예문의 뜻을 입력하세요": "Enter the meaning of the example",
+  "오늘": "Today",
   "오늘 단어 복습할까요?": "Ready for a quick review?",
+  "오늘 목표 {{goal}}문제 중 {{done}}문제": "{{done}} of {{goal}} questions today",
   "오늘 복습할 단어 {{count}}개_one": "Review {{count}} word today",
   "오늘 복습할 단어 {{count}}개_other": "Review {{count}} words today",
+  "오늘 첫 학습을 시작해 보세요": "Start your first session today",
   "오늘 첫 학습을 시작해보세요!": "Start your first session today!",
   "오답": "Incorrect",
   "오답 {{count}}": "Wrong {{count}}",
@@ -462,6 +466,7 @@
   "총 {{count}}일 활동_other": "{{count}} active days",
   "총 문제": "Total",
   "최고 {{n}}%": "Best {{n}}%",
+  "최근 추가한 단어": "Recently added",
   "최근에 추가한 단어 위주로 출제": "Focuses on recently added words",
   "최대 {{count}}개": "max {{count}}",
   "최대 {{count}}개까지 가져올 수 있습니다_one": "You can import up to {{count}} word at a time",
@@ -576,5 +581,7 @@
   "힌디어": "Hindi",
   "힌트 보기": "Show hint",
   "힌트: {{count}}자_one": "Hint: {{count}} character",
-  "힌트: {{count}}자_other": "Hint: {{count}} characters"
+  "힌트: {{count}}자_other": "Hint: {{count}} characters",
+  "🔥 {{count}}일 연속_one": "🔥 {{count}} day streak",
+  "🔥 {{count}}일 연속_other": "🔥 {{count}} day streak"
 }

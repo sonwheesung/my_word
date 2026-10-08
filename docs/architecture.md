@@ -42,6 +42,7 @@ my_word/
     │   ├── ScreenHeader.tsx              뒤로가기 + 제목 + 오른쪽 버튼/아이콘
     │   ├── SkeletonLoader.tsx            로딩 자리표시자
     │   ├── TimePickerSheet.tsx           알림 시각(5분 단위)
+    │   ├── TodayCard.tsx                 홈 맨 위 흰 카드(오늘 목표 링 · 연속 · 최근 7일 막대)
     │   ├── Toast.tsx                     하단 알림
     │   └── UpdateModal.tsx               새 버전 안내(홈 위에만)
     ├── constants/               appConfig(저장 키 · 버전 · 알림 상수) · adConfig(+ .web) · design(간격 · 글자) · themes · partOfSpeech

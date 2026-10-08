@@ -22,6 +22,9 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useBootstrap } from '../contexts/BootstrapContext';
 import { useNotification } from '../contexts/NotificationContext';
 import NotificationPromptSheet from '../components/NotificationPromptSheet';
+import TodayCard from '../components/TodayCard';
+import { wordService } from '../services/wordService';
+import type { Word } from '../types/word';
 import OnboardingPanel, {
   shouldHideMenu,
   shouldShowOnboarding,
@@ -70,6 +73,9 @@ interface HomeSummary {
 /** 복습 배너를 눌렀을 때 한 번에 내는 문제 수. 만기가 23개여도 10개씩 나눠 푼다 */
 const REVIEW_SESSION_SIZE = 10;
 
+/** 홈에 보여 줄 최근 단어 수 (2026-10-08 시안 #1). ⚠ 세 개를 넘으면 홈이 길어진다 */
+const RECENT_COUNT = 3;
+
 /**
  * 큰 카드 줄. **매일 하는 일 셋**이다. 익히고(플래시카드) · 재고(학습하기) · 넣고(단어 추가).
  *
@@ -114,6 +120,13 @@ export default function HomeScreen({
   const notify = useNotification();
   const [summary, setSummary] = useState<HomeSummary | null>(null);
   const [dueCount, setDueCount] = useState(0);
+  /**
+   * 마이 화면이 쓰는 그 통계. 🔴 **홈이 이미 받아 오고 있었다** — 스트릭만 꺼내 쓰고
+   * `activities` 는 버리고 있었다. 오늘 카드(시안 #1)의 막대가 바로 그 값이다.
+   */
+  const [myPage, setMyPage] = useState<MyPageStats | null>(null);
+  /** 최근 추가한 단어 3개 (시안 #1). ⚠ 못 읽어도 홈은 멀쩡해야 하므로 빈 배열로 둔다 */
+  const [recent, setRecent] = useState<Word[]>([]);
   const [loading, setLoading] = useState(true);
   // 배너를 연타해도 퀴즈가 두 번 시작되지 않게 한다
   const [startingReview, setStartingReview] = useState(false);
@@ -128,7 +141,22 @@ export default function HomeScreen({
           quizService.getMyPageStats(),
           srsService.getDueSummary(),
         ]);
+      /*
+       * 최근 추가한 단어. ⚠ **따로 읽는다** — 위 셋은 통계라 단어 본문을 안 들고 온다.
+       *   실패해도 삼킨다(오프라인에 오류를 띄우지 않는 규율).
+       */
+      try {
+        const words = await wordService.getWords();
+        setRecent(
+          [...words]
+            .sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0))
+            .slice(0, RECENT_COUNT),
+        );
+      } catch {
+        setRecent([]);
+      }
       setDueCount(due.total);
+      setMyPage(myPage);
       setSummary({
         totalWords: stats.totalWordCount,
         totalCategories: stats.totalCategoryCount,
@@ -138,6 +166,7 @@ export default function HomeScreen({
       });
     } catch {
       setDueCount(0);
+      setMyPage(null);
       setSummary({ totalWords: 0, totalCategories: 0, accuracy: 0, totalQuizCount: 0, streakDays: 0 });
     } finally {
       setLoading(false);
@@ -273,86 +302,58 @@ export default function HomeScreen({
           </View>
         </View>
 
-        {/* 통계 카드 */}
-        {loading ? (
-          <View style={styles.statsLoading}>
-            <ActivityIndicator size="small" color="rgba(255,255,255,0.8)" />
-          </View>
-        ) : summary && (summary.totalWords > 0 || summary.totalQuizCount > 0) ? (
-          <View style={styles.statsContainer}>
-            <View style={styles.statsRow}>
-              {renderStatItem(`${summary.totalWords}`, t('등록 단어'))}
-              <View style={styles.statDivider} />
-              {renderStatItem(
-                summary.totalQuizCount > 0 ? `${Math.round(summary.accuracy)}%` : '-',
-                t('정답률'),
-                summary.totalQuizCount > 0 ? '#A7F3D0' : '#FFFFFF',
-              )}
-              <View style={styles.statDivider} />
-              {renderStatItem(
-                summary.streakDays > 0 ? t('{{count}}일', { count: summary.streakDays }) : '-',
-                t('연속 학습'),
-                summary.streakDays > 0 ? '#FDE68A' : '#FFFFFF',
-              )}
-            </View>
-          </View>
-        ) : (
-          /*
-           * ⚠ **2026-10-08 부터 비워 둔다.** 예전에는 여기 「단어를 추가하고 학습을 시작해보세요!」
-           *   한 줄이 있었는데, 바로 아래 안내 카드가 같은 말을 더 크고 더 쓸모 있게 한다
-           *   (누를 곳까지 준다). 같은 말을 두 번 하면 둘 다 약해진다.
-           */
-          <View style={styles.heroEmptySpacer} />
-        )}
+        {/*
+          🔴 **통계 3칸과 스트릭 문구를 걷어냈다**(2026-10-08 시안 #1).
+             아래 흰 카드가 같은 것을 **더 많이** 말한다 — 오늘 얼마나 했나 · 며칠째인가 ·
+             최근 일주일은 어땠나. 같은 것을 두 번 말하면 둘 다 약해진다.
+          ⚠ 히어로는 인사말과 버튼만 남아 **짧아졌다.** 시안은 흰 바탕을 그렸지만
+            여기서는 머리띠만 줄였다 — 색까지 바꾸는 것은 앱 전체의 인상을 바꾸는 일이라 따로 본다.
+        */}
 
         {/*
-          연속 학습 / 복습 배너 — **한 자리를 나눠 쓴다.**
-
-          🔴 배너를 하나 더 쌓지 않는 이유: 스트릭 문구는 바로 위 통계의 "연속 학습 N일"과
-             같은 정보라 이미 중복이다. 그 자리를 복습이 쓰면 홈 높이가 그대로다.
-          🔴 만기가 없을 때 자리를 비우지 않는 이유: "어제는 있었는데?"가 되어 기능을 못 찾거나
-             버그로 읽힌다. 늘 같은 자리에 있고 문구만 바뀐다.
+          복습 배너 — 🔴 **이제 만기가 있을 때만 뜬다.**
+          예전에는 만기가 없으면 스트릭 문구가 그 자리를 썼는데, 그 스트릭은 **바로 아래 카드**가
+          더 크게 말한다. 빈자리가 생기는 것도 예전 걱정이었지만, 지금은 그 아래에 카드가 붙어 있다.
         */}
-        {!loading && summary && (summary.totalWords > 0 || summary.totalQuizCount > 0) && (
-          // ⚠ 퀴즈를 한 번이라도 끝낸 사람에게만 복습 배너를 보인다.
-          //   아직 안 풀어 본 사람에게 "복습할 단어 20개"는 말이 안 되고(복습할 것이 없다),
-          //   첫 실행 안내 "오늘 첫 학습을 시작해보세요!"를 덮어 버린다.
-          //   (알림 권유가 같은 조건을 쓰는 것과 같은 이유다)
-          dueCount > 0 && summary.totalQuizCount > 0 ? (
-            <TouchableOpacity
-              style={[styles.streakBanner, styles.reviewBanner]}
-              onPress={handleStartReview}
-              disabled={startingReview}
-              activeOpacity={0.8}
-              accessibilityRole="button"
-              accessibilityLabel={t('오늘 복습할 단어 {{count}}개', { count: dueCount })}
-            >
-              <MaterialIcons
-                name="menu-book"
-                size={18}
-                color="rgba(255,255,255,0.9)"
-                style={{ marginRight: 8 }}
-              />
-              <Text style={styles.streakText}>
-                {t('오늘 복습할 단어 {{count}}개', { count: dueCount })}
-              </Text>
-              <MaterialIcons name="chevron-right" size={18} color="rgba(255,255,255,0.75)" />
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.streakBanner}>
-              <MaterialIcons
-                name={summary.streakDays > 0 ? 'local-fire-department' : 'lightbulb-outline'}
-                size={18}
-                color="rgba(255,255,255,0.9)"
-                style={{ marginRight: 8 }}
-              />
-              <Text style={styles.streakText}>
-                {getStreakMessage(summary.streakDays)}
-              </Text>
-            </View>
-          )
+        {!loading && summary !== null && dueCount > 0 && summary.totalQuizCount > 0 && (
+          <TouchableOpacity
+            style={[styles.streakBanner, styles.reviewBanner]}
+            onPress={handleStartReview}
+            disabled={startingReview}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={t('오늘 복습할 단어 {{count}}개', { count: dueCount })}
+          >
+            <MaterialIcons
+              name="menu-book"
+              size={18}
+              color="rgba(255,255,255,0.9)"
+              style={{ marginRight: 8 }}
+            />
+            <Text style={styles.streakText}>
+              {t('오늘 복습할 단어 {{count}}개', { count: dueCount })}
+            </Text>
+            <MaterialIcons name="chevron-right" size={18} color="rgba(255,255,255,0.75)" />
+          </TouchableOpacity>
         )}
       </LinearGradient>
+
+      {/*
+        오늘 카드 (시안 #1). 🔴 퀴즈를 한 번이라도 푼 사람에게만 — 아무것도 안 한 사람에게
+        「오늘 목표 10문제 중 0문제」와 빈 막대 일곱 칸은 **독촉**으로만 읽힌다.
+        그 사람에게는 바로 아래 첫 사용자 안내가 더 맞다.
+      */}
+      {!loading && summary !== null && summary.totalQuizCount > 0 && myPage !== null && (
+        <>
+          <TodayCard streakDays={summary.streakDays} activities={myPage.activities} />
+          <Text style={[styles.quickStat, { color: colors.textSecondary }]}>
+            {t('단어 {{words}} · 정답률 {{acc}}%', {
+              words: summary.totalWords,
+              acc: Math.round(summary.accuracy),
+            })}
+          </Text>
+        </>
+      )}
 
       {/*
         첫 사용자 안내 — 아직 한 판도 안 풀었을 때만. 자세한 규칙은 `OnboardingPanel` 머리 주석에 있다.
@@ -453,6 +454,39 @@ export default function HomeScreen({
       </View>
       )}
 
+      {/*
+        최근 추가한 단어 (시안 #1). ⚠ **맨 아래**에 둔다 — 새로 넣은 것을 확인하는 자리이지
+        매일 먼저 보는 것이 아니다. 누르면 그 단어를 고치는 화면으로 간다.
+      */}
+      {!loading && recent.length > 0 && (
+        <View style={styles.recentSection}>
+          <View style={styles.recentHead}>
+            <Text style={[styles.recentTitle, { color: colors.text }]}>{t('최근 추가한 단어')}</Text>
+            <TouchableOpacity onPress={onNavigateToManageWords} accessibilityRole="button">
+              <Text style={[styles.recentAll, { color: colors.primaryStrong }]}>{t('전체')} ›</Text>
+            </TouchableOpacity>
+          </View>
+          {recent.map((w) => (
+            <TouchableOpacity
+              key={w.wordId}
+              style={[styles.recentRow, { backgroundColor: colors.card, borderColor: colors.border }]}
+              // ⚠ 단어장으로 보낸다. 바로 수정으로 보내려면 prop 을 하나 더 늘려야 하는데,
+              //   최근 단어를 누르는 것은 **다시 보려는 것**이지 고치려는 것이 아닌 경우가 더 많다
+              onPress={onNavigateToManageWords}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+            >
+              <Text style={[styles.recentWord, { color: colors.text }]} numberOfLines={1}>
+                {w.word}
+              </Text>
+              <Text style={[styles.recentMeaning, { color: colors.textSecondary }]} numberOfLines={1}>
+                {w.meanings[0] ?? ''}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+
       </ScrollView>
 
       {/* 하단 광고 — 스크롤과 무관하게 화면 아래에 고정된다 */}
@@ -480,6 +514,33 @@ const PRIMARY_CARD_WIDTH = (SCREEN_WIDTH - SECTION_PADDING * 2 - CARD_GAP * 2) /
 const SECONDARY_CARD_WIDTH = (SCREEN_WIDTH - SECTION_PADDING * 2 - CARD_GAP * 3) / 4;
 
 const styles = StyleSheet.create({
+  // ── 최근 추가한 단어 (시안 #1) ──
+  recentSection: { paddingHorizontal: 16, paddingTop: 20 },
+  recentHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  recentTitle: { fontSize: 15, fontWeight: '700' },
+  recentAll: { fontSize: 13, fontWeight: '600' },
+  recentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 8,
+    minHeight: 48,
+  },
+  recentWord: { fontSize: 15, fontWeight: '700', maxWidth: '45%' },
+  recentMeaning: { fontSize: 13, flex: 1 },
+
+  /** 오늘 카드 아래 한 줄 요약 (시안 #1). 카드가 못 담는 둘만 적는다 */
+  quickStat: {
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 10,
+    marginHorizontal: 16,
+  },
+
   container: {
     flex: 1,
   },

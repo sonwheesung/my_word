@@ -32,6 +32,19 @@ interface ScoreRingProps {
   size?: number;
   /** 선 두께 */
   stroke?: number;
+  /**
+   * 가운데에 쓸 글자. 안 주면 `N%` 를 **세면서** 보여준다.
+   * ⚠ 주면 숫자 세기를 하지 않는다 — 홈의 「오늘 목표」는 `6/10` 처럼 분수라 세는 것이 말이 안 된다.
+   */
+  label?: string;
+  /**
+   * 만점 축하(초록 · 빛 · ✓ 도장)를 할 것인가. 기본 `true`.
+   * ⚠ 홈의 작은 링은 `false` 다 — **매일 보는 자리**라 축하가 금세 성가셔진다.
+   *   축하는 퀴즈를 막 끝낸 그 순간에만 값이 있다.
+   */
+  celebrate?: boolean;
+  /** 글자 크기. 작은 링에 40 은 넘친다 */
+  fontSize?: number;
 }
 
 const FILL_MS = 900;
@@ -46,10 +59,17 @@ const GLOW_MS = 520;
  */
 const SEAM = 1;
 
-export default function ScoreRing({ percent, size = 168, stroke = 14 }: ScoreRingProps) {
+export default function ScoreRing({
+  percent,
+  size = 168,
+  stroke = 14,
+  label,
+  celebrate = true,
+  fontSize = 40,
+}: ScoreRingProps) {
   const { colors } = useTheme();
   const safe = Number.isFinite(percent) ? Math.max(0, Math.min(100, percent)) : 0;
-  const perfect = safe >= 100;
+  const perfect = safe >= 100 && celebrate;
 
   const p = useRef(new Animated.Value(0)).current;
   const glow = useRef(new Animated.Value(0)).current;
@@ -66,6 +86,11 @@ export default function ScoreRing({ percent, size = 168, stroke = 14 }: ScoreRin
       useNativeDriver: true,
     });
     // 숫자는 같은 시간 동안 따로 센다. 값이 하나여도 쓰임이 둘(회전 · 글자)이라 드라이버가 갈린다
+    if (label !== undefined) {
+      // 글자를 직접 주면 셀 것이 없다
+      anim.start();
+      return () => anim.stop();
+    }
     const started = Date.now();
     const tick = setInterval(() => {
       const t = Math.min(1, (Date.now() - started) / FILL_MS);
@@ -88,10 +113,10 @@ export default function ScoreRing({ percent, size = 168, stroke = 14 }: ScoreRin
       anim.stop();
       clearInterval(tick);
     };
-  }, [safe, perfect, p, glow, stamp]);
+  }, [safe, perfect, label, p, glow, stamp]);
 
   // 만점이면 주색 → 초록. 차오르는 동안에는 주색이고, 100%에 닿는 순간 바뀐다
-  const arcColor = perfect ? colors.success : colors.primary;
+  const arcColor = safe >= 100 ? colors.success : colors.primary;
 
   const half = {
     width: size / 2,
@@ -175,6 +200,12 @@ export default function ScoreRing({ percent, size = 168, stroke = 14 }: ScoreRin
               borderTopRightRadius: size / 2,
               borderBottomRightRadius: size / 2,
               borderLeftWidth: 0,
+              /*
+               * 🔴 **50% 전에는 숨긴다.** 겹치려고 칸을 1px 넓혔더니, 아직 안 돌아간 이 반원의
+               *    가장자리 1px 이 6시 아래로 **삐져나와 보였다**(실기기). 겹침이 만든 부작용이라
+               *    겹침을 되돌리는 대신 **안 쓰는 동안 숨기는** 쪽이 맞다.
+               */
+              opacity: p.interpolate({ inputRange: [0, 0.499, 0.5, 1], outputRange: [0, 0, 1, 1] }),
               transformOrigin: 'left center',
               transform: [
                 { rotate: p.interpolate({ inputRange: [0, 0.5, 1], outputRange: ['0deg', '0deg', '180deg'] }) },
@@ -185,7 +216,9 @@ export default function ScoreRing({ percent, size = 168, stroke = 14 }: ScoreRin
       </View>
 
       <View style={styles.center}>
-        <Text style={[styles.percent, { color: arcColor }]}>{shown}%</Text>
+        <Text style={[styles.percent, { color: arcColor, fontSize }]}>
+          {label ?? `${shown}%`}
+        </Text>
       </View>
 
       {/*
