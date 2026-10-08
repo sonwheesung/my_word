@@ -37,6 +37,7 @@ import type { QuizMode, QuizDirection, QuizAnswerType } from './src/screens/Quiz
 import type { CardOrder } from './src/services/flashcardService';
 import type { ExamLanguage } from './src/services/examService';
 import { getCurrentLanguage } from './src/i18n/language';
+import { wrongWordIds } from './src/services/quizService';
 import type { QuizResult } from './src/services/quizService';
 
 // 에러 바운더리: 렌더링 에러를 화면에 표시
@@ -253,11 +254,6 @@ function AppContent() {
     return (
       <ManageWordsScreen
         onBack={() => setCurrentScreen('home')}
-        onAddWord={() => {
-          setPreviousScreen('manageWords');
-          setEditingWordId(null);
-          setCurrentScreen('addWord');
-        }}
         onEditWord={(wordId) => {
           setPreviousScreen('manageWords');
           setEditingWordId(wordId);
@@ -439,7 +435,8 @@ function AppContent() {
 
   if (currentScreen === 'quizResult') {
     const correctCount = quizResults.filter((r) => r.isCorrect).length;
-    const wrongWordIds = [...new Set(quizResults.filter(r => !r.isCorrect).map(r => r.wordId))];
+    // 🔴 결과 화면의 `틀린 N개` 라벨과 **같은 함수**로 센다. 각자 세면 갈라진다
+    const retryIds = wrongWordIds(quizResults);
     return (
       <QuizResultScreen
         correctCount={correctCount}
@@ -451,7 +448,7 @@ function AppContent() {
           setCurrentScreen('quiz');
         }}
         onRetryWrong={() => {
-          setRetryWordIds(wrongWordIds);
+          setRetryWordIds(retryIds);
           setCurrentScreen('quiz');
         }}
         onBackToHome={() => {

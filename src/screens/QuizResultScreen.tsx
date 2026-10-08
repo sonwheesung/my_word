@@ -12,6 +12,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { speak } from '../utils/speech';
 import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
+import { wrongWordIds } from '../services/quizService';
 
 interface QuizResultScreenProps {
   correctCount: number;
@@ -50,6 +51,13 @@ export default function QuizResultScreen({
   const isGood = percentage >= 70;
 
   const wrongResults = results.filter((r) => !r.isCorrect);
+  /*
+   * 🔴 **목록은 건수, 버튼은 단어 수다.** 둘이 다른 것이 정상이다 —
+   *    `mixed` 는 한 단어를 여러 유형으로 묻기 때문에 같은 단어가 두 번 틀릴 수 있다.
+   *    목록은 "무엇을 틀렸나"라서 건수가 맞고, 버튼은 **실제로 낼 문제 수**를 약속하므로 단어 수다.
+   * ⚠ App 과 **같은 함수**로 센다. 각자 세던 때 라벨이 "3개"인데 2문제가 나왔다.
+   */
+  const retryCount = wrongWordIds(results).length;
 
   // 이 화면에는 Word 객체가 없어 예문 힌트를 넘길 수 없다.
   // 한자만 있는 단어는 중국어로 추정된다(단어 목록·퀴즈 화면에서는 예문으로 보정된다)
@@ -193,7 +201,7 @@ export default function QuizResultScreen({
                 accessibilityRole="button"
               >
                 <Text style={styles.retryButtonText}>
-                  {t('틀린 {{count}}개 다시 풀기', { count: wrongResults.length })}
+                  {t('틀린 {{count}}개 다시 풀기', { count: retryCount })}
                 </Text>
               </TouchableOpacity>
             ) : (

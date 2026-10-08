@@ -89,6 +89,63 @@ function calculateStreak(activities: DailyActivity[]): number {
   return streak;
 }
 
+/**
+ * **주어진 id 순서대로** 단어를 세운다. 순수 함수다.
+ *
+ * 🔴 **2026-10-08 결함에서 나왔다.** `QuizScreen` 이 넘겨받은 목록을
+ *    `words.filter((w) => ids.includes(w.wordId))` 로 걸렀다. 그러면 **고르기는 맞고 순서는
+ *    저장소 순서**가 된다 — 넘긴 쪽이 정한 순서가 조용히 버려진다. 크래시도 경고도 없다.
+ *
+ *    버려진 순서가 셋이었다:
+ * ```
+ * 홈 복습 배너   만기순(가장 오래 밀린 것부터)   ← 약속이 안 지켜지고 있었다
+ * 플래시카드     방금 본 카드 순서(섞기·만기순)
+ * 오답 재도전    틀린 순서
+ * ```
+ *
+ * ⚠ 없는 id 는 조용히 건너뛴다. 지운 단어를 가리키는 목록이 들어와도 퀴즈가 멈추면 안 된다.
+ * ⚠ 같은 id 가 두 번 오면 한 번만 세운다 — 같은 단어를 연달아 두 번 묻지 않는다.
+ */
+export function orderByIds<T extends { wordId: number }>(items: readonly T[], ids: readonly number[]): T[] {
+  const byId = new Map<number, T>();
+  for (const item of items) byId.set(item.wordId, item);
+  const out: T[] = [];
+  const taken = new Set<number>();
+  for (const id of ids) {
+    if (taken.has(id)) continue;
+    const found = byId.get(id);
+    if (found === undefined) continue;
+    taken.add(id);
+    out.push(found);
+  }
+  return out;
+}
+
+/**
+ * 틀린 **단어**의 id. 순수 함수다. **건수가 아니라 단어 수**인 것이 요점이다.
+ *
+ * 🔴 **2026-10-08 결함에서 나왔다.** 결과 화면은 `결과 건수`로 라벨을 그리고
+ *    App 은 `new Set` 으로 **단어 수**를 넘겼다. 둘이 각자 세니 갈라졌다:
+ * ```
+ * mixed 모드에서 한 단어가 두 유형으로 틀림
+ *   라벨   "틀린 3개 다시 풀기"      ← 건수
+ *   실제   2문제                     ← 단어 수
+ * ```
+ *    **같은 수를 두 곳에서 세면 언젠가 갈라진다.** 그래서 한 함수로 묶었다.
+ *
+ * ⚠ 처음 틀린 순서를 지킨다 — `orderByIds` 가 그 순서로 문제를 낸다.
+ */
+export function wrongWordIds(results: readonly { wordId: number; isCorrect: boolean }[]): number[] {
+  const out: number[] = [];
+  const seen = new Set<number>();
+  for (const r of results) {
+    if (r.isCorrect || seen.has(r.wordId)) continue;
+    seen.add(r.wordId);
+    out.push(r.wordId);
+  }
+  return out;
+}
+
 export const quizService = {
   async saveQuizResults(results: QuizResult[]): Promise<void> {
     await quizResultStorage.saveResults(results);

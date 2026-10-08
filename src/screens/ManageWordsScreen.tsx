@@ -36,7 +36,8 @@ import { normalizeForCompare } from '../utils/text';
 
 interface ManageWordsScreenProps {
   onBack: () => void;
-  onAddWord: () => void;
+  // ⚠ `onAddWord` 를 2026-10-08 에 뗐다. 이 화면에는 추가 버튼이 없어 받아만 두고 안 썼다.
+  //   단어 추가는 홈에서 간다. 다시 필요해지면 **버튼과 함께** 넣는다.
   onEditWord: (wordId: number) => void;
   onManageCategories: () => void;
   onImportWords: () => void;
@@ -44,7 +45,6 @@ interface ManageWordsScreenProps {
 
 export default function ManageWordsScreen({
   onBack,
-  onAddWord,
   onEditWord,
   onManageCategories,
   onImportWords,

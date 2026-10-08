@@ -15,7 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SPACING } from '../constants/design';
 import { MaterialIcons } from '@expo/vector-icons';
 import { wordService } from '../services/wordService';
-import { quizService } from '../services/quizService';
+import { orderByIds, quizService } from '../services/quizService';
 import { srsService } from '../services/srsService';
 import { useInterstitialAd } from '../hooks/useInterstitialAd';
 import type { Word } from '../types/word';
@@ -107,9 +107,15 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
 
       let selectedWords: Word[] = [];
 
-      // retryWordIds가 있으면 해당 단어만 선택
+      /*
+       * 목록을 들고 들어온 길들(홈 복습 배너 · 플래시카드 · 오답 재도전).
+       *
+       * 🔴 **넘겨받은 순서를 지킨다**(`orderByIds`). 예전에는 `words.filter(...)` 였고
+       *    그러면 고르기는 맞는데 **저장소 순서**가 나왔다 — 만기순도 카드 순서도 조용히 버려졌다.
+       *    아래 `review` 분기는 처음부터 이 방식이었다. 이 분기만 빠져 있었다.
+       */
       if (retryWordIds && retryWordIds.length > 0) {
-        selectedWords = words.filter(w => retryWordIds.includes(w.wordId));
+        selectedWords = orderByIds(words, retryWordIds);
         if (selectedWords.length === 0) {
           Alert.alert(t('알림'), t('해당 단어를 찾을 수 없습니다'));
           onExit();
@@ -137,9 +143,7 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
         // 간격 반복이 정한 순서. 고른 카테고리 안에서만 본다 —
         // 홈 배너의 횡단 큐와 다른 점이 이것이다.
         const dueIds = await srsService.getDueWordIds(wordCount, categoryId);
-        selectedWords = dueIds
-          .map((id) => words.find((w) => w.wordId === id))
-          .filter((w): w is Word => w !== undefined);
+        selectedWords = orderByIds(words, dueIds);
         if (selectedWords.length === 0) {
           // 만기가 하나도 없으면 빈 화면 대신 평소처럼 낸다. "오늘 볼 것 없음"으로
           // 퀴즈를 막으면 사용자가 스스로 더 공부하려는 것을 앱이 거절하는 꼴이다.

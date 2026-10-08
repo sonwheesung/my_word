@@ -1,5 +1,6 @@
-import { APP_VERSION, LANGUAGE_KEY, NOTICE_READ_KEY, NOTIFY_ENABLED_KEY, NOTIFY_PROMPTED_KEY, NOTIFY_TIME_KEY, SRS_KEY, THEME_KEY } from '../constants/appConfig';
+import { APP_VERSION, LANGUAGE_KEY, NOTICE_READ_KEY, NOTIFY_ENABLED_KEY, NOTIFY_PROMPTED_KEY, NOTIFY_TIME_KEY, THEME_KEY } from '../constants/appConfig';
 import { BACKUP_KEYS, readRaw, writeRaw } from '../utils/storage';
+import { srsService } from './srsService';
 import { getDb } from '../db';
 import { backupRepo } from '../db/repo';
 import type { Category, Word } from '../types/word';
@@ -323,7 +324,12 @@ export const backupService = {
     // 🔴 복습 스케줄을 버린다. 백업에 담지 않는 파생값이라 이력에서 다시 만들어진다.
     //    srsService 는 "결과 개수가 다르면 재생"으로 스스로 고치지만, **개수만 같고 내용이
     //    다른** 백업을 복원하면 그 검사를 통과해 낡은 만기가 살아남는다. 여기서 끊는다.
-    await writeRaw(SRS_KEY, '');
+    // ⚠ 저장 키를 직접 쓰지 않고 **주인에게 맡긴다**(2026-10-08). 같은 일을 두 곳이 알고 있었고,
+    //   srsService 가 저장 모양을 바꾸면 이쪽이 조용히 틀려지는 자리였다.
+    // ⚠ **한 가지 달라졌다**: `invalidate` 는 쓰기 실패를 삼킨다(예전 `writeRaw` 는 던졌다).
+    //   여기서 던지면 **데이터는 이미 복원된 채로** 설정만 안 옮겨지고 "복원 실패"로 보고된다.
+    //   삼키면 낡은 만기 캐시가 남지만 다음 조회 때 스스로 재생된다 — 그쪽이 덜 나쁘다.
+    await srsService.invalidate();
 
     // 설정은 없으면 건드리지 않는다 — 옛 백업에 없는 항목 때문에 현재 설정이 지워지면 안 된다.
     const s = backup.settings;
