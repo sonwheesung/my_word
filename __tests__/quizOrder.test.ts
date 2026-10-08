@@ -48,8 +48,9 @@ describe('🔴 orderByIds — 넘겨받은 순서를 지킨다', () => {
 });
 
 describe('🔴 wrongWordIds — 건수가 아니라 단어 수다', () => {
-  it('🔴 한 단어가 두 번 틀려도 한 번만 센다 (mixed 모드)', () => {
-    // 라벨이 "3개"인데 2문제가 나오던 자리
+  it('🔴 한 단어가 두 번 틀려도 한 번만 센다', () => {
+    // ⚠ **지금 앱에서는 이 입력이 만들어지지 않는다**(한 단어에 문제 하나다).
+    //   한 단어에 둘 이상을 내게 되는 날을 위해 미리 고정해 두는 것이다.
     const results = [r(1, false), r(1, false), r(2, false)];
     expect(results.filter((x) => !x.isCorrect)).toHaveLength(3); // 건수는 3
     expect(wrongWordIds(results)).toEqual([1, 2]); // 실제로 낼 것은 2
