@@ -38,7 +38,8 @@ my_word/
     │   ├── NotificationPromptSheet.tsx   첫 퀴즈 뒤 홈에서 한 번 뜨는 알림 권유
     │   ├── OnboardingPanel.tsx           첫 사용자 안내(큰 카드 + 3단계). 🔴 버튼 7개를 숨기는 건 단어 0개일 때뿐
     │   ├── RestoreConfirmSheet.tsx       복원 전 "지금 기기 vs 백업" 숫자 비교
-    │   ├── ScreenHeader.tsx              뒤로가기 + 제목 + 오른쪽 버튼
+    │   ├── ScoreRing.tsx                 퀴즈 결과 점수 링(🔴 svg 없이 반원 둘을 돌린다) · 만점 ✓ 도장
+    │   ├── ScreenHeader.tsx              뒤로가기 + 제목 + 오른쪽 버튼/아이콘
     │   ├── SkeletonLoader.tsx            로딩 자리표시자
     │   ├── TimePickerSheet.tsx           알림 시각(5분 단위)
     │   ├── Toast.tsx                     하단 알림

@@ -150,3 +150,11 @@ export const EXAM_EXPECTED_WAIT_SEC = 90;
 //    최악의 경우 전부 다시 밀 뿐이다(서버가 멱등이다).
 // ⚠ 백업에 담지 않는다 — 기기별 진행 상태이고, 복원한 기기에서 다시 밀면 그만이다.
 export const SYNC_STATE_KEY = '@my_word_sync_state';
+
+// --- 지난 퀴즈 설정 (2026-10-08 시안 #8) ---
+// 🔴 **예전에는 일부러 기억하지 않았다.** 매번 기본값(무작위 · 단어→뜻 · 주관식 · 10문제)으로
+//    시작했는데, 같은 설정으로 반복하는 것이 보통이라 매번 다시 고르게 하는 쪽이 번거로웠다.
+//    시안 #8 이 「지난 설정 그대로」 카드로 뒤집었다.
+// ⚠ 백업에 담지 않는다 — 학습 기록이 아니라 이 기기에서의 선택이다
+//   (`FLASHCARD_PREFS_KEY` · `EXAM_PREFS_KEY` 와 같은 판단).
+export const QUIZ_PREFS_KEY = '@my_word_quiz_prefs';

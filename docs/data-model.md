@@ -29,7 +29,16 @@
 | `@my_word_flashcard_prefs` | `FLASHCARD_PREFS_KEY` · appConfig.ts | `FlashcardPrefs` JSON | 🚫 | 이 기기의 카드 보기 취향 |
 | `@my_word_exams` | `EXAMS_KEY` · appConfig.ts | `ExamRecord[]` JSON (최근 20판) | ✅ | AI 시험 기록(문제 · 내 답 · 점수) |
 | `@my_word_exam_prefs` | `EXAM_PREFS_KEY` · appConfig.ts | `ExamPrefs` JSON | 🚫 | 카테고리별로 고른 **단어의 언어** |
+| `@my_word_quiz_prefs` | `QUIZ_PREFS_KEY` · appConfig.ts | `QuizPrefs` JSON | 🚫 | 지난 퀴즈 설정(카테고리 · 모드 · 방향 · 답변 · 문제 수) |
 | `@my_word_sync_state` | `SYNC_STATE_KEY` · appConfig.ts | `SyncState` JSON | 🚫 | 단어를 어디까지 밀었나(기기별 진행 상태) |
+
+`QuizPrefs` = `{ categoryId, mode, direction, answerType, wordCount }` (2026-10-08 시안 #8)
+🔴 **예전에는 일부러 기억하지 않았다** — `screens.md` §6 이 *"지난 선택은 기억하지 않는다"* 로
+적고 있었다. 「지난 설정 그대로」 카드가 그 결정을 뒤집었다.
+⚠ **읽을 때 모르는 값은 통째로 버린다**(`parseQuizPrefs` → `null`). `mode` 에 없는 모드가 들어오면
+`QuizScreen` 의 분기를 전부 빠져나가 **문제가 0개인 퀴즈**가 된다.
+⚠ 저장은 `시작` 을 누를 때 한 번. 카드는 **그때 저장된 것**을 보여주고 아래 선택지는 늘 기본값이다 —
+묶으면 아래를 한 칸 바꿨을 때 카드가 거짓말이 된다.
 
 `SyncState` = `{ lastUpdatedAt, lastSyncedAt, serverTotal, rewoundFor }`
 🔴 **`serverTotal` 은 진단용이 아니다** — 내 단어 수보다 작으면 서버가 행을 잃은 것이라 장부를

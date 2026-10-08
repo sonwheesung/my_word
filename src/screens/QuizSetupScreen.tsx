@@ -12,6 +12,7 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
 import { srsService } from '../services/srsService';
+import { quizService, type QuizPrefs } from '../services/quizService';
 import { categoryService } from '../services/categoryService';
 import type { Category } from '../types/word';
 import Toast from '../components/Toast';
@@ -66,9 +67,32 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
   const [loading, setLoading] = useState(true);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
+  /**
+   * 지난 설정 (2026-10-08 시안 #8). `null` 이면 카드를 안 띄운다.
+   *
+   * 🔴 **고르는 값들에 바로 집어넣지 않는다.** 집어넣으면 「지난 설정 그대로」 카드가
+   *    아래 선택지와 **같은 말을 두 번** 하게 되고, 사용자가 아래를 한 칸 바꾸면 카드가
+   *    거짓말이 된다. 카드는 **그때 저장된 것**을 보여주고, 아래는 늘 기본값에서 시작한다.
+   */
+  const [lastPrefs, setLastPrefs] = useState<QuizPrefs | null>(null);
 
   useEffect(() => {
     loadCategories();
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    quizService
+      .loadQuizPrefs()
+      .then((p) => {
+        if (alive) setLastPrefs(p);
+      })
+      .catch(() => {
+        // 못 읽어도 설정 화면은 그대로 쓸 수 있어야 한다
+      });
+    return () => {
+      alive = false;
+    };
   }, []);
 
   const loadCategories = async () => {
@@ -112,6 +136,31 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
     };
   }, []);
 
+  /*
+   * 「지난 설정 그대로」 를 띄울 조건.
+   * 🔴 **그때 고른 카테고리가 지금도 있어야 한다.** 지워진 카테고리로 시작하면
+   *    퀴즈 화면이 "단어가 없습니다"로 튕겨 나온다 — 그건 지름길이 아니라 함정이다.
+   */
+  const resumeCategory =
+    lastPrefs === null || lastPrefs.categoryId === null
+      ? undefined
+      : categories.find((c) => c.categoryId === lastPrefs.categoryId);
+  const canResume = lastPrefs !== null && resumeCategory !== undefined && (resumeCategory.wordCount ?? 0) > 0;
+
+  /** `단어 → 뜻 · 객관식 · 10문제` 처럼 한 줄로 요약한다 */
+  const resumeSummary = (): string => {
+    if (lastPrefs === null) return '';
+    const dir = QUIZ_DIRECTIONS.find((d) => d.value === lastPrefs.direction);
+    const at = QUIZ_ANSWER_TYPES.find((a) => a.value === lastPrefs.answerType);
+    return [
+      dir === undefined ? '' : t(dir.label),
+      at === undefined ? '' : t(at.label),
+      t('{{count}}문제', { count: lastPrefs.wordCount }),
+    ]
+      .filter((x) => x !== '')
+      .join(' · ');
+  };
+
   const handleCategorySelect = (categoryId: number) => {
     setSelectedCategoryId(categoryId);
     setShowCategoryPicker(false);
@@ -139,7 +188,30 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
       return;
     }
     setIsStarting(true);
+    void quizService.saveQuizPrefs({
+      categoryId: selectedCategoryId,
+      mode: selectedMode,
+      direction: selectedDirection,
+      answerType: selectedAnswerType,
+      wordCount: selectedWordCount,
+    });
     onStartQuiz(selectedCategoryId, selectedMode, selectedWordCount, selectedDirection, selectedAnswerType);
+  };
+
+  /**
+   * 「지난 설정 그대로」 로 바로 시작. 🔴 **그때 고른 카테고리가 지금도 있는지 본다** —
+   * 지워졌으면 카드를 아예 안 띄운다(아래 `canResume`).
+   */
+  const handleResume = () => {
+    if (isStarting || lastPrefs === null || lastPrefs.categoryId === null) return;
+    setIsStarting(true);
+    onStartQuiz(
+      lastPrefs.categoryId,
+      lastPrefs.mode,
+      lastPrefs.wordCount,
+      lastPrefs.direction,
+      lastPrefs.answerType,
+    );
   };
 
   if (loading) {
@@ -180,6 +252,38 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
       <ScreenHeader title={t('퀴즈 설정')} onBack={onBack} />
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        {/*
+          지난 설정 그대로 (시안 #8). **맨 위에 둔다** — 같은 설정으로 또 푸는 것이 보통이고,
+          그 사람에게 아래 선택지 네 줄은 매번 지나쳐야 하는 길목일 뿐이다.
+          ⚠ 아래 선택지는 **이 카드와 무관하게 늘 기본값**이다. 둘을 묶으면 아래를 한 칸 바꿨을 때
+            카드가 거짓말이 된다.
+        */}
+        {canResume && lastPrefs !== null && resumeCategory !== undefined && (
+          <TouchableOpacity
+            style={[styles.resumeCard, { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}
+            onPress={handleResume}
+            disabled={isStarting}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+          >
+            <View style={styles.resumeTexts}>
+              <Text style={[styles.resumeLabel, { color: colors.primaryStrong }]}>
+                {t('지난 설정 그대로')}
+              </Text>
+              <Text style={[styles.resumeMain, { color: colors.text }]} numberOfLines={1}>
+                {resumeCategory.categoryName} · {t(QUIZ_MODES.find((m) => m.value === lastPrefs.mode)?.label ?? '')}
+              </Text>
+              <Text style={[styles.resumeSub, { color: colors.textSecondary }]} numberOfLines={1}>
+                {resumeSummary()}
+              </Text>
+            </View>
+            <View style={[styles.resumeGo, { backgroundColor: colors.primaryStrong }]}>
+              <Text style={styles.resumeGoText}>{t('시작')}</Text>
+              <MaterialIcons name="chevron-right" size={16} color="#FFFFFF" />
+            </View>
+          </TouchableOpacity>
+        )}
+
         {/* 카테고리 선택 */}
         <View style={styles.section}>
           <Text style={[styles.label, { color: colors.text }]}>{t('카테고리')}</Text>
@@ -438,6 +542,32 @@ export default function QuizSetupScreen({ onBack, onStartQuiz }: QuizSetupScreen
 }
 
 const styles = StyleSheet.create({
+  // ── 지난 설정 그대로 (시안 #8) ──
+  resumeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+    borderWidth: 1,
+    borderRadius: RADIUS.xl,
+    padding: SPACING.lg,
+    marginBottom: SPACING.xl,
+  },
+  resumeTexts: { flex: 1 },
+  resumeLabel: { fontSize: FONT.caption, fontWeight: '700' },
+  resumeMain: { fontSize: FONT.body, fontWeight: '700', marginTop: 2 },
+  resumeSub: { fontSize: FONT.caption, marginTop: 2 },
+  resumeGo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingLeft: SPACING.md,
+    paddingRight: SPACING.sm,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.pill,
+    minHeight: 36,
+  },
+  resumeGoText: { color: '#FFFFFF', fontSize: FONT.label, fontWeight: '700' },
+
   sheetOption: {
     flexDirection: 'row',
     alignItems: 'center',

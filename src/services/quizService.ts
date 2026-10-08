@@ -1,5 +1,6 @@
 import i18n from '../i18n';
-import { quizResultStorage, wordStorage, categoryStorage } from '../utils/storage';
+import { quizResultStorage, wordStorage, categoryStorage, readRaw, writeRaw } from '../utils/storage';
+import { QUIZ_PREFS_KEY } from '../constants/appConfig';
 import { formatLocalDate, toLocalDateKey } from '../utils/date';
 
 export interface QuizResult {
@@ -152,7 +153,86 @@ export function wrongWordIds(results: readonly { wordId: number; isCorrect: bool
   return out;
 }
 
+/**
+ * 지난 퀴즈 설정 (2026-10-08 시안 #8).
+ *
+ * 🔴 **예전에는 일부러 기억하지 않았다.** 설계 문서에 *"지난 선택은 기억하지 않는다"* 로
+ *    적혀 있었다. 시안 #8 이 「지난 설정 그대로」 카드로 뒤집었다 — 같은 설정으로 반복하는 것이
+ *    보통이라 매번 다시 고르게 하는 쪽이 번거롭다.
+ */
+/*
+ * ⚠ 같은 유니온이 `QuizSetupScreen`·`QuizScreen` 에도 있다. **가져오지 않고 여기 다시 적는다** —
+ *   서비스가 화면을 import 하면 층이 뒤집힌다. 문자열 유니온이라 TS 가 **같은 타입으로 본다**
+ *   (구조적 타이핑). 값이 늘면 세 곳을 같이 고쳐야 하고, `parseQuizPrefs` 가 모르는 값을
+ *   버리므로 빠뜨려도 **조용히 틀리지는 않는다**(지난 설정이 없는 것으로 읽힌다).
+ */
+export type QuizMode = 'random' | 'recent' | 'weak' | 'mixed' | 'review';
+export type QuizDirection = 'word_to_meaning' | 'meaning_to_word';
+export type QuizAnswerType = 'subjective' | 'multiple_choice';
+
+export interface QuizPrefs {
+  categoryId: number | null;
+  mode: QuizMode;
+  direction: QuizDirection;
+  answerType: QuizAnswerType;
+  wordCount: number;
+}
+
+const QUIZ_MODES: QuizMode[] = ['random', 'recent', 'weak', 'mixed', 'review'];
+const QUIZ_DIRECTIONS: QuizDirection[] = ['word_to_meaning', 'meaning_to_word'];
+const QUIZ_ANSWER_TYPES: QuizAnswerType[] = ['subjective', 'multiple_choice'];
+
+/**
+ * 🔴 **어떤 입력에도 던지지 않는다.** 설정 하나가 깨졌다고 퀴즈를 못 치면 안 된다.
+ *
+ * ⚠ **모르는 값은 버린다.** 저장본이 오염되면 `mode` 에 없는 모드가 들어올 수 있고,
+ *   그대로 쓰면 `QuizScreen` 의 분기를 전부 빠져나가 **문제가 0개인 퀴즈**가 된다.
+ * ⚠ `null` 을 주면 부르는 쪽이 *"지난 설정이 없다"* 로 읽는다 — 기본값과 구별해야
+ *   「지난 설정 그대로」 카드를 띄울지 정할 수 있다.
+ */
+export function parseQuizPrefs(raw: string | null): QuizPrefs | null {
+  if (!raw) return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (typeof parsed !== 'object' || parsed === null) return null;
+  const o = parsed as Record<string, unknown>;
+  const mode = QUIZ_MODES.find((m) => m === o.mode);
+  const direction = QUIZ_DIRECTIONS.find((d) => d === o.direction);
+  const answerType = QUIZ_ANSWER_TYPES.find((a) => a === o.answerType);
+  if (mode === undefined || direction === undefined || answerType === undefined) return null;
+  const wordCount = typeof o.wordCount === 'number' && Number.isFinite(o.wordCount) && o.wordCount > 0
+    ? Math.floor(o.wordCount)
+    : null;
+  if (wordCount === null) return null;
+  const categoryId = typeof o.categoryId === 'number' && Number.isFinite(o.categoryId)
+    ? o.categoryId
+    : null;
+  return { categoryId, mode, direction, answerType, wordCount };
+}
+
 export const quizService = {
+  /** 지난 설정. 없거나 깨졌으면 `null` — 그때는 「지난 설정 그대로」 카드를 안 띄운다 */
+  async loadQuizPrefs(): Promise<QuizPrefs | null> {
+    try {
+      return parseQuizPrefs(await readRaw(QUIZ_PREFS_KEY));
+    } catch {
+      return null;
+    }
+  },
+
+  /** ⚠ 저장 실패는 삼킨다. 설정을 못 적었다고 퀴즈를 못 시작하면 안 된다 */
+  async saveQuizPrefs(prefs: QuizPrefs): Promise<void> {
+    try {
+      await writeRaw(QUIZ_PREFS_KEY, JSON.stringify(prefs));
+    } catch {
+      // 다음 판에서 다시 적힌다
+    }
+  },
+
   async saveQuizResults(results: QuizResult[]): Promise<void> {
     await quizResultStorage.saveResults(results);
   },

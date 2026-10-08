@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import ScoreRing from '../components/ScoreRing';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HIT_SLOP, SPACING } from '../constants/design';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -90,27 +91,21 @@ export default function QuizResultScreen({
       <StatusBar style={colors.isDark ? 'light' : 'dark'} />
 
       <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + SPACING.xxl }]}>
-        <View style={styles.emoji}>
-          {isPerfect ? (
-            <MaterialIcons name="emoji-events" size={80} color="#F59E0B" />
-          ) : isGood ? (
-            <MaterialIcons name="sentiment-satisfied-alt" size={80} color={colors.primary} />
-          ) : (
-            <MaterialIcons name="refresh" size={80} color={colors.textTertiary} />
-          )}
+        {/*
+          점수 링 (시안 #6·#7). 🔴 **트로피 아이콘을 걷어냈다** — 링이 같은 자리에서
+          같은 말을 더 정확하게 한다(몇 점인지까지). 만점 축하는 링 안에서 ✓ 도장으로 한다.
+        */}
+        <View style={styles.ringWrap}>
+          <ScoreRing percent={percentage} />
         </View>
 
         <Text style={[styles.title, { color: colors.text }]}>
           {isPerfect ? t('완벽합니다!') : isGood ? t('잘했어요!') : t('다시 도전해보세요!')}
         </Text>
 
-        <View style={styles.scoreContainer}>
-          <Text style={[styles.scoreLabel, { color: colors.textSecondary }]}>{t('정답률')}</Text>
-          <Text style={[styles.scoreValue, { color: colors.primaryStrong }]}>{percentage}%</Text>
-          <Text style={[styles.scoreDetail, { color: colors.textSecondary }]}>
-            {t('{{correct}} / {{total}} 문제', { correct: correctCount, total: totalCount })}
-          </Text>
-        </View>
+        <Text style={[styles.scoreDetail, { color: colors.textSecondary }]}>
+          {t('{{correct}} / {{total}} 문제', { correct: correctCount, total: totalCount })}
+        </Text>
 
         <View style={[styles.statsContainer, { backgroundColor: colors.card }]}>
           <View style={styles.statItem}>
@@ -243,6 +238,9 @@ export default function QuizResultScreen({
 }
 
 const styles = StyleSheet.create({
+  /** 링 자리. 아래 제목과 붙지 않게 숨을 준다 */
+  ringWrap: { alignItems: 'center', marginBottom: 20 },
+
   wrongSection: {
     width: '100%',
     marginBottom: 20,

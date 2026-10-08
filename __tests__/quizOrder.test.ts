@@ -133,3 +133,56 @@ describe('🔴 넘겨받은 순서를 버리지 않는다 (소스 훑기)', () =
     expect(src).not.toMatch(/new Set\([\s\S]{0,80}isCorrect/);
   });
 });
+
+// ── 🔴 지난 퀴즈 설정 (시안 #8) ──────────────────────────────────────────────
+//
+// 이 앱은 **일부러 기억하지 않던** 것을 이번에 뒤집었다. 그래서 저장본이 처음 생긴다 —
+// 오염된 저장본이 퀴즈를 망가뜨리지 않는지가 요점이다.
+
+import { parseQuizPrefs } from '../src/services/quizService';
+
+describe('🔴 parseQuizPrefs — 어떤 입력에도 던지지 않는다', () => {
+  const ok = {
+    categoryId: 3,
+    mode: 'weak',
+    direction: 'meaning_to_word',
+    answerType: 'multiple_choice',
+    wordCount: 15,
+  };
+
+  it('모양이 맞으면 읽는다', () => {
+    expect(parseQuizPrefs(JSON.stringify(ok))).toEqual(ok);
+  });
+
+  it('없거나 깨졌으면 null — 기본값과 구별된다', () => {
+    for (const raw of [null, '', '{', '[]', 'null', '12']) {
+      expect(parseQuizPrefs(raw as string | null)).toBeNull();
+    }
+  });
+
+  it('🔴 모르는 모드는 통째로 버린다 (QuizScreen 의 분기를 다 빠져나가 문제 0개가 된다)', () => {
+    expect(parseQuizPrefs(JSON.stringify({ ...ok, mode: 'telepathy' }))).toBeNull();
+  });
+
+  it('🔴 모르는 방향·답변 방식도 버린다', () => {
+    expect(parseQuizPrefs(JSON.stringify({ ...ok, direction: 'sideways' }))).toBeNull();
+    expect(parseQuizPrefs(JSON.stringify({ ...ok, answerType: 'telepathic' }))).toBeNull();
+  });
+
+  it('⚠ 문제 수가 숫자가 아니거나 0 이하면 버린다', () => {
+    for (const bad of ['10', 0, -5, NaN, null]) {
+      expect(parseQuizPrefs(JSON.stringify({ ...ok, wordCount: bad }))).toBeNull();
+    }
+  });
+
+  it('⚠ 카테고리가 없으면 null 로 두고 나머지는 읽는다 (카드는 그때 안 뜬다)', () => {
+    const got = parseQuizPrefs(JSON.stringify({ ...ok, categoryId: 'x' }));
+    expect(got).not.toBeNull();
+    expect(got?.categoryId).toBeNull();
+    expect(got?.mode).toBe('weak');
+  });
+
+  it('소수점 문제 수는 내림한다', () => {
+    expect(parseQuizPrefs(JSON.stringify({ ...ok, wordCount: 10.7 }))?.wordCount).toBe(10);
+  });
+});

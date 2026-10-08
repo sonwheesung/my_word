@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  Animated,
+  Easing,
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
@@ -26,6 +28,18 @@ import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
 
 export type QuizMode = 'random' | 'recent' | 'weak' | 'mixed' | 'review';
+
+/**
+ * 맞혔을 때 다음 문제로 넘어가기까지 (2026-10-08 시안 #3).
+ *
+ * ⚠ 예전에는 **정답·오답 모두** 이 시간 뒤에 자동으로 넘어갔다. 이제 **정답만**이다.
+ *   얇은 선이 이 시간 동안 차오르므로 *얼마나 남았는지*가 눈에 보인다 —
+ *   보이지 않는 1.5초는 멈춘 것처럼 느껴진다.
+ */
+const ADVANCE_MS = 1500;
+
+/** 오답일 때 흔들리는 폭. ⚠ 크면 장난스럽고 작으면 안 보인다 */
+const SHAKE_PX = 7;
 type QuizAnswerType = 'subjective' | 'multiple_choice';
 
 type QuizType = 'word_to_meaning' | 'meaning_to_word' | 'example_to_meaning' | 'translation_to_example';
@@ -77,6 +91,39 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const [feedback, setFeedback] = useState<{ isCorrect: boolean; correctAnswer: string } | null>(null);
+
+  /*
+   * 판정 연출 (2026-10-08 시안 #3·#4·#5).
+   *
+   * 🔴 **정답과 오답을 다르게 다룬다.** 예전에는 둘 다 1.5초 뒤 자동으로 넘어갔다.
+   * ```
+   * 정답   띠도 [계속]도 없다. 얇은 선이 1.5초 차오르고 저절로 넘어간다
+   * 오답   흔들리고 빨개진 뒤 판정 띠가 올라온다. [계속]을 눌러야 넘어간다
+   * ```
+   *    **틀린 순간이 배우는 순간**이라 거기서만 붙잡는다. 맞혔을 때 흐름을 끊으면
+   *    열 문제를 푸는 동안 열 번 끊긴다.
+   */
+  const [awaitingContinue, setAwaitingContinue] = useState(false);
+
+  /**
+   * 정답일 때 차오르는 선. 🔴 **`useNativeDriver: false`** — 너비(%)는 네이티브가 못 받는다.
+   * ⚠ 이 값은 문제마다 `setValue(0)` 으로 되돌린다. 그래서 **절대 네이티브로 넘기지 않는다** —
+   *   1.7.0 사고가 정확히 *네이티브로 넘긴 값을 `setValue` 로 되돌린 것*이었다.
+   */
+  const fill = useRef(new Animated.Value(0)).current;
+  /**
+   * 오답일 때 흔들림. 🔴 **`useNativeDriver: true`** — `translateX` 뿐이고
+   * **`setValue` 로 되돌리지 않는다**(끝에서 0 으로 되돌아오는 순수 시퀀스다).
+   * `FlipCard` 가 네이티브 드라이버를 쓰는 것과 같은 조건이다. 위 `fill` 과는 **다른 값·다른 요소**다.
+   */
+  const shake = useRef(new Animated.Value(0)).current;
+  /** 돌고 있는 애니메이션. 화면을 떠날 때 끊는다 */
+  const running = useRef<Animated.CompositeAnimation | null>(null);
+  const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    running.current?.stop();
+    if (advanceTimer.current !== null) clearTimeout(advanceTimer.current);
+  }, []);
   const isMultipleChoice = answerType === 'multiple_choice';
   const { showAd } = useInterstitialAd();
   const { toast, showToast, hideToast } = useToast();
@@ -384,8 +431,41 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
     // 정답/오답 피드백 표시
     setFeedback({ isCorrect, correctAnswer: currentQuestion.correctAnswer });
 
-    setTimeout(async () => {
+    /*
+     * 🔴 **여기서 길이 갈린다**(시안 #3·#4·#5).
+     *   맞혔으면 선이 차오르는 동안 기다렸다 저절로 넘어가고,
+     *   틀렸으면 흔들고 멈춰 서서 **[계속]** 을 기다린다.
+     */
+    if (isCorrect) {
+      fill.setValue(0);
+      const anim = Animated.timing(fill, {
+        toValue: 1,
+        duration: ADVANCE_MS,
+        easing: Easing.linear,
+        useNativeDriver: false,
+      });
+      running.current = anim;
+      anim.start();
+      advanceTimer.current = setTimeout(() => void advance(updatedResults), ADVANCE_MS);
+    } else {
+      setAwaitingContinue(true);
+      const anim = Animated.sequence([
+        Animated.timing(shake, { toValue: 1, duration: 55, useNativeDriver: true }),
+        Animated.timing(shake, { toValue: -1, duration: 55, useNativeDriver: true }),
+        Animated.timing(shake, { toValue: 0.6, duration: 55, useNativeDriver: true }),
+        Animated.timing(shake, { toValue: 0, duration: 55, useNativeDriver: true }),
+      ]);
+      running.current = anim;
+      anim.start();
+    }
+  };
+
+  /** 다음 문제로. 🔴 **정답은 타이머가, 오답은 [계속]이** 부른다 */
+  const advance = async (updatedResults: QuizResult[]) => {
+    {
       setFeedback(null);
+      setAwaitingContinue(false);
+      fill.setValue(0);
 
       if (currentIndex + 1 < questions.length) {
         setCurrentIndex(currentIndex + 1);
@@ -408,7 +488,7 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
         }
         onComplete(updatedResults);
       }
-    }, 1500);
+    }
   };
 
   // 예문을 힌트로 넘겨 한자만 있는 단어의 일본어/중국어 판별을 돕는다
@@ -567,11 +647,34 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
               const isCorrectChoice = feedback && normalizeString(choice) === normalizeString(currentQuestion.correctAnswer);
               const isWrongSelected = feedback && isSelected && !feedback.isCorrect;
 
+              /*
+               * 🔴 **흔들림은 틀리게 고른 칸에만** 준다(시안 #4). 보기 전체를 흔들면
+               *   무엇을 틀렸는지가 아니라 "화면이 흔들렸다"만 남는다.
+               * ⚠ 맞힌 뒤에는 고르지 않은 칸을 흐리게 해 **정답 하나만 눈에 남게** 한다(시안 #3).
+               */
+              const dimmed = feedback !== null && feedback.isCorrect && !isCorrectChoice;
               return (
-                <TouchableOpacity
+                <Animated.View
                   key={idx}
+                  style={
+                    isWrongSelected
+                      ? {
+                          transform: [
+                            {
+                              translateX: shake.interpolate({
+                                inputRange: [-1, 1],
+                                outputRange: [-SHAKE_PX, SHAKE_PX],
+                              }),
+                            },
+                          ],
+                        }
+                      : undefined
+                  }
+                >
+                <TouchableOpacity
                   style={[
                     styles.choiceButton,
+                    dimmed && styles.choiceDimmed,
                     { backgroundColor: colors.card, borderColor: colors.border },
                     isCorrectChoice && {
                       backgroundColor: colors.successBg,
@@ -628,11 +731,45 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
                     <MaterialIcons name="check-circle" size={20} color={colors.primary} />
                   )}
                 </TouchableOpacity>
+                {/*
+                  맞힌 칸 아래로 차오르는 얇은 선 (시안 #3). **남은 시간을 보이게 한다** —
+                  보이지 않는 1.5초는 멈춘 것처럼 느껴진다.
+                */}
+                {isCorrectChoice && feedback?.isCorrect === true && (
+                  <View style={[styles.advanceTrack, { backgroundColor: colors.successBorder }]}>
+                    <Animated.View
+                      style={[
+                        styles.advanceFill,
+                        {
+                          backgroundColor: colors.success,
+                          width: fill.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
+                        },
+                      ]}
+                    />
+                  </View>
+                )}
+                </Animated.View>
               );
             })}
           </View>
         ) : (
-          <View style={styles.answerSection}>
+          <Animated.View
+            style={[
+              styles.answerSection,
+              feedback !== null && !feedback.isCorrect
+                ? {
+                    transform: [
+                      {
+                        translateX: shake.interpolate({
+                          inputRange: [-1, 1],
+                          outputRange: [-SHAKE_PX, SHAKE_PX],
+                        }),
+                      },
+                    ],
+                  }
+                : null,
+            ]}
+          >
             <Text style={[styles.answerLabel, { color: colors.textSecondary }]}>{t('답')}</Text>
             <TextInput
               style={[styles.answerInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
@@ -649,33 +786,47 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
               multiline={currentQuestion.quizType === 'translation_to_example'}
               maxLength={300}
             />
-          </View>
-        )}
-
-        {/* 정답/오답 피드백 */}
-        {feedback && (
-          <View style={[
-            styles.feedbackBox,
-            feedback.isCorrect
-              ? { backgroundColor: colors.successBg, borderColor: colors.successBorder }
-              : { backgroundColor: colors.dangerBg, borderColor: colors.dangerBorder },
-          ]}>
-            <Text style={[
-              styles.feedbackText,
-              { color: feedback.isCorrect ? colors.successText : colors.dangerText },
-            ]}>
-              {feedback.isCorrect ? t('정답!') : t('오답')}
-            </Text>
-            {!feedback.isCorrect && (
-              <Text style={[styles.feedbackCorrectAnswer, { color: colors.dangerText }]}>
-                {t('정답: {{answer}}', { answer: feedback.correctAnswer })}
+            {/* 🔴 내 답에 취소선 (시안 #5). 무엇을 썼는지 보여줘야 왜 틀렸는지 안다 */}
+            {feedback !== null && !feedback.isCorrect && userAnswer.trim() !== '' && (
+              <Text style={[styles.myWrongAnswer, { color: colors.dangerText }]} numberOfLines={2}>
+                {userAnswer.trim()}
               </Text>
             )}
+          </Animated.View>
+        )}
+
+        {/*
+          판정 띠 — 🔴 **틀렸을 때만 뜬다**(시안 #4·#5).
+          맞혔을 때는 보기 칸이 이미 초록 ✓ 라 띠가 같은 말을 한 번 더 하는 셈이고,
+          그 한 번이 열 문제면 열 번이다.
+        */}
+        {feedback !== null && !feedback.isCorrect && (
+          <View style={[styles.feedbackBox, { backgroundColor: colors.dangerBg, borderColor: colors.dangerBorder }]}>
+            <Text style={[styles.feedbackText, { color: colors.dangerText }]}>{t('오답')}</Text>
+            <Text style={[styles.feedbackCorrectAnswer, { color: colors.dangerText }]}>
+              {t('정답: {{answer}}', { answer: feedback.correctAnswer })}
+            </Text>
           </View>
         )}
 
-        {/* 제출 버튼 (주관식만) */}
-        {!isMultipleChoice && (
+        {/*
+          [계속] — 🔴 **틀렸을 때만 뜬다**(시안 #4·#5). 맞히면 저절로 넘어간다.
+          ⚠ `results` 를 그대로 넘긴다. 판정 시점에 `setResults` 로 이미 들어가 있다.
+        */}
+        {awaitingContinue && (
+          <TouchableOpacity
+            style={[styles.continueButton, { backgroundColor: colors.primaryStrong }]}
+            onPress={() => void advance(results)}
+            accessibilityRole="button"
+          >
+            <Text style={styles.continueButtonText}>
+              {currentIndex + 1 < questions.length ? t('계속') : t('완료')}
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {/* 제출 버튼 (주관식만). ⚠ 판정 중에는 숨긴다 — 그 자리를 [계속]이 쓴다 */}
+        {!isMultipleChoice && feedback === null && (
           <TouchableOpacity
             style={[styles.submitButton, { backgroundColor: colors.primaryStrong }, isSubmitting && styles.submitButtonDisabled]}
             onPress={handleSubmit}
@@ -703,6 +854,23 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
 }
 
 const styles = StyleSheet.create({
+  // ── 판정 연출 (2026-10-08 시안 #3·#4·#5) ──
+  /** 맞힌 뒤 고르지 않은 칸. 지우지 않고 **흐리게만** 한다 — 사라지면 목록이 들썩인다 */
+  choiceDimmed: { opacity: 0.35 },
+  advanceTrack: { height: 3, borderRadius: 2, marginTop: -6, marginBottom: 10, overflow: 'hidden' },
+  advanceFill: { height: 3 },
+  /** 내가 쓴 틀린 답. 취소선으로 **지워졌음**을 보인다 */
+  myWrongAnswer: { marginTop: 8, fontSize: 14, fontWeight: '600', textDecorationLine: 'line-through' },
+  continueButton: {
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+    minHeight: 48,
+  },
+  continueButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+
   container: {
     flex: 1,
     backgroundColor: '#F8F9FA',
