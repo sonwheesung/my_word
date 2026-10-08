@@ -6,8 +6,13 @@
 
 ## 개요
 
-학습 데이터는 전부 기기 안(AsyncStorage, 웹은 localStorage)에 JSON 으로 있다. 서버에 올리지 않는다.
-자격증명 둘만 SecureStore 에 둔다.
+학습 기록은 기기 안(AsyncStorage, 웹은 localStorage)에 JSON 으로 있다. 자격증명 둘만 SecureStore 에 둔다.
+**단어의 정본은 기기 SQLite** 다(아래 전용 절).
+
+🔴 **「서버에 올리지 않는다」는 2026-10-07 에 깨졌다.** 단어와 그 뜻은 `syncService` 가 공통 서버로
+**밀고**(단방향 · 당기기 없음), AI 단어 시험을 쓰면 문제 생성을 위해 국외(OpenAI)로도 간다.
+**나가지 않는 것**은 카테고리 · 퀴즈 기록 · SRS · 설정 · 메모 · 예문 · 태그다.
+사용자에게 알리는 정본은 `docs/privacy-policy.html` 제5-2·5-3항이다.
 
 ## 저장 키 (AsyncStorage)
 
