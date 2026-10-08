@@ -254,6 +254,12 @@ function AppContent() {
     return (
       <ManageWordsScreen
         onBack={() => setCurrentScreen('home')}
+        // 🙂 2026-10-08 아침에 뗐다가 같은 날 시안 #10(떠 있는 ＋ 버튼)으로 되살렸다
+        onAddWord={() => {
+          setPreviousScreen('manageWords');
+          setEditingWordId(null);
+          setCurrentScreen('addWord');
+        }}
         onEditWord={(wordId) => {
           setPreviousScreen('manageWords');
           setEditingWordId(wordId);

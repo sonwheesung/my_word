@@ -61,6 +61,23 @@ interface ExamScreenProps {
 
 type Phase = 'loading' | 'solving' | 'failed';
 
+/** 팁 카드가 넘어가는 간격. 읽을 시간은 주되 지루하지 않게 */
+const TIP_ROTATE_MS = 3200;
+
+/**
+ * 기다리는 동안 서버가 하는 일 (2026-10-08 시안 #12).
+ *
+ * 🔴 **✓ 를 차례로 켜지 않는다.** 서버가 단계별 진행을 알려주지 않으므로 시간으로 켜면
+ *    **모양만 다른 가짜 진행 막대**가 된다. 이 화면이 애초에 가짜 막대를 거부한 이유가 그것이다.
+ *    목록은 *기다림이 무엇을 사는지*를 알려 줄 뿐, *얼마나 왔는지*는 아는 척하지 않는다.
+ */
+const WAIT_STEPS: Array<{ title: string; sub: string }> = [
+  { title: '씨앗 단어 고르기', sub: '복습할 때 · 자주 틀림 · 무작위' },
+  { title: '헷갈리는 단어 찾기', sub: '비슷한 뜻으로 보기를 만든다' },
+  { title: '문제 만들기', sub: '객관식 20문제' },
+  { title: '해설 붙이기', sub: '왜 정답인지 한 줄씩' },
+];
+
 /** 실패를 사용자가 읽을 문장으로 옮긴다. 🔴 사유마다 **사용자가 할 일이 다르다** */
 function failMessage(reason: string): { title: string; body: string; retryable: boolean } {
   switch (reason) {
@@ -130,9 +147,24 @@ export default function ExamScreen({
   const [examId, setExamId] = useState<string>('');
   const [failure, setFailure] = useState<string>('');
   const [elapsed, setElapsed] = useState(0);
+  /**
+   * 기다리는 동안 보여 줄 내 단어 (2026-10-08 시안 #12).
+   *
+   * ⚠ 씨앗을 고른 **뒤에** 채워진다. 그 전에는 빈 배열이라 팁 칸이 아예 안 뜬다 —
+   *   빈 칸을 미리 띄워 두면 자리만 차지한다.
+   */
+  const [tips, setTips] = useState<Array<{ word: string; meaning: string }>>([]);
+  const [tipIndex, setTipIndex] = useState(0);
   const [attempt, setAttempt] = useState(0);
   /** 🔴 연속 탭 방지. 다음 버튼을 빨리 두 번 누르면 문제가 하나 건너뛰어진다 */
   const advancing = useRef(false);
+
+  // 팁 카드 넘기기. ⚠ cleanup 필수 — 화면을 떠난 뒤 돌면 사라진 화면에 setState 한다
+  useEffect(() => {
+    if (phase !== 'loading' || tips.length < 2) return;
+    const id = setInterval(() => setTipIndex((i) => (i + 1) % tips.length), TIP_ROTATE_MS);
+    return () => clearInterval(id);
+  }, [phase, tips.length]);
 
   // 경과 초. 🔴 가짜 진행 막대를 쓰지 않는 이유는 파일 머리 주석에 있다
   useEffect(() => {
@@ -175,6 +207,13 @@ export default function ExamScreen({
         const plan = await examService.buildSeeds(categoryId);
         const words = toSeedPayload(plan);
         if (!alive) return;
+        // 기다리는 동안 보여 줄 것. 뜻이 있는 것만 — 뜻 없는 카드는 보여 줄 값이 없다
+        setTips(
+          [...plan.due, ...plan.weak, ...plan.random]
+            .filter((w) => w.meanings.length > 0 && w.meanings[0].trim() !== '')
+            .slice(0, 6)
+            .map((w) => ({ word: w.word, meaning: w.meanings[0] })),
+        );
         if (words.length === 0) {
           setFailure('no-words');
           setPhase('failed');
@@ -312,7 +351,7 @@ export default function ExamScreen({
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <StatusBar style={colors.isDark ? 'light' : 'dark'} />
         <ScreenHeader title={t('AI 시험')} onBack={onBack} />
-        <View style={styles.waitBox}>
+        <ScrollView contentContainerStyle={styles.waitBox}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={[styles.waitTitle, { color: colors.text }]}>
             {isRetry ? t('시험을 불러오고 있어요') : t('내 단어로 문제를 만들고 있어요')}
@@ -330,7 +369,48 @@ export default function ExamScreen({
                 : t('{{sec}}초쯤 걸려요. 앱을 닫지 말아 주세요', { sec: EXAM_EXPECTED_WAIT_SEC })}
             </Text>
           )}
-        </View>
+
+          {/*
+            무엇을 만들고 있나 (시안 #12).
+
+            🔴 **✓ 를 차례로 켜지 않는다.** 시안은 네 단계 체크리스트인데, 서버는 단계별 진행을
+               알려주지 않는다 — 시간으로 ✓ 를 켜면 그건 **모양만 다른 가짜 진행 막대**다.
+               이 화면이 애초에 가짜 막대를 거부하고 경과 초를 세는 이유가 그것이다.
+            → 그래서 **지금 하고 있는 일의 목록**으로 둔다. 기다림이 무엇을 사는지는 알려 주되,
+              얼마나 왔는지는 **아는 척하지 않는다.**
+          */}
+          {!isRetry && (
+            <View style={[styles.stepsBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.stepsTitle, { color: colors.textSecondary }]}>
+                {t('이런 걸 만들고 있어요')}
+              </Text>
+              {WAIT_STEPS.map((step) => (
+                <View key={step.title} style={styles.stepRow}>
+                  <MaterialIcons name="circle" size={6} color={colors.primary} />
+                  <View style={styles.stepTexts}>
+                    <Text style={[styles.stepTitle, { color: colors.text }]}>{t(step.title)}</Text>
+                    <Text style={[styles.stepSub, { color: colors.textTertiary }]}>{t(step.sub)}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* 기다리는 동안 — 내 단어장에서 (시안 #12) */}
+          {!isRetry && tips.length > 0 && (
+            <View style={[styles.tipBox, { backgroundColor: colors.primaryLight }]}>
+              <Text style={[styles.tipLabel, { color: colors.primaryStrong }]}>
+                {t('기다리는 동안 — 내 단어장에서')}
+              </Text>
+              <Text style={[styles.tipWord, { color: colors.text }]} numberOfLines={1}>
+                {tips[tipIndex % tips.length]?.word}
+              </Text>
+              <Text style={[styles.tipMeaning, { color: colors.textSecondary }]} numberOfLines={2}>
+                {tips[tipIndex % tips.length]?.meaning}
+              </Text>
+            </View>
+          )}
+        </ScrollView>
       </View>
     );
   }
@@ -475,8 +555,27 @@ export default function ExamScreen({
 }
 
 const styles = StyleSheet.create({
+  // ── 기다리는 화면 (2026-10-08 시안 #12) ──
+  stepsBox: { alignSelf: 'stretch', borderWidth: 1, borderRadius: 16, padding: 16, marginTop: 24 },
+  stepsTitle: { fontSize: 12, fontWeight: '700', marginBottom: 10 },
+  stepRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 10 },
+  stepTexts: { flex: 1, marginTop: -4 },
+  stepTitle: { fontSize: 14, fontWeight: '600' },
+  stepSub: { fontSize: 12, marginTop: 1, lineHeight: 16 },
+  tipBox: { alignSelf: 'stretch', borderRadius: 16, padding: 16, marginTop: 16 },
+  tipLabel: { fontSize: 12, fontWeight: '700' },
+  tipWord: { fontSize: 20, fontWeight: '800', marginTop: 6 },
+  tipMeaning: { fontSize: 14, marginTop: 2, lineHeight: 20 },
+
   container: { flex: 1 },
-  waitBox: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: SPACING.xl },
+  /*
+   * 🔴 **`flex: 1` 이 아니라 `flexGrow: 1` 이다.** ScrollView 의 contentContainer 에 `flex: 1` 을
+   *    주면 내용이 화면 높이에 묶여 **넘쳐도 스크롤되지 않는다** — 1.3.2~1.6.0 동안 퀴즈 결과
+   *    화면이 바로 그 상태였다(`CHANGELOG` 1.7.0 OTA). 단계 목록과 팁이 붙으면서 이 화면도
+   *    길어졌으므로 같은 함정에 빠지지 않게 한다.
+   * ⚠ `flexGrow` 는 **짧을 때만** 가운데로 모은다. 그게 원하는 동작이다.
+   */
+  waitBox: { flexGrow: 1, justifyContent: 'center', alignItems: 'center', padding: SPACING.xl },
   waitTitle: {
     fontSize: FONT.title,
     fontWeight: '700',

@@ -36,8 +36,12 @@ import { normalizeForCompare } from '../utils/text';
 
 interface ManageWordsScreenProps {
   onBack: () => void;
-  // ⚠ `onAddWord` 를 2026-10-08 에 뗐다. 이 화면에는 추가 버튼이 없어 받아만 두고 안 썼다.
-  //   단어 추가는 홈에서 간다. 다시 필요해지면 **버튼과 함께** 넣는다.
+  /**
+   * 🙂 **같은 날 뗐다가 되살렸다**(2026-10-08). 아침에 *"받아만 두고 안 쓴다"* 며 뗐는데,
+   * 그날 받은 시안(#10)이 **떠 있는 ＋ 버튼**으로 되살렸다. 이번엔 **버튼과 함께** 있다 —
+   * 뗄 때 적어 둔 조건("다시 필요해지면 버튼과 함께")이 그대로 지켜진 셈이다.
+   */
+  onAddWord: () => void;
   onEditWord: (wordId: number) => void;
   onManageCategories: () => void;
   onImportWords: () => void;
@@ -45,6 +49,7 @@ interface ManageWordsScreenProps {
 
 export default function ManageWordsScreen({
   onBack,
+  onAddWord,
   onEditWord,
   onManageCategories,
   onImportWords,
@@ -316,6 +321,22 @@ export default function ManageWordsScreen({
     ]);
   }, [handleShareAll]);
 
+  /**
+   * ⋯ 메뉴 (2026-10-08 시안 #10).
+   *
+   * ⚠ **가끔 쓰는 것만** 넣는다. 매일 쓰는 「단어 추가」는 떠 있는 ＋ 버튼으로 따로 있다 —
+   *   메뉴 안에 넣으면 가장 자주 하는 일이 두 번 누르는 일이 된다.
+   */
+  const showMoreMenu = useCallback(() => {
+    Alert.alert(t('단어장'), undefined, [
+      { text: t('전체 공유'), onPress: handleShareAll },
+      { text: t('골라서 공유'), onPress: () => setIsSelectMode(true) },
+      { text: t('단어 받기 (CSV)'), onPress: onImportWords },
+      { text: t('카테고리 관리'), onPress: onManageCategories },
+      { text: t('취소'), style: 'cancel' },
+    ]);
+  }, [handleShareAll, onImportWords, onManageCategories, t]);
+
   if (loading) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -326,12 +347,16 @@ export default function ManageWordsScreen({
           rightButton={{ text: t('관리'), onPress: onManageCategories }}
         />
         <View style={styles.contentContainer}>
-          <View style={[styles.categoryList, { backgroundColor: colors.card, borderRightColor: colors.border }]}>
-            {[1, 2, 3].map((i) => (
-              <View key={i} style={[styles.skeletonCategoryItem, { borderBottomColor: colors.borderLight }]}>
-                <View style={[styles.skeletonBar, { backgroundColor: colors.border }]} />
-              </View>
-            ))}
+          {/* ⚠ 자리표시자도 가로 칩이어야 한다. 안 맞추면 로딩에서 본 화면으로 **레이아웃이 튄다** */}
+          <View style={[styles.chipBar, { borderBottomColor: colors.border }]}>
+            <View style={styles.chipRow}>
+              {[1, 2, 3].map((i) => (
+                <View
+                  key={i}
+                  style={[styles.chip, { backgroundColor: colors.card, borderColor: colors.border, width: 90 }]}
+                />
+              ))}
+            </View>
           </View>
           <View style={styles.wordsContainer}>
             <View style={{ padding: 16 }}>
@@ -368,24 +393,26 @@ export default function ManageWordsScreen({
       <ScreenHeader
         title={isSelectMode ? t('{{count}}개 선택', { count: selectedWordIds.size }) : t('단어장')}
         onBack={isSelectMode ? toggleSelectMode : onBack}
-        rightButton={
-          isSelectMode
-            ? { text: t('공유'), onPress: handleShareSelected }
-            : { text: t('관리'), onPress: onManageCategories }
+        rightButton={isSelectMode ? { text: t('공유'), onPress: handleShareSelected } : undefined}
+        rightAccessory={
+          isSelectMode ? undefined : (
+            /*
+              ⋯ 메뉴 (시안 #10). 공유 · 받기 · 카테고리 관리를 **한 칸으로 접었다.**
+              🔴 늘 보이던 버튼 두 줄이 자리를 차지하고 있었는데, 셋 다 **가끔 쓰는 것**이다.
+                 매일 쓰는 것(단어 보기 · 추가)에 자리를 준다.
+            */
+            <TouchableOpacity
+              onPress={showMoreMenu}
+              style={styles.moreButton}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel={t('더보기')}
+            >
+              <MaterialIcons name="more-horiz" size={24} color={colors.primary} />
+            </TouchableOpacity>
+          )
         }
       />
-
-      {/* 공유/받기 액션 바 */}
-      {!isSelectMode && (
-        <View style={[styles.actionBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-          <TouchableOpacity style={[styles.actionButton, { backgroundColor: colors.primaryLight }]} onPress={showShareOptions}>
-            <Text style={[styles.actionButtonText, { color: colors.primary }]}>{t('공유')}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.actionButton, { backgroundColor: colors.primaryLight }]} onPress={onImportWords}>
-            <Text style={[styles.actionButtonText, { color: colors.primary }]}>{t('받기')}</Text>
-          </TouchableOpacity>
-        </View>
-      )}
 
       {/* 선택 모드 전체선택 바 */}
       {isSelectMode && (
@@ -412,40 +439,44 @@ export default function ManageWordsScreen({
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
       <View style={styles.contentContainer}>
-        {/* 카테고리 목록 (왼쪽) */}
-        <View style={[styles.categoryList, { backgroundColor: colors.card, borderRightColor: colors.border }]}>
-          <ScrollView showsVerticalScrollIndicator={false}>
-            {categories.map((category) => (
-              <TouchableOpacity
-                key={category.categoryId}
-                style={[
-                  styles.categoryItem,
-                  { borderBottomColor: colors.borderLight },
-                  selectedCategoryId === category.categoryId && [styles.categoryItemActive, { backgroundColor: colors.primaryLight, borderLeftColor: colors.primary }],
-                ]}
-                onPress={() => setSelectedCategoryId(category.categoryId)}
-              >
-                <Text
+        {/*
+          카테고리 — **가로 칩**(시안 #10). 예전에는 왼쪽 세로 목록(폭 140)이었다.
+          🔴 폭 140 을 늘 내주고 있었는데, 카테고리는 **한 번 고르면 한동안 안 바꾼다.**
+             그 자리를 단어가 쓰는 쪽이 낫다.
+          ⚠ 가로 스크롤이라 카테고리가 많아도 줄이 안 늘어난다.
+        */}
+        <View style={[styles.chipBar, { borderBottomColor: colors.border }]}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.chipRow}
+          >
+            {categories.map((category) => {
+              const on = selectedCategoryId === category.categoryId;
+              return (
+                <TouchableOpacity
+                  key={category.categoryId}
                   style={[
-                    styles.categoryItemText,
-                    { color: colors.textSecondary },
-                    selectedCategoryId === category.categoryId && [styles.categoryItemTextActive, { color: colors.primary }],
+                    styles.chip,
+                    { backgroundColor: colors.card, borderColor: colors.border },
+                    on && { backgroundColor: colors.primaryLight, borderColor: colors.primary },
                   ]}
-                  numberOfLines={1}
+                  onPress={() => setSelectedCategoryId(category.categoryId)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: on }}
                 >
-                  {category.categoryName}
-                </Text>
-                <Text
-                  style={[
-                    styles.categoryWordCount,
-                    { color: colors.textTertiary, backgroundColor: colors.borderLight },
-                    selectedCategoryId === category.categoryId && [styles.categoryWordCountActive, { color: colors.primary }],
-                  ]}
-                >
-                  {category.wordCount ?? 0}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                  <Text
+                    style={[styles.chipText, { color: colors.textSecondary }, on && { color: colors.primaryStrong, fontWeight: '700' }]}
+                    numberOfLines={1}
+                  >
+                    {category.categoryName}
+                  </Text>
+                  <Text style={[styles.chipCount, { color: on ? colors.primary : colors.textTertiary }]}>
+                    {category.wordCount ?? 0}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
         </View>
 
@@ -515,6 +546,29 @@ export default function ManageWordsScreen({
         </View>
       </View>
       </KeyboardAvoidingView>
+
+      {/*
+        떠 있는 단어 추가 (시안 #10).
+        🔴 **선택 모드에서는 숨긴다** — 고르는 중에 추가로 빠져나가면 고른 것이 날아간다.
+        ⚠ 상세 시트가 떠 있을 때도 숨긴다. 시트 위에 떠 있으면 시트의 버튼을 가린다.
+      */}
+      {!isSelectMode && !selectedWord && (
+        <TouchableOpacity
+          /*
+           * 🔴 **배너 높이만큼 띄운다.** 실기기에서 FAB 가 광고 배너 **뒤에 깔려** 있었다.
+           *    보기 나쁜 것으로 끝나지 않는다 — 광고 위에 겹친 버튼은 **오탭을 만들고**,
+           *    그건 AdMob 이 금지하는 것이다(이 화면이 토스트를 띄우는 것과 같은 이유).
+           */
+          style={[styles.fab, { backgroundColor: colors.primaryStrong, bottom: adBannerHeight + SPACING.xl }]}
+          onPress={onAddWord}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel={t('단어 추가')}
+        >
+          <MaterialIcons name="add" size={22} color="#FFFFFF" />
+          <Text style={styles.fabText}>{t('단어 추가')}</Text>
+        </TouchableOpacity>
+      )}
 
       {/* 단어 상세 — 시트 */}
       <BottomSheet
@@ -692,8 +746,42 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     flex: 1,
-    flexDirection: 'row',
+    // ⚠ 2026-10-08 에 `row` 에서 바꿨다 — 카테고리가 왼쪽 세로 목록에서 위 가로 칩이 됐다
+    flexDirection: 'column',
   },
+  // ── 카테고리 가로 칩 (시안 #10) ──
+  chipBar: { borderBottomWidth: 1 },
+  chipRow: { paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, gap: SPACING.sm },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    borderWidth: 1,
+    borderRadius: RADIUS.pill,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    minHeight: 36,
+    maxWidth: 200,
+  },
+  chipText: { fontSize: FONT.label, fontWeight: '600', flexShrink: 1 },
+  chipCount: { fontSize: FONT.caption, fontWeight: '700' },
+  moreButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  // ── 떠 있는 단어 추가 (시안 #10) ──
+  fab: {
+    position: 'absolute',
+    right: SPACING.lg,
+    // ⚠ `bottom` 은 **쓰는 쪽에서** 배너 높이를 더해 준다(위 주석). 여기 값은 배너가 없을 때의 기본이다
+    bottom: SPACING.xl,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    borderRadius: RADIUS.pill,
+    minHeight: 48,
+    elevation: 4,
+  },
+  fabText: { color: '#FFFFFF', fontSize: FONT.body, fontWeight: '700' },
   categoryList: {
     width: 140,
     backgroundColor: '#FFFFFF',
@@ -793,9 +881,15 @@ const styles = StyleSheet.create({
   },
   wordCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
+    // ── 한 줄 높이로 낮췄다 (2026-10-08 시안 #10) ──
+    // 🔴 예전에는 `padding 16 · marginBottom 12 · radius 16` 이라 카드 하나가 화면을 많이 먹었다.
+    //    단어장은 **훑는 화면**이라 한 번에 몇 개가 보이느냐가 값이다.
+    // ⚠ `minHeight` 로 56 을 보장하되 **고정하지 않는다** — 긴 뜻이 두 줄이 되면 늘어나야 한다.
+    minHeight: 56,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 8,
     ...Platform.select({
       web: { boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)' },
       default: {
