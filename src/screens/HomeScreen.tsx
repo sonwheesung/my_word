@@ -22,6 +22,10 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useBootstrap } from '../contexts/BootstrapContext';
 import { useNotification } from '../contexts/NotificationContext';
 import NotificationPromptSheet from '../components/NotificationPromptSheet';
+import OnboardingPanel, {
+  shouldHideMenu,
+  shouldShowOnboarding,
+} from '../components/OnboardingPanel';
 import { SPACING } from '../constants/design';
 
 interface HomeScreenProps {
@@ -46,6 +50,13 @@ interface HomeScreenProps {
   onManageCategories: () => void;
   onSettings: () => void;
   onNotices: () => void;
+  /**
+   * CSV 가져오기. **첫 사용자 안내 카드에서만 쓴다**(2026-10-08 시안 #2).
+   *
+   * ⚠ 평소에는 단어장의 `받기` 로 들어간다. 홈에 상시로 두지 않는 이유는, 단어가 이미 있는
+   *   사람에게 가져오기는 드문 일이라 자리값을 못 하기 때문이다. **아무것도 없을 때만** 길이 된다.
+   */
+  onImportWords: () => void;
 }
 
 interface HomeSummary {
@@ -93,6 +104,7 @@ export default function HomeScreen({
   onManageCategories,
   onSettings,
   onNotices,
+  onImportWords,
 }: HomeScreenProps) {
   const { colors } = useTheme();
   const { t } = useTranslation();
@@ -198,6 +210,20 @@ export default function HomeScreen({
     </View>
   );
 
+  /*
+   * 첫 사용자 안내(2026-10-08 시안 #2). **판정은 `OnboardingPanel` 이 내보낸 함수가 한다** —
+   * 조건을 여기에 한 벌 더 적으면 둘이 갈라지고, 갈라진 쪽은 아무도 모른다.
+   *
+   * ⚠ 불러오기 전(`summary === null`)에는 **아무것도 숨기지 않는다.** 0 으로 가정하면
+   *   단어가 많은 사람도 켤 때마다 메뉴가 한 번 사라졌다 돌아온다.
+   */
+  const onboarding = !loading && summary !== null
+    ? {
+        show: shouldShowOnboarding(summary.totalWords, summary.totalQuizCount),
+        hideMenu: shouldHideMenu(summary.totalWords, summary.totalQuizCount),
+      }
+    : { show: false, hideMenu: false };
+
   return (
     /*
      * ⚠ 배너를 ScrollView **밖**에 둔다. 안에 두면 콘텐츠의 맨 끝에 붙어 같이 스크롤되고,
@@ -271,10 +297,12 @@ export default function HomeScreen({
             </View>
           </View>
         ) : (
-          <View style={styles.heroEmpty}>
-            <MaterialIcons name="edit-note" size={24} color="rgba(255,255,255,0.85)" style={{ marginRight: 12 }} />
-            <Text style={styles.heroEmptyText}>{t('단어를 추가하고 학습을 시작해보세요!')}</Text>
-          </View>
+          /*
+           * ⚠ **2026-10-08 부터 비워 둔다.** 예전에는 여기 「단어를 추가하고 학습을 시작해보세요!」
+           *   한 줄이 있었는데, 바로 아래 안내 카드가 같은 말을 더 크고 더 쓸모 있게 한다
+           *   (누를 곳까지 준다). 같은 말을 두 번 하면 둘 다 약해진다.
+           */
+          <View style={styles.heroEmptySpacer} />
         )}
 
         {/*
@@ -326,7 +354,25 @@ export default function HomeScreen({
         )}
       </LinearGradient>
 
-      {/* 메인 메뉴 - 강조 카드 2개 */}
+      {/*
+        첫 사용자 안내 — 아직 한 판도 안 풀었을 때만. 자세한 규칙은 `OnboardingPanel` 머리 주석에 있다.
+      */}
+      {onboarding.show && summary !== null && (
+        <OnboardingPanel
+          wordCount={summary.totalWords}
+          quizCount={summary.totalQuizCount}
+          onAddWord={onAddWord}
+          onImportWords={onImportWords}
+          onStartQuiz={onStartQuiz}
+        />
+      )}
+
+      {/*
+        메인 메뉴 — 강조 카드 3개 + 소형 4개 + AI 시험 띠.
+        🔴 **단어가 0개일 때만 통째로 숨긴다.** 숨기는 조건을 "퀴즈를 풀 때까지"로 넓히면
+           단어를 잔뜩 넣어 두고 아직 안 푼 사람이 단어장·통계에 못 들어간다.
+      */}
+      {!onboarding.hideMenu && (
       <View style={styles.menuSection}>
         <View style={styles.primaryGrid}>
           {PRIMARY_MENU.map((item) => (
@@ -405,6 +451,7 @@ export default function HomeScreen({
           <MaterialIcons name="chevron-right" size={20} color={colors.textTertiary} />
         </TouchableOpacity>
       </View>
+      )}
 
       </ScrollView>
 
@@ -562,6 +609,8 @@ const styles = StyleSheet.create({
   },
 
   // ── Empty State (히어로 내) ──
+  // 통계 자리를 비울 때 쓰는 빈 칸. 높이를 0 으로 두면 히어로가 위로 붙어 인사말이 잘려 보인다
+  heroEmptySpacer: { height: SPACING.sm },
   heroEmpty: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -35,6 +35,7 @@ my_word/
     │   ├── FlipCard.tsx                  플래시카드 뒤집기(네이티브 드라이버)
     │   ├── MeaningList.tsx               뜻 번호 목록(단어 상세 · 카드 뒷면)
     │   ├── NotificationPromptSheet.tsx   첫 퀴즈 뒤 홈에서 한 번 뜨는 알림 권유
+    │   ├── OnboardingPanel.tsx           첫 사용자 안내(큰 카드 + 3단계). 🔴 버튼 7개를 숨기는 건 단어 0개일 때뿐
     │   ├── RestoreConfirmSheet.tsx       복원 전 "지금 기기 vs 백업" 숫자 비교
     │   ├── ScreenHeader.tsx              뒤로가기 + 제목 + 오른쪽 버튼
     │   ├── SkeletonLoader.tsx            로딩 자리표시자

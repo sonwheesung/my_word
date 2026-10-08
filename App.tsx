@@ -497,6 +497,11 @@ function AppContent() {
           setEditingWordId(null);
           setCurrentScreen('addWord');
         }}
+        // 첫 사용자 안내 카드의 「CSV 로 한 번에 가져오기」. ⚠ 돌아올 곳은 **홈**이다
+        onImportWords={() => {
+          setPreviousScreen('home');
+          setCurrentScreen('importWords');
+        }}
         onStartQuiz={() => setCurrentScreen('quizSetup')}
         onFlashcards={() => setCurrentScreen('flashcardSetup')}
       onAiExam={() => setCurrentScreen('examSetup')}
