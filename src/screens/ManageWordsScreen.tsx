@@ -25,6 +25,7 @@ import { useToast } from '../hooks/useToast';
 import ScreenHeader from '../components/ScreenHeader';
 import MeaningList from '../components/MeaningList';
 import { WordCardSkeleton } from '../components/SkeletonLoader';
+import ActionSheet from '../components/ActionSheet';
 import BottomSheet from '../components/BottomSheet';
 import { FONT, HIT_SLOP, RADIUS, SEARCH_DEBOUNCE_MS, SPACING } from '../constants/design';
 import AdBanner, { useAdBannerHeight } from '../components/AdBanner';
@@ -44,15 +45,6 @@ interface ManageWordsScreenProps {
   onManageCategories: () => void;
   onImportWords: () => void;
 }
-
-/**
- * 「…」 메뉴 항목. ⚠ **가끔 쓰는 것만** 넣는다 — 매일 쓰는 「단어 추가」는 떠 있는 ＋ 버튼이다.
- * 🔴 개수에 상한이 없다(시트다). 그래도 늘릴 때마다 *정말 가끔 쓰는 것인가*를 먼저 묻는다.
- */
-const MORE_MENU = [
-  { key: 'import', label: '단어 받기 (CSV)', icon: 'file-download' },
-  { key: 'manage-category', label: '카테고리 관리', icon: 'folder' },
-] as const;
 
 export default function ManageWordsScreen({
   onBack,
@@ -243,11 +235,6 @@ export default function ManageWordsScreen({
    *    → 항목이 넷 이상인 메뉴는 `BottomSheet` 다. `__tests__/alertButtons.test.ts` 가 기계로 막는다.
    */
   const [moreOpen, setMoreOpen] = useState(false);
-  /** 시트를 닫고 **닫힌 뒤에** 실행한다 — 시트가 떠 있는 채로 다음 화면이 열리면 겹친다 */
-  const runFromMenu = useCallback((fn: () => void) => {
-    setMoreOpen(false);
-    fn();
-  }, []);
 
   if (loading) {
     return (
@@ -461,20 +448,36 @@ export default function ManageWordsScreen({
         </TouchableOpacity>
       )}
 
-      {/* 「…」 메뉴 — 🔴 Alert 가 아니다(위 showMoreMenu 주석) */}
-      <BottomSheet visible={moreOpen} onClose={() => setMoreOpen(false)} title={t('단어장')}>
-        {MORE_MENU.map((item) => (
-          <TouchableOpacity
-            key={item.key}
-            style={[styles.menuRow, { borderBottomColor: colors.border }]}
-            onPress={() => runFromMenu(item.key === 'import' ? onImportWords : onManageCategories)}
-            accessibilityRole="button"
-          >
-            <MaterialIcons name={item.icon} size={22} color={colors.primary} />
-            <Text style={[styles.menuText, { color: colors.text }]}>{t(item.label)}</Text>
-          </TouchableOpacity>
-        ))}
-      </BottomSheet>
+      {/*
+        ⋯ 메뉴 (시안 #17). 🔴 `Alert` 가 아니라 **줄 목록 시트**다 —
+        줄마다 설명이 한 줄 붙어 **누르기 전에** 무엇이 일어날지 안다.
+        ⚠ [취소] 줄을 두지 않는다. 바깥 어둠 · 손잡이 · 뒤로 버튼으로 닫힌다.
+      */}
+      <ActionSheet
+        visible={moreOpen}
+        onClose={() => setMoreOpen(false)}
+        title={t('단어장')}
+        subtitle={t('{{name}} · 단어 {{count}}개', {
+          name: categories.find((c) => c.categoryId === selectedCategoryId)?.categoryName ?? t('전체'),
+          count: filteredWords.length,
+        })}
+        items={[
+          {
+            key: 'import',
+            icon: 'file-download',
+            label: t('단어 받기 (CSV)'),
+            desc: t('복사해 온 CSV 를 붙여 넣어 추가'),
+            onPress: onImportWords,
+          },
+          {
+            key: 'cats',
+            icon: 'folder-open',
+            label: t('카테고리 관리'),
+            desc: t('이름 바꾸기 · 순서 · 새 카테고리'),
+            onPress: onManageCategories,
+          },
+        ]}
+      />
 
       {/* 단어 상세 — 시트 */}
       <BottomSheet
