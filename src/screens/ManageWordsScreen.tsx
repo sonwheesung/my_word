@@ -17,10 +17,8 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
-import * as Clipboard from 'expo-clipboard';
 import { categoryService } from '../services/categoryService';
 import { wordService } from '../services/wordService';
-import { shareService } from '../services/shareService';
 import type { Category, Word } from '../types/word';
 import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
@@ -52,8 +50,6 @@ interface ManageWordsScreenProps {
  * 🔴 개수에 상한이 없다(시트다). 그래도 늘릴 때마다 *정말 가끔 쓰는 것인가*를 먼저 묻는다.
  */
 const MORE_MENU = [
-  { key: 'share-all', label: '전체 공유', icon: 'content-copy' },
-  { key: 'share-pick', label: '골라서 공유', icon: 'checklist' },
   { key: 'import', label: '단어 받기 (CSV)', icon: 'file-download' },
   { key: 'manage-category', label: '카테고리 관리', icon: 'folder' },
 ] as const;
@@ -82,8 +78,6 @@ export default function ManageWordsScreen({
   const [debouncedQuery, setDebouncedQuery] = useState('');
 
   // 공유 관련 상태
-  const [isSelectMode, setIsSelectMode] = useState(false);
-  const [selectedWordIds, setSelectedWordIds] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     loadCategories();
@@ -169,29 +163,6 @@ export default function ManageWordsScreen({
     }
   }, [showToast]);
 
-  // 공유 관련 함수
-  const toggleSelectMode = useCallback(() => {
-    if (isSelectMode) {
-      setIsSelectMode(false);
-      setSelectedWordIds(new Set());
-    } else {
-      setIsSelectMode(true);
-      setSelectedWordIds(new Set());
-    }
-  }, [isSelectMode]);
-
-  const toggleWordSelection = useCallback((wordId: number) => {
-    setSelectedWordIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(wordId)) {
-        next.delete(wordId);
-      } else {
-        next.add(wordId);
-      }
-      return next;
-    });
-  }, []);
-
   // 검색 필터링 (selectAllWords보다 먼저 선언)
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedQuery(searchQuery), SEARCH_DEBOUNCE_MS);
@@ -216,60 +187,25 @@ export default function ManageWordsScreen({
         style={[
           styles.wordCard,
           { backgroundColor: colors.card },
-          isSelectMode &&
-            selectedWordIds.has(word.wordId) && [
-              styles.wordCardSelected,
-              { borderColor: colors.primary, backgroundColor: colors.primaryLight },
-            ],
         ]}
-        onPress={() => {
-          if (isSelectMode) {
-            toggleWordSelection(word.wordId);
-          } else {
-            setSelectedWord(word);
-          }
-        }}
-        onLongPress={() => {
-          if (!isSelectMode) {
-            setIsSelectMode(true);
-            setSelectedWordIds(new Set([word.wordId]));
-          }
-        }}
+        onPress={() => setSelectedWord(word)}
         accessibilityRole="button"
         accessibilityLabel={`${word.word}, ${word.meanings[0] ?? ''}`}
       >
         <View style={styles.wordCardHeader}>
-          {isSelectMode && (
-            <View
-              style={[
-                styles.selectCheckbox,
-                selectedWordIds.has(word.wordId) && [
-                  styles.selectCheckboxChecked,
-                  { backgroundColor: colors.primary, borderColor: colors.primary },
-                ],
-                { marginRight: 10 },
-              ]}
-            >
-              {selectedWordIds.has(word.wordId) && (
-                <MaterialIcons name="check" size={14} color="#FFFFFF" />
-              )}
-            </View>
-          )}
           <Text style={[styles.wordText, { color: colors.text }]}>{word.word}</Text>
-          {!isSelectMode && (
-            <TouchableOpacity
-              style={styles.speakButton}
-              onPress={(e) => {
-                e.stopPropagation();
-                speakWord(word);
-              }}
-              hitSlop={HIT_SLOP}
-              accessibilityRole="button"
-              accessibilityLabel={t('{{word}} 발음 듣기', { word: word.word })}
-            >
-              <MaterialIcons name="volume-up" size={20} color={colors.primary} />
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            style={styles.speakButton}
+            onPress={(e) => {
+              e.stopPropagation();
+              speakWord(word);
+            }}
+            hitSlop={HIT_SLOP}
+            accessibilityRole="button"
+            accessibilityLabel={t('{{word}} 발음 듣기', { word: word.word })}
+          >
+            <MaterialIcons name="volume-up" size={20} color={colors.primary} />
+          </TouchableOpacity>
         </View>
         <Text style={[styles.wordMeaningPreview, { color: colors.textSecondary }]} numberOfLines={1}>
           {word.meanings.length > 0 ? word.meanings[0] : ''}
@@ -290,47 +226,8 @@ export default function ManageWordsScreen({
         )}
       </TouchableOpacity>
     ),
-    [colors, isSelectMode, selectedWordIds, toggleWordSelection, speakWord, t],
+    [colors, speakWord, t],
   );
-
-  const selectAllWords = useCallback(() => {
-    if (selectedWordIds.size === filteredWords.length) {
-      setSelectedWordIds(new Set());
-    } else {
-      setSelectedWordIds(new Set(filteredWords.map((w) => w.wordId)));
-    }
-  }, [filteredWords, selectedWordIds.size]);
-
-  const handleShareAll = useCallback(async () => {
-    if (words.length === 0) {
-      showToast(t('공유할 단어가 없습니다'), 'info');
-      return;
-    }
-    const csv = shareService.exportWordsToCSV(words);
-    await Clipboard.setStringAsync(csv);
-    showToast(t('{{count}}개 단어가 클립보드에 복사되었습니다', { count: words.length }), 'success');
-  }, [words, showToast]);
-
-  const handleShareSelected = useCallback(async () => {
-    if (selectedWordIds.size === 0) {
-      showToast(t('공유할 단어를 선택해주세요'), 'info');
-      return;
-    }
-    const selectedWords = words.filter((w) => selectedWordIds.has(w.wordId));
-    const csv = shareService.exportWordsToCSV(selectedWords);
-    await Clipboard.setStringAsync(csv);
-    showToast(t('{{count}}개 단어가 클립보드에 복사되었습니다', { count: selectedWords.length }), 'success');
-    setIsSelectMode(false);
-    setSelectedWordIds(new Set());
-  }, [words, selectedWordIds, showToast]);
-
-  const showShareOptions = useCallback(() => {
-    Alert.alert(t('단어 공유'), t('공유 방식을 선택하세요'), [
-      { text: t('전체 공유'), onPress: handleShareAll },
-      { text: t('선택 공유'), onPress: () => setIsSelectMode(true) },
-      { text: t('취소'), style: 'cancel' },
-    ]);
-  }, [handleShareAll]);
 
   /**
    * ⋯ 메뉴 (2026-10-08 시안 #10).
@@ -406,11 +303,10 @@ export default function ManageWordsScreen({
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar style="dark" />
       <ScreenHeader
-        title={isSelectMode ? t('{{count}}개 선택', { count: selectedWordIds.size }) : t('단어장')}
-        onBack={isSelectMode ? toggleSelectMode : onBack}
-        rightButton={isSelectMode ? { text: t('공유'), onPress: handleShareSelected } : undefined}
+        title={t('단어장')}
+        onBack={onBack}
         rightAccessory={
-          isSelectMode ? undefined : (
+          (
             /*
               ⋯ 메뉴 (시안 #10). 공유 · 받기 · 카테고리 관리를 **한 칸으로 접었다.**
               🔴 늘 보이던 버튼 두 줄이 자리를 차지하고 있었는데, 셋 다 **가끔 쓰는 것**이다.
@@ -428,26 +324,6 @@ export default function ManageWordsScreen({
           )
         }
       />
-
-      {/* 선택 모드 전체선택 바 */}
-      {isSelectMode && (
-        <View style={[styles.selectBar, { backgroundColor: colors.primaryLight }]}>
-          <TouchableOpacity style={styles.selectAllButton} onPress={selectAllWords}>
-            <View style={[
-              styles.selectCheckbox,
-              selectedWordIds.size === filteredWords.length && filteredWords.length > 0 && [styles.selectCheckboxChecked, { backgroundColor: colors.primary, borderColor: colors.primary }],
-            ]}>
-              {selectedWordIds.size === filteredWords.length && filteredWords.length > 0 && (
-                <MaterialIcons name="check" size={14} color="#FFFFFF" />
-              )}
-            </View>
-            <Text style={[styles.selectAllText, { color: colors.primary }]}>{t('전체 선택')}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.cancelSelectButton} onPress={toggleSelectMode}>
-            <Text style={[styles.cancelSelectText, { color: colors.textSecondary }]}>{t('취소')}</Text>
-          </TouchableOpacity>
-        </View>
-      )}
 
       <KeyboardAvoidingView
         style={styles.flex}
@@ -567,7 +443,7 @@ export default function ManageWordsScreen({
         🔴 **선택 모드에서는 숨긴다** — 고르는 중에 추가로 빠져나가면 고른 것이 날아간다.
         ⚠ 상세 시트가 떠 있을 때도 숨긴다. 시트 위에 떠 있으면 시트의 버튼을 가린다.
       */}
-      {!isSelectMode && !selectedWord && (
+      {!selectedWord && (
         <TouchableOpacity
           /*
            * 🔴 **배너 높이만큼 띄운다.** 실기기에서 FAB 가 광고 배너 **뒤에 깔려** 있었다.
@@ -591,17 +467,7 @@ export default function ManageWordsScreen({
           <TouchableOpacity
             key={item.key}
             style={[styles.menuRow, { borderBottomColor: colors.border }]}
-            onPress={() =>
-              runFromMenu(
-                item.key === 'share-all'
-                  ? handleShareAll
-                  : item.key === 'share-pick'
-                    ? () => setIsSelectMode(true)
-                    : item.key === 'import'
-                      ? onImportWords
-                      : onManageCategories,
-              )
-            }
+            onPress={() => runFromMenu(item.key === 'import' ? onImportWords : onManageCategories)}
             accessibilityRole="button"
           >
             <MaterialIcons name={item.icon} size={22} color={colors.primary} />
@@ -1158,53 +1024,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   // 선택 모드
-  selectBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: '#EEF2FF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#C7D2FE',
-  },
-  selectAllButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  selectAllText: {
-    fontSize: 14,
-    color: '#6366F1',
-    fontWeight: '600',
-  },
-  cancelSelectButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  cancelSelectText: {
-    fontSize: 14,
-    color: '#6B7280',
-    fontWeight: '500',
-  },
-  selectCheckbox: {
-    width: 20,
-    height: 20,
-    borderWidth: 2,
-    borderColor: '#D1D5DB',
-    borderRadius: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 8,
-  },
-  selectCheckboxChecked: {
-    backgroundColor: '#6366F1',
-    borderColor: '#6366F1',
-  },
   selectCheckMark: {
-  },
-  wordCardSelected: {
-    borderWidth: 2,
-    borderColor: '#6366F1',
-    backgroundColor: '#EEF2FF',
   },
 });

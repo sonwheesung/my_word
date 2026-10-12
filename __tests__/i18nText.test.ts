@@ -1,5 +1,7 @@
 import { normalizeForCompare, detectSpeechLanguage, DEFAULT_SPEECH_LANGUAGE } from '../src/utils/text';
 import { shareService } from '../src/services/shareService';
+// 🔴 내보내기는 앱에서 빠졌다. 생성기는 테스트용으로만 남았다(test-utils/csvWriter.ts 머리 주석)
+import { exportWordsToCSV } from '../test-utils/csvWriter';
 import type { Word } from '../src/types/word';
 
 // --- 유니코드 정규화 ---
@@ -114,7 +116,7 @@ function toWord(s: (typeof SAMPLES)[number], id: number): Word {
 }
 
 describe('다국어 CSV 라운드트립', () => {
-  const csv = shareService.exportWordsToCSV(SAMPLES.map(toWord));
+  const csv = exportWordsToCSV(SAMPLES.map(toWord));
   const parsed = shareService.parseCSV(csv);
 
   it('에러 없이 전부 파싱된다', () => {
@@ -133,7 +135,7 @@ describe('다국어 CSV 라운드트립', () => {
 
   it("'|' 는 다국어 본문에서도 뜻 구분자로 동작한다 (포맷 규약)", () => {
     const round = shareService.parseCSV(
-      shareService.exportWordsToCSV([
+      exportWordsToCSV([
         { ...toWord(SAMPLES[0], 99), meanings: ['고양이', '猫科の動物'] },
       ]),
     );

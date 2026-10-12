@@ -7,6 +7,8 @@
  */
 
 import { shareService } from '../src/services/shareService';
+// 🔴 내보내기는 앱에서 빠졌다. 생성기는 테스트용으로만 남았다(test-utils/csvWriter.ts 머리 주석)
+import { exportWordsToCSV } from '../test-utils/csvWriter';
 import type { Word } from '../src/types/word';
 
 function makeWord(overrides: Partial<Word> = {}): Word {
@@ -27,7 +29,7 @@ function makeWord(overrides: Partial<Word> = {}): Word {
 describe('shareService — 라운드트립', () => {
   it('메모에 줄바꿈이 있어도 원본 그대로 복원된다', () => {
     const memo = '어원: re + salire\n시험에 자주 나옴';
-    const csv = shareService.exportWordsToCSV([makeWord({ memo })]);
+    const csv = exportWordsToCSV([makeWord({ memo })]);
     const result = shareService.parseCSV(csv);
 
     expect(result.errors).toHaveLength(0);
@@ -39,7 +41,7 @@ describe('shareService — 라운드트립', () => {
 
   it('예문에 줄바꿈이 있어도 원본 그대로 복원된다', () => {
     const example = 'Check the ledger.\nThen sign it.';
-    const csv = shareService.exportWordsToCSV([
+    const csv = exportWordsToCSV([
       makeWord({ word: 'ledger', examples: [{ example, translation: '원장을 확인해라.' }] }),
     ]);
     const result = shareService.parseCSV(csv);
@@ -55,7 +57,7 @@ describe('shareService — 라운드트립', () => {
       makeWord({ wordId: 2, word: 'beta', memo: '' }),
       makeWord({ wordId: 3, word: 'gamma', memo: 'A\nB\nC' }),
     ];
-    const result = shareService.parseCSV(shareService.exportWordsToCSV(words));
+    const result = shareService.parseCSV(exportWordsToCSV(words));
 
     expect(result.errors).toHaveLength(0);
     expect(result.success.map((w) => w.word)).toEqual(['alpha', 'beta', 'gamma']);
@@ -65,7 +67,7 @@ describe('shareService — 라운드트립', () => {
   it('콤마와 큰따옴표가 섞인 필드도 복원된다', () => {
     const memo = '이른바 "탄력", 즉 회복';
     const result = shareService.parseCSV(
-      shareService.exportWordsToCSV([makeWord({ memo })]),
+      exportWordsToCSV([makeWord({ memo })]),
     );
     expect(result.success[0].memo).toBe(memo);
   });
@@ -134,7 +136,7 @@ describe('shareService — 라운드트립 퍼즈', () => {
         memo: randomField(rand, 25),
       });
 
-      const result = shareService.parseCSV(shareService.exportWordsToCSV([word]));
+      const result = shareService.parseCSV(exportWordsToCSV([word]));
 
       expect(result.errors).toHaveLength(0);
       expect(result.success).toHaveLength(1);
@@ -159,7 +161,7 @@ describe('shareService — 라운드트립 퍼즈', () => {
       }),
     );
 
-    const result = shareService.parseCSV(shareService.exportWordsToCSV(words));
+    const result = shareService.parseCSV(exportWordsToCSV(words));
 
     expect(result.errors).toHaveLength(0);
     expect(result.success).toHaveLength(50);
@@ -213,7 +215,7 @@ describe('shareService — 예문 구분자', () => {
    * 최소한 내용이 유실되지는 않는다는 점을 고정해 둔다.
    */
   it('예문이 콜론으로 끝나면 경계가 밀리지만 내용은 유실되지 않는다', () => {
-    const csv = shareService.exportWordsToCSV([
+    const csv = exportWordsToCSV([
       makeWord({ examples: [{ example: '다음을 보라:', translation: '주의' }] }),
     ]);
     const parsed = shareService.parseCSV(csv).success[0].examples[0];

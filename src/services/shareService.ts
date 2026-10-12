@@ -20,15 +20,13 @@ export interface DuplicateCheckResult {
   duplicateWords: ParsedWord[];
 }
 
-// --- CSV 이스케이프/언이스케이프 ---
-
-function escapeCSVField(field: string): string {
-  // 콤마, 큰따옴표, 줄바꿈 포함 시 큰따옴표로 감싸기
-  if (field.includes(',') || field.includes('"') || field.includes('\n') || field.includes('\r')) {
-    return '"' + field.replace(/"/g, '""') + '"';
-  }
-  return field;
-}
+// --- CSV 언이스케이프 (읽기 전용) ---
+//
+// 🔴 **쓰는 쪽은 2026-10-12 에 빠졌다** — 공유(CSV 내보내기) 기능을 없앴다(사장님 결정).
+//    `escapeCSVField` · `exportWordsToCSV` 는 `test-utils/csvWriter.ts` 로 옮겼다.
+//    지우지 않고 옮긴 이유: 이 파서의 **왕복·퍼즈 검사**가 전부 그 생성기를 쓴다 —
+//    같이 지웠으면 가져오기 파서의 보호막이 함께 무너졌을 것이다.
+//    ⚠ `src/` 에는 쓰이지 않는 코드를 남기지 않는다.
 
 /**
  * CSV 전체를 레코드 단위로 분리한다.
@@ -134,40 +132,8 @@ function parseCSVLine(line: string): string[] {
   return fields;
 }
 
-// --- 내보내기 ---
 
 export const shareService = {
-  /**
-   * Word 배열을 CSV 문자열로 변환
-   * 형식: 단어,뜻1|뜻2,예문1::번역1|예문2::번역2,태그1|태그2,메모
-   */
-  exportWordsToCSV(words: Word[]): string {
-    const header = '단어,뜻,예문,태그,메모';
-    const rows = words.map((word) => {
-      const meaningsStr = word.meanings.join('|');
-
-      const examplesStr = word.examples
-        .map((ex) => {
-          const translation = ex.translation ? `::${ex.translation}` : '';
-          return `${ex.example}${translation}`;
-        })
-        .join('|');
-
-      const tagsStr = (word.tags ?? []).join('|');
-      const memoStr = word.memo ?? '';
-
-      return [
-        escapeCSVField(word.word),
-        escapeCSVField(meaningsStr),
-        escapeCSVField(examplesStr),
-        escapeCSVField(tagsStr),
-        escapeCSVField(memoStr),
-      ].join(',');
-    });
-
-    return [header, ...rows].join('\n');
-  },
-
   /**
    * CSV 문자열을 파싱하여 ParsedWord 배열로 변환
    */

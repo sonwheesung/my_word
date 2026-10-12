@@ -92,7 +92,7 @@ my_word/
 | `flashcardService.ts` | 카드 순서 · 보기 취향. **퀴즈 결과를 쓰지 않는다** | |
 | `examService.ts` | 씨앗 고르기(만기 4/취약 3/무작위 3) · 언어 판정 · 채점 · 기록 · 회차. 🔴 **통계는 1회차만**(`recordFirstAttempt` 한 곳에서) | |
 | `syncService.ts` | 단어를 서버로 **밀기만** 한다(분석용). 🔴 기기가 정본 · 당기기 없음 · 메모·예문·태그는 안 보낸다 | ✅ |
-| `shareService.ts` | CSV 내보내기 · 파싱 · 중복 판정 | |
+| `shareService.ts` | CSV **파싱 · 중복 판정**(읽기 전용). 🔴 내보내기는 2026-10-12 에 빠졌다 — 생성기는 `test-utils/csvWriter.ts` 에 테스트용으로만 남는다 | |
 | `backupService.ts` | 백업 파일 만들기 · 검사 · 복원(순수 로직) | |
 | `backupFile.ts` | 백업 파일 입출력 · 공유 시트 · 문서 선택기(네이티브는 여기만) | |
 | `notificationService.ts` | 로컬 알림 권한 · 예약(7일치) | |

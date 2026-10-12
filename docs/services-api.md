@@ -139,7 +139,7 @@ rewoundFor    같은 숫자로는 두 번 되감지 않는다 (부팅마다 전�
 
 | 함수 | 설명 |
 |------|------|
-| `exportWordsToCSV(words)` | 헤더 `단어,뜻,예문,태그,메모`. 뜻 · 태그는 `\|`, 예문은 `예문::번역` 을 `\|` 로 |
+| ~~`exportWordsToCSV(words)`~~ | 🔴 **2026-10-12 제거**(공유 기능 삭제). 생성기는 `test-utils/csvWriter.ts` 로 옮겨 **파서의 왕복·퍼즈 검사**만 지킨다 |
 | `parseCSV(csv)` | 따옴표 안 줄바꿈 지원. 헤더 줄 건너뜀. 예문은 첫 `::` 만 구분자. `{ success, errors: {line, content, reason}[] }` |
 | `checkDuplicates(parsed, categoryId)` | 정규화 비교로 `{ newWords, duplicateWords }` |
 
