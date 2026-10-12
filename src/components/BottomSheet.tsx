@@ -183,23 +183,32 @@ export default function BottomSheet({
     <View style={styles.content}>{children}</View>
   );
 
+  /*
+   * 어둠막 — **제자리에서 짙어진다**(시안 #15). 바깥을 눌러 닫는 영역이기도 하다.
+   *
+   * 🔴 **`KeyboardAvoidingView` 밖에 둔다**(2026-10-12 사장님이 화면에서 잡았다).
+   *    안에 두면 키보드가 올라올 때 어둠막까지 같이 줄어들고, 키보드를 내린 뒤
+   *    **바닥에 안 덮인 띠가 남아 뒤 화면이 비쳤다.** 어둠막은 "뒤 화면이 물러났다"는
+   *    표시이므로 **언제나 화면 전체**여야 한다 — 키보드와 아무 상관이 없다.
+   *
+   * ⚠ 시트를 감싸지 않고 **형제**로 둔다. 감싸면 시트 안의 버튼이 이 버튼 안에 중첩돼
+   *   웹에서 `<button> cannot contain a nested <button>` DOM 오류가 나고,
+   *   스크린 리더는 시트 전체를 "닫기" 버튼 하나로 읽어 내용을 못 읽는다.
+   */
+  const scrim = (
+    <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: '#000', opacity: dimOpacity }]}>
+      <TouchableOpacity
+        style={StyleSheet.absoluteFill}
+        activeOpacity={1}
+        onPress={onClose}
+        accessibilityRole="button"
+        accessibilityLabel={t('닫기')}
+      />
+    </Animated.View>
+  );
+
   const sheet = (
     <View style={styles.overlay}>
-      {/*
-        어둠막 — **제자리에서 짙어진다**(시안 #15). 바깥을 눌러 닫는 영역이기도 하다.
-        시트를 감싸지 않고 **형제**로 둔다. 감싸면 시트 안의 버튼이 이 버튼 안에 중첩돼
-        웹에서 `<button> cannot contain a nested <button>` DOM 오류가 나고,
-        스크린 리더는 시트 전체를 "닫기" 버튼 하나로 읽어 내용을 못 읽는다.
-      */}
-      <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: '#000', opacity: dimOpacity }]}>
-        <TouchableOpacity
-          style={StyleSheet.absoluteFill}
-          activeOpacity={1}
-          onPress={onClose}
-          accessibilityRole="button"
-          accessibilityLabel={t('닫기')}
-        />
-      </Animated.View>
       <Animated.View
         onLayout={(e) => {
           sheetH.current = e.nativeEvent.layout.height;
@@ -230,16 +239,27 @@ export default function BottomSheet({
 
   return (
     <Modal visible={mounted} transparent animationType="none" onRequestClose={onClose}>
-      {avoidKeyboard ? (
-        <KeyboardAvoidingView
-          style={styles.flex}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-          {sheet}
-        </KeyboardAvoidingView>
-      ) : (
-        sheet
-      )}
+      <View style={styles.flex}>
+        {scrim}
+        {avoidKeyboard ? (
+          /*
+           * 🔴 **안드로이드에서는 `behavior` 를 주지 않는다**(2026-10-12).
+           *    매니페스트가 이미 `adjustResize` 라 **안드로이드가 창을 줄여 준다.**
+           *    거기에 `behavior="height"` 를 얹으면 키보드 높이를 **한 번 더** 빼고,
+           *    키보드를 내린 뒤에도 그만큼이 남아 **시트가 바닥에서 떠 있었다** —
+           *    보기만 나쁜 것이 아니라 **그림과 터치 영역이 어긋나 버튼이 안 먹었다.**
+           *    iOS 는 창을 줄여 주지 않으므로 `padding` 이 필요하다.
+           */
+          <KeyboardAvoidingView
+            style={styles.flex}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          >
+            {sheet}
+          </KeyboardAvoidingView>
+        ) : (
+          sheet
+        )}
+      </View>
     </Modal>
   );
 }
