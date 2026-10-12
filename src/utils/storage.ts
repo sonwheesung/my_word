@@ -109,7 +109,29 @@ export const categoryStorage = {
     return categories.find((c) => c.categoryId === id);
   },
 
+  /*
+   * 🔴 **읽기는 SQLite 인데 쓰기가 AsyncStorage 로 가고 있었다**(2026-10-12 사장님이 잡았다).
+   *
+   *    1.8.0 에서 단어·카테고리의 정본이 SQLite 로 옮겨 가면서 `getAll` 만 분기를 받았고,
+   *    `create`·`update`·`delete`·`reorder` 넷은 **그대로 남았다.** 저장소 함수(`categoryRepo`)는
+   *    이미 다 만들어져 있었는데 **연결만 안 돼 있었다.**
+   *
+   * 🔴 증상이 가장 나쁜 모양이었다 — **토스트는 「생성되었습니다」가 뜨고 아무 데도 안 남는다.**
+   *    오류도 없고 로그도 없다. 사장님이 폰에서 카테고리를 못 만드는 것으로 드러났다.
+   *    ⚠ 단어가 멀쩡했던 것은 `wordStorage` 는 분기를 받았기 때문이다 — 그래서 더 안 보였다.
+   */
   async create(data: CategoryRequest): Promise<Category> {
+    const db = getDb();
+    if (db !== null) {
+      const now = new Date().toISOString();
+      const existing = categoryRepo.getAll(db);
+      return categoryRepo.create(
+        db,
+        await getNextId(),
+        { ...data, displayOrder: data.displayOrder ?? existing.length + 1 },
+        now,
+      );
+    }
     const categories = await this.getAll();
     const now = new Date().toISOString();
     const newCategory: Category = {
@@ -126,6 +148,20 @@ export const categoryStorage = {
   },
 
   async update(id: number, data: CategoryRequest): Promise<Category> {
+    const db = getDb();
+    if (db !== null) {
+      // ⚠ `displayOrder` 를 안 주면 **0 으로 덮인다**(repo 가 `?? 0`). 지금 값을 읽어 넘긴다
+      const current = categoryRepo.getById(db, id);
+      if (current === undefined) throw new Error(i18n.t('카테고리를 찾을 수 없습니다'));
+      const updated = categoryRepo.update(
+        db,
+        id,
+        { ...data, displayOrder: data.displayOrder ?? current.displayOrder },
+        new Date().toISOString(),
+      );
+      if (updated === undefined) throw new Error(i18n.t('카테고리를 찾을 수 없습니다'));
+      return updated;
+    }
     const categories = await this.getAll();
     const index = categories.findIndex((c) => c.categoryId === id);
     if (index === -1) throw new Error(i18n.t('카테고리를 찾을 수 없습니다'));
@@ -141,6 +177,13 @@ export const categoryStorage = {
   },
 
   async delete(id: number): Promise<void> {
+    const db = getDb();
+    if (db !== null) {
+      // 🔴 카테고리와 그 안의 단어를 **한 트랜잭션으로** 지운다(repo 주석) —
+      //    카테고리만 사라지고 단어가 떠도는 상태를 만들지 않는다
+      categoryRepo.delete(db, id);
+      return;
+    }
     let categories = await this.getAll();
     categories = categories.filter((c) => c.categoryId !== id);
     await setCollection(CATEGORIES_KEY, categories);
@@ -151,6 +194,11 @@ export const categoryStorage = {
   },
 
   async reorder(orders: Array<{ categoryId: number; displayOrder: number }>): Promise<void> {
+    const db = getDb();
+    if (db !== null) {
+      categoryRepo.reorder(db, orders, new Date().toISOString());
+      return;
+    }
     const categories = await this.getAll();
     for (const order of orders) {
       const cat = categories.find((c) => c.categoryId === order.categoryId);
