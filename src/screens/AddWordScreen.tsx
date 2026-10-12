@@ -1,12 +1,11 @@
 import { useTranslation } from 'react-i18next';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ScrollView,
   ActivityIndicator,
   Keyboard,
@@ -15,6 +14,7 @@ import {
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
+import ConfirmSheet from '../components/ConfirmSheet';
 import { categoryService, pickDefaultCategory } from '../services/categoryService';
 import { wordService } from '../services/wordService';
 import { dictionaryService } from '../services/dictionaryService';
@@ -60,6 +60,8 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
   const { toast, showToast, hideToast } = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
+  /** 🔴 수정 모드에서 **무엇이 바뀌었는지** 보여 주려면 원본이 있어야 한다(시안 #16) */
+  const [original, setOriginal] = useState<{ word: string; meanings: string[] } | null>(null);
   const [word, setWord] = useState('');
   const [meanings, setMeanings] = useState<string[]>(['']);
   const [examples, setExamples] = useState<{ example: string; translation: string }[]>([
@@ -140,6 +142,7 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
       setLoadingWord(true);
       const wordData = await wordService.getWord(id);
       setSelectedCategoryId(wordData.categoryId);
+      setOriginal({ word: wordData.word, meanings: [...wordData.meanings] });
       setWord(wordData.word);
       setMeanings(wordData.meanings.length > 0 ? wordData.meanings : ['']);
       setExamples(
@@ -276,6 +279,28 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
     }
   };
 
+  /** 어떤 확인을 띄우고 있나. `null` 이면 안 띄운다 */
+  const [confirmKind, setConfirmKind] = useState<'duplicate' | 'edit' | null>(null);
+
+  /**
+   * 수정에서 **실제로 바뀐 칸**. 🔴 비어 있으면 **묻지 않는다** —
+   * 바뀐 게 없는데 묻는 창은 사람을 *"확인을 습관적으로 누르는 상태"* 로 길들인다.
+   */
+  const changes = useMemo(() => {
+    if (!original) return [];
+    const out: Array<{ label: string; before: string; after: string }> = [];
+    const nowWord = word.trim();
+    if (nowWord !== original.word) {
+      out.push({ label: t('단어'), before: original.word, after: nowWord });
+    }
+    const nowMeanings = meanings.map((m) => m.trim()).filter(Boolean).join(', ');
+    const wasMeanings = original.meanings.join(', ');
+    if (nowMeanings !== wasMeanings) {
+      out.push({ label: t('뜻'), before: wasMeanings, after: nowMeanings });
+    }
+    return out;
+  }, [original, word, meanings, t]);
+
   const handleSave = async () => {
     // 유효성 검사
     if (!selectedCategoryId) {
@@ -302,29 +327,24 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
     );
 
     if (duplicate) {
-      Alert.alert(
-        t('중복 단어'),
-        t('"{{word}}" 단어가 이미 등록되어 있습니다.\n그래도 저장하시겠습니까?', { word: word.trim() }),
-        [
-          { text: t('취소'), style: 'cancel' },
-          { text: t('저장'), onPress: () => performSave() },
-        ],
-      );
+      setConfirmKind('duplicate');
       return;
     }
 
-    // 수정 시 confirm
+    /*
+     * 수정 확인 — 🔴 **바뀐 게 없으면 묻지 않는다**(시안 #16).
+     *   예전에는 저장할 때마다 *"단어를 수정하시겠습니까?"* 를 띄웠는데, 무엇이 바뀌는지
+     *   안 보여 주니 습관적으로 [수정]을 누르게 된다. 그러면 정작 중요한 확인도 안 읽힌다.
+     */
     if (isEditMode && wordId) {
-      Alert.alert(t('확인'), t('단어를 수정하시겠습니까?'), [
-        { text: t('취소'), style: 'cancel' },
-        {
-          text: t('수정'),
-          onPress: () => performSave(),
-        },
-      ]);
-    } else {
-      performSave();
+      if (changes.length === 0) {
+        performSave();
+        return;
+      }
+      setConfirmKind('edit');
+      return;
     }
+    performSave();
   };
 
   const performSave = async () => {
@@ -776,6 +796,48 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
           공용 BottomSheet 를 쓴다. 예전에는 같은 구조를 여기 복사해 뒀는데,
           그 복사본만 하단 세이프 영역을 비켜 주지 않아 3버튼 내비바 기기에서
           맨 아래 항목이 잘렸다. 시트는 한 곳에서만 정의한다. */}
+      {/*
+        확인 — 🔴 `Alert` 가 아니다(시안 #16).
+        중복은 **이미 있는 단어**를, 수정은 **이전 → 새**를 눈으로 보여 준다.
+      */}
+      <ConfirmSheet
+        visible={confirmKind !== null}
+        title={
+          confirmKind === 'duplicate'
+            ? t('{{word}} 은 이미 있어요', { word: word.trim() })
+            : t('이렇게 바꿀까요?')
+        }
+        message={
+          confirmKind === 'duplicate'
+            ? t('같은 카테고리에 같은 단어가 있어요. 그래도 저장할까요?')
+            : t('복습 기록은 그대로 남아요.')
+        }
+        preview={
+          confirmKind === 'edit' ? (
+            <View style={styles.diffBox}>
+              {changes.map((c) => (
+                <View key={c.label} style={styles.diffRow}>
+                  <Text style={[styles.diffLabel, { color: colors.textTertiary }]}>{c.label}</Text>
+                  <Text style={[styles.diffBefore, { color: colors.textTertiary }]} numberOfLines={2}>
+                    {c.before}
+                  </Text>
+                  <Text style={[styles.diffAfter, { color: colors.text }]} numberOfLines={2}>
+                    {c.after}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          ) : null
+        }
+        confirmLabel={confirmKind === 'duplicate' ? t('그래도 저장') : t('수정')}
+        tone="primary"
+        onConfirm={() => {
+          setConfirmKind(null);
+          performSave();
+        }}
+        onCancel={() => setConfirmKind(null)}
+      />
+
       <BottomSheet
         visible={showCategoryPicker}
         onClose={() => setShowCategoryPicker(false)}
@@ -823,6 +885,13 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
 }
 
 const styles = StyleSheet.create({
+  diffBox: { marginTop: SPACING.sm, gap: SPACING.sm },
+  diffRow: { gap: 2 },
+  diffLabel: { fontSize: FONT.micro + 1, fontWeight: '700' },
+  /** ⚠ 이전 값에는 취소선을 긋는다 — 무엇이 없어지는지 한눈에 보인다 */
+  diffBefore: { fontSize: FONT.label, textDecorationLine: 'line-through' },
+  diffAfter: { fontSize: FONT.body, fontWeight: '600' },
+
   container: {
     flex: 1,
   },

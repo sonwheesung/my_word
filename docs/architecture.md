@@ -33,6 +33,7 @@ my_word/
     │   ├── BlockingGate.tsx              서버 점검 중 전체 화면(닫기 없음)
     │   ├── BottomSheet.tsx               아래에서 올라오는 공용 시트
     │   ├── ActionSheet.tsx               고를 것이 여럿인 질문을 줄 목록 시트로 (시안 #17)
+    │   ├── ConfirmSheet.tsx              «정말 할까요?» 를 앱 화풍으로 (시안 #16)
     │   ├── FlipCard.tsx                  플래시카드 뒤집기(네이티브 드라이버)
     │   ├── FlyingPills.tsx               담은 단어가 헤더 과녁으로 날아가는 연출(네이티브 드라이버)
     │   ├── MeaningList.tsx               뜻 번호 목록(단어 상세 · 카드 뒷면)

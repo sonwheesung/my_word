@@ -5,6 +5,8 @@ import {
   StyleSheet,
   Animated,
   Platform,
+  TouchableOpacity,
+  Easing,
 } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
 import { FONT, RADIUS, SPACING } from '../constants/design';
@@ -19,6 +21,13 @@ interface ToastProps {
   duration?: number;
   /** 화면 하단에 이미 뭔가 깔려 있을 때 그만큼 띄운다(예: 배너 광고 높이) */
   offsetBottom?: number;
+  /**
+   * 되돌릴 수 있는 동작에 붙이는 버튼 (2026-10-12 시안 #16).
+   *
+   * 🔴 **버튼이 붙으면 남은 시간 막대도 같이 뜬다.** 되돌릴 수 있다는 걸 알려 놓고
+   *    언제까지인지 안 보여 주면, 누르려는 순간 사라져 더 나쁘다.
+   */
+  action?: { label: string; onPress: () => void };
 }
 
 export default function Toast({
@@ -28,12 +37,27 @@ export default function Toast({
   onHide,
   duration = 3000,
   offsetBottom = 0,
+  action,
 }: ToastProps) {
   const { colors } = useTheme();
   const opacity = React.useRef(new Animated.Value(0)).current;
+  /** 남은 시간 막대. ⚠ `scaleX` 라 네이티브 드라이버로 돈다(레이아웃 값이 아니다) */
+  const bar = React.useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     if (visible) {
+      // 🔴 되돌리기를 누를 수 있는 동안만 막대가 줄어든다. 길이 0 timing 으로 되돌린다
+      //    (`setValue` 를 네이티브 값에 섞지 않는다 — 1.7.0 사고 조건)
+      Animated.timing(bar, { toValue: 1, duration: 0, useNativeDriver: true }).start(() => {
+        if (action) {
+          Animated.timing(bar, {
+            toValue: 0,
+            duration,
+            easing: Easing.linear,
+            useNativeDriver: true,
+          }).start();
+        }
+      });
       Animated.sequence([
         Animated.timing(opacity, {
           toValue: 1,
@@ -46,8 +70,8 @@ export default function Toast({
           duration: 300,
           useNativeDriver: true,
         }),
-      ]).start(() => {
-        onHide();
+      ]).start(({ finished }) => {
+        if (finished) onHide();
       });
     }
   }, [visible]);
@@ -74,7 +98,24 @@ export default function Toast({
         { backgroundColor: getBackgroundColor(), opacity, bottom: SPACING.xl + offsetBottom },
       ]}
     >
-      <Text style={styles.message}>{message}</Text>
+      <View style={styles.row}>
+        <Text style={[styles.message, action ? styles.messageWithAction : null]}>{message}</Text>
+        {action ? (
+          <TouchableOpacity
+            onPress={action.onPress}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+          >
+            <Text style={styles.actionLabel}>{action.label}</Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
+      {action ? (
+        <Animated.View
+          style={[styles.bar, { transform: [{ scaleX: bar }] }]}
+          pointerEvents="none"
+        />
+      ) : null}
     </Animated.View>
   );
 }
@@ -110,5 +151,23 @@ const styles = StyleSheet.create({
     fontSize: FONT.body - 1,
     fontWeight: '600',
     textAlign: 'center',
+  },
+  /** 버튼이 붙으면 가운데 정렬이 아니라 왼쪽이다 — 버튼이 오른쪽 끝에 선다 */
+  messageWithAction: { flex: 1, textAlign: 'left' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
+  actionLabel: {
+    color: '#FFFFFF',
+    fontSize: FONT.body - 1,
+    fontWeight: '800',
+    textDecorationLine: 'underline',
+  },
+  /** 남은 시간. 🔴 왼쪽 기준으로 줄어든다(`scaleX` 는 가운데가 기준이라 원점을 옮긴다) */
+  bar: {
+    height: 2,
+    marginTop: SPACING.sm,
+    marginHorizontal: -SPACING.lg,
+    marginBottom: -SPACING.md + 2,
+    backgroundColor: 'rgba(255,255,255,0.6)',
+    transformOrigin: 'left center',
   },
 });

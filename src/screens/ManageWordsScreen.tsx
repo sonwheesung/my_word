@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -26,6 +26,7 @@ import ScreenHeader from '../components/ScreenHeader';
 import MeaningList from '../components/MeaningList';
 import { WordCardSkeleton } from '../components/SkeletonLoader';
 import ActionSheet from '../components/ActionSheet';
+import ConfirmSheet from '../components/ConfirmSheet';
 import BottomSheet from '../components/BottomSheet';
 import { FONT, HIT_SLOP, RADIUS, SEARCH_DEBOUNCE_MS, SPACING } from '../constants/design';
 import AdBanner, { useAdBannerHeight } from '../components/AdBanner';
@@ -45,6 +46,9 @@ interface ManageWordsScreenProps {
   onManageCategories: () => void;
   onImportWords: () => void;
 }
+
+/** 되돌릴 수 있는 시간. 🔴 이 시간이 끝나야 **진짜로** 지운다 */
+const UNDO_MS = 4000;
 
 export default function ManageWordsScreen({
   onBack,
@@ -110,28 +114,61 @@ export default function ManageWordsScreen({
     }
   };
 
-  const handleDeleteWord = (wordId: number, word: string) => {
-    Alert.alert(t('단어 삭제'), t('"{{word}}"을(를) 삭제하시겠습니까?', { word }), [
-      { text: t('취소'), style: 'cancel' },
-      {
-        text: t('삭제'),
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await wordService.deleteWord(wordId);
-            showToast(t('단어가 삭제되었습니다'), 'success');
-            if (selectedCategoryId) {
-              loadWords(selectedCategoryId);
-            }
-            loadCategories();
-          } catch (error: any) {
-            console.warn('단어 삭제 실패:', error);
-            showToast(error.message || t('단어 삭제에 실패했습니다'), 'error');
-          }
-        },
-      },
-    ]);
+  /*
+   * 삭제 — **묻기 · 지우기 · 되돌리기가 셋 다 다른 순간이다** (2026-10-12 시안 #16).
+   *
+   * 🔴 **진짜 삭제는 되돌리기 시간이 끝날 때 한다.** 누르자마자 `deleteWord` 를 부르면
+   *    되돌리기가 *"다시 추가"* 가 되어 **퀴즈 기록과 복습 일정이 사라진다** —
+   *    단어는 돌아오는데 그 단어로 쌓은 것이 안 돌아온다. 그래서 화면에서만 빼 두고(`pending`)
+   *    ① 4초가 지나거나 ② 화면을 떠나거나 ③ 다른 단어를 또 지울 때 확정한다.
+   *
+   * ⚠ 확정 전에 앱이 죽으면 단어는 **살아남는다.** 지우는 쪽이 아니라 남기는 쪽으로 틀리는 것이 맞다.
+   */
+  const [deleteTarget, setDeleteTarget] = useState<Word | null>(null);
+  const [pending, setPending] = useState<Word | null>(null);
+  const pendingRef = useRef<Word | null>(null);
+  pendingRef.current = pending;
+
+  const commitDelete = useCallback(async () => {
+    const victim = pendingRef.current;
+    if (!victim) return;
+    pendingRef.current = null;
+    setPending(null);
+    try {
+      await wordService.deleteWord(victim.wordId);
+      if (selectedCategoryId) loadWords(selectedCategoryId);
+      loadCategories();
+    } catch (error: any) {
+      console.warn('단어 삭제 실패:', error);
+      showToast(error.message || t('단어 삭제에 실패했습니다'), 'error');
+      if (selectedCategoryId) loadWords(selectedCategoryId);
+    }
+  }, [selectedCategoryId, showToast, t]);
+
+  // 🔴 화면을 떠날 때 확정한다. 안 하면 "지웠는데 다시 들어오니 있다"가 된다
+  useEffect(() => () => { void commitDelete(); }, [commitDelete]);
+
+  const handleDeleteWord = (word: Word) => {
+    setDeleteTarget(word);
   };
+
+  const confirmDelete = useCallback(async () => {
+    const victim = deleteTarget;
+    if (!victim) return;
+    // 앞서 지운 것이 아직 남아 있으면 **먼저 확정한다** — 되돌리기는 한 번에 하나다
+    await commitDelete();
+    setDeleteTarget(null);
+    setSelectedWord(null);
+    pendingRef.current = victim;
+    setPending(victim);
+    showToast(t('{{word}} 을 지웠어요', { word: victim.word }), 'success');
+  }, [deleteTarget, commitDelete, showToast, t]);
+
+  const undoDelete = useCallback(() => {
+    pendingRef.current = null;
+    setPending(null);
+    hideToast();
+  }, [hideToast]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -162,14 +199,16 @@ export default function ManageWordsScreen({
   }, [searchQuery]);
 
   const filteredWords = useMemo(() => {
-    if (!debouncedQuery.trim()) return words;
+    // 🔴 되돌리기를 기다리는 단어는 **목록에서만** 빠진다. 저장소에는 아직 있다
+    const visible = pending === null ? words : words.filter((w) => w.wordId !== pending.wordId);
+    if (!debouncedQuery.trim()) return visible;
     const query = normalizeForCompare(debouncedQuery);
-    return words.filter((word) =>
+    return visible.filter((word) =>
       normalizeForCompare(word.word).includes(query) ||
       word.meanings.some((meaning) => normalizeForCompare(meaning).includes(query)) ||
       (word.tags ?? []).some((tag) => normalizeForCompare(tag).includes(query))
     );
-  }, [words, debouncedQuery]);
+  }, [words, debouncedQuery, pending]);
 
   const keyExtractor = useCallback((item: Word) => String(item.wordId), []);
 
@@ -479,6 +518,32 @@ export default function ManageWordsScreen({
         ]}
       />
 
+      {/*
+        지우기 확인 (시안 #16). 🔴 `Alert` 가 아니다 — **무엇을 지우는지 미니 카드로 다시 보여 준다.**
+        ⚠ 위험한 쪽(지우기)이 오른쪽이다. 손이 가장 멀리 가는 자리다.
+      */}
+      <ConfirmSheet
+        visible={deleteTarget !== null}
+        title={t('{{word}} 을 지울까요?', { word: deleteTarget?.word ?? '' })}
+        message={t('퀴즈 기록과 복습 일정도 함께 지워져요.')}
+        preview={
+          deleteTarget ? (
+            <View style={[styles.miniCard, { backgroundColor: colors.surface }]}>
+              <Text style={[styles.miniWord, { color: colors.text }]} numberOfLines={1}>
+                {deleteTarget.word}
+              </Text>
+              <Text style={[styles.miniMeaning, { color: colors.textSecondary }]} numberOfLines={1}>
+                {deleteTarget.meanings[0] ?? ''}
+              </Text>
+            </View>
+          ) : null
+        }
+        confirmLabel={t('지우기')}
+        tone="danger"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
+
       {/* 단어 상세 — 시트 */}
       <BottomSheet
         visible={!!selectedWord}
@@ -566,7 +631,7 @@ export default function ManageWordsScreen({
                     style={[styles.modalDeleteButton, { borderColor: colors.border }]}
                     onPress={() => {
                       setSelectedWord(null);
-                      handleDeleteWord(selectedWord.wordId, selectedWord.word);
+                      handleDeleteWord(selectedWord);
                     }}
                     accessibilityRole="button"
                     accessibilityLabel={t('{{word}} 삭제', { word: selectedWord.word })}
@@ -585,14 +650,28 @@ export default function ManageWordsScreen({
         message={toast.message}
         type={toast.type}
         visible={toast.visible}
-        onHide={hideToast}
+        onHide={() => {
+          hideToast();
+          // 🔴 되돌릴 시간이 끝났다 — 여기서 진짜로 지운다
+          void commitDelete();
+        }}
         offsetBottom={adBannerHeight}
+        duration={pending ? UNDO_MS : undefined}
+        action={pending ? { label: t('되돌리기'), onPress: undoDelete } : undefined}
       />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  miniCard: {
+    borderRadius: RADIUS.md,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    marginTop: SPACING.sm,
+  },
+  miniWord: { fontSize: FONT.body, fontWeight: '700' },
+  miniMeaning: { fontSize: FONT.label, marginTop: 2 },
   menuRow: {
     flexDirection: 'row',
     alignItems: 'center',
