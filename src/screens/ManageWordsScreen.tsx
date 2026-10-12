@@ -145,8 +145,19 @@ export default function ManageWordsScreen({
     }
   }, [selectedCategoryId, showToast, t]);
 
-  // 🔴 화면을 떠날 때 확정한다. 안 하면 "지웠는데 다시 들어오니 있다"가 된다
-  useEffect(() => () => { void commitDelete(); }, [commitDelete]);
+  /*
+   * 화면을 떠날 때 확정한다. 안 하면 "지웠는데 다시 들어오니 있다"가 된다.
+   *
+   * 🔴 **의존성에 `commitDelete` 를 넣으면 안 된다**(2026-10-12 실기기에서 당했다).
+   *    `useToast` 의 `showToast` 는 메모돼 있지 않아 **렌더마다 새로 만들어진다.**
+   *    그러면 `commitDelete` 의 정체성도 매 렌더 바뀌고, **정리 함수가 매 렌더 돌아**
+   *    되돌릴 틈도 없이 삭제가 확정된다 — 토스트는 떴는데 `pending` 은 이미 null 이라
+   *    「되돌리기」 버튼이 **아예 안 그려졌다.** 화면으로만 잡히는 종류다.
+   *    → 최신 함수는 ref 로 들고, 효과는 **진짜 언마운트에서 한 번만** 돈다.
+   */
+  const commitRef = useRef(commitDelete);
+  commitRef.current = commitDelete;
+  useEffect(() => () => { void commitRef.current(); }, []);
 
   const handleDeleteWord = (word: Word) => {
     setDeleteTarget(word);
