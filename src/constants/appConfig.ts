@@ -158,3 +158,11 @@ export const SYNC_STATE_KEY = '@my_word_sync_state';
 // ⚠ 백업에 담지 않는다 — 학습 기록이 아니라 이 기기에서의 선택이다
 //   (`FLASHCARD_PREFS_KEY` · `EXAM_PREFS_KEY` 와 같은 판단).
 export const QUIZ_PREFS_KEY = '@my_word_quiz_prefs';
+
+// --- 마지막으로 쓴 카테고리 (2026-10-12 사장님 제보) ---
+// 🔴 **화면에 들어올 때마다 첫 카테고리로 되돌아가고 있었다.** 단어 추가 화면 *안에서는*
+//    저장 뒤에도 카테고리를 유지했지만(시안 #11), 화면을 나갔다 들어오면 `categories[0]` 이었다.
+//    두 번째 카테고리를 주로 쓰는 사람은 **단어를 넣을 때마다 매번 다시 골라야 했다.**
+// ⚠ 백업에 담지 않는다 — 학습 기록이 아니라 이 기기에서의 선택이다
+//   (`QUIZ_PREFS_KEY` · `FLASHCARD_PREFS_KEY` 와 같은 판단).
+export const LAST_CATEGORY_KEY = '@my_word_last_category';

@@ -35,6 +35,7 @@
 | `@my_word_exams` | `EXAMS_KEY` · appConfig.ts | `ExamRecord[]` JSON (최근 20판) | ✅ | AI 시험 기록(문제 · 내 답 · 점수) |
 | `@my_word_exam_prefs` | `EXAM_PREFS_KEY` · appConfig.ts | `ExamPrefs` JSON | 🚫 | 카테고리별로 고른 **단어의 언어** |
 | `@my_word_quiz_prefs` | `QUIZ_PREFS_KEY` · appConfig.ts | `QuizPrefs` JSON | 🚫 | 지난 퀴즈 설정(카테고리 · 모드 · 방향 · 답변 · 문제 수) |
+| `@my_word_last_category` | `LAST_CATEGORY_KEY` · appConfig.ts | 카테고리 id (숫자 문자열) | 🚫 | 단어 추가 화면의 기본 카테고리. 🔴 지워진 id 면 첫 번째로 되돌린다(`pickDefaultCategory`) |
 | `@my_word_sync_state` | `SYNC_STATE_KEY` · appConfig.ts | `SyncState` JSON | 🚫 | 단어를 어디까지 밀었나(기기별 진행 상태) |
 
 `QuizPrefs` = `{ categoryId, mode, direction, answerType, wordCount }` (2026-10-08 시안 #8)

@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
-import { categoryService } from '../services/categoryService';
+import { categoryService, pickDefaultCategory } from '../services/categoryService';
 import { wordService } from '../services/wordService';
 import { dictionaryService } from '../services/dictionaryService';
 import type { Category } from '../types/word';
@@ -122,7 +122,10 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
       const data = await categoryService.getCategories();
       setCategories(data);
       if (data.length > 0 && !wordId) {
-        setSelectedCategoryId(data[0].categoryId);
+        // 🔴 첫 번째가 아니라 **마지막으로 쓴 것**이 기본값이다(2026-10-12 사장님 제보).
+        //    지워졌으면 `pickDefaultCategory` 가 첫 번째로 되돌린다.
+        const lastId = await categoryService.loadLastCategoryId();
+        setSelectedCategoryId(pickDefaultCategory(data, lastId));
       }
     } catch (error: any) {
       console.warn('카테고리 조회 실패:', error);
@@ -377,6 +380,8 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
         setTags([]);
         setTagInput('');
         setMemo('');
+        // 🔴 다음에 이 화면을 열 때 이 카테고리로 시작한다
+        void categoryService.saveLastCategoryId(selectedCategoryId);
         setSavedCount((n) => n + 1);
         setJustSaved(true);
         if (savedTimer.current !== null) clearTimeout(savedTimer.current);
