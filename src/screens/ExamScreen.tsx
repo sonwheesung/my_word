@@ -61,8 +61,6 @@ interface ExamScreenProps {
 
 type Phase = 'loading' | 'solving' | 'failed';
 
-/** 팁 카드가 넘어가는 간격. 읽을 시간은 주되 지루하지 않게 */
-const TIP_ROTATE_MS = 3200;
 
 /**
  * 기다리는 동안 서버가 하는 일 (2026-10-08 시안 #12).
@@ -147,24 +145,15 @@ export default function ExamScreen({
   const [examId, setExamId] = useState<string>('');
   const [failure, setFailure] = useState<string>('');
   const [elapsed, setElapsed] = useState(0);
-  /**
-   * 기다리는 동안 보여 줄 내 단어 (2026-10-08 시안 #12).
-   *
-   * ⚠ 씨앗을 고른 **뒤에** 채워진다. 그 전에는 빈 배열이라 팁 칸이 아예 안 뜬다 —
-   *   빈 칸을 미리 띄워 두면 자리만 차지한다.
+  /*
+   * 🔴 **기다리는 동안 보여 주던 「내 단어장에서」 카드를 뺐다**(2026-10-12 사장님 제보).
+   *    시안 #12 가 넣었지만, **시험을 보러 온 사람에게 그 카테고리 단어를 미리 보여 주는 것**은
+   *    시험과 맞지 않는다 — 곧 그 단어로 문제를 낼 참이다. 공부 카드가 아니라 **커닝 페이퍼**가 된다.
+   *    대기 화면에 남는 것: 경과 시간 · 무엇을 만들고 있는지(4단계).
    */
-  const [tips, setTips] = useState<Array<{ word: string; meaning: string }>>([]);
-  const [tipIndex, setTipIndex] = useState(0);
   const [attempt, setAttempt] = useState(0);
   /** 🔴 연속 탭 방지. 다음 버튼을 빨리 두 번 누르면 문제가 하나 건너뛰어진다 */
   const advancing = useRef(false);
-
-  // 팁 카드 넘기기. ⚠ cleanup 필수 — 화면을 떠난 뒤 돌면 사라진 화면에 setState 한다
-  useEffect(() => {
-    if (phase !== 'loading' || tips.length < 2) return;
-    const id = setInterval(() => setTipIndex((i) => (i + 1) % tips.length), TIP_ROTATE_MS);
-    return () => clearInterval(id);
-  }, [phase, tips.length]);
 
   // 경과 초. 🔴 가짜 진행 막대를 쓰지 않는 이유는 파일 머리 주석에 있다
   useEffect(() => {
@@ -207,13 +196,6 @@ export default function ExamScreen({
         const plan = await examService.buildSeeds(categoryId);
         const words = toSeedPayload(plan);
         if (!alive) return;
-        // 기다리는 동안 보여 줄 것. 뜻이 있는 것만 — 뜻 없는 카드는 보여 줄 값이 없다
-        setTips(
-          [...plan.due, ...plan.weak, ...plan.random]
-            .filter((w) => w.meanings.length > 0 && w.meanings[0].trim() !== '')
-            .slice(0, 6)
-            .map((w) => ({ word: w.word, meaning: w.meanings[0] })),
-        );
         if (words.length === 0) {
           setFailure('no-words');
           setPhase('failed');
@@ -396,20 +378,6 @@ export default function ExamScreen({
             </View>
           )}
 
-          {/* 기다리는 동안 — 내 단어장에서 (시안 #12) */}
-          {!isRetry && tips.length > 0 && (
-            <View style={[styles.tipBox, { backgroundColor: colors.primaryLight }]}>
-              <Text style={[styles.tipLabel, { color: colors.primaryStrong }]}>
-                {t('기다리는 동안 — 내 단어장에서')}
-              </Text>
-              <Text style={[styles.tipWord, { color: colors.text }]} numberOfLines={1}>
-                {tips[tipIndex % tips.length]?.word}
-              </Text>
-              <Text style={[styles.tipMeaning, { color: colors.textSecondary }]} numberOfLines={2}>
-                {tips[tipIndex % tips.length]?.meaning}
-              </Text>
-            </View>
-          )}
         </ScrollView>
       </View>
     );
@@ -562,10 +530,6 @@ const styles = StyleSheet.create({
   stepTexts: { flex: 1, marginTop: -4 },
   stepTitle: { fontSize: 14, fontWeight: '600' },
   stepSub: { fontSize: 12, marginTop: 1, lineHeight: 16 },
-  tipBox: { alignSelf: 'stretch', borderRadius: 16, padding: 16, marginTop: 16 },
-  tipLabel: { fontSize: 12, fontWeight: '700' },
-  tipWord: { fontSize: 20, fontWeight: '800', marginTop: 6 },
-  tipMeaning: { fontSize: 14, marginTop: 2, lineHeight: 20 },
 
   container: { flex: 1 },
   /*

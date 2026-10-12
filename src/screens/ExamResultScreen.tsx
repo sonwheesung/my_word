@@ -379,8 +379,9 @@ export default function ExamResultScreen({ examId, onBack, onHome }: ExamResultS
                       style={[
                         styles.chipText,
                         { color: colors.text },
-                        on && { color: colors.primaryStrong, fontWeight: '700' },
-                        isFlying && { color: colors.successText, fontWeight: '700' },
+                        // ⚠ 굵기를 바꾸지 않는다 — 너비가 튄다(styles.chipText 주석)
+                        on && { color: colors.primaryStrong },
+                        isFlying && { color: colors.successText },
                       ]}
                     >
                       {word}
@@ -580,7 +581,13 @@ const styles = StyleSheet.create({
     // 터치 영역 바닥
     minHeight: 40,
   },
-  chipText: { fontSize: FONT.body },
+  /*
+   * 🔴 **굵기를 고정한다**(2026-10-12 사장님 제보). 고르면 `fontWeight: '700'` 으로 바꿨더니
+   *    글자가 넓어져 **칩 너비가 튀고 줄바꿈이 춤췄다.** 누를 때마다 목록이 흔들리면
+   *    다음에 누를 칩이 어디 있는지 눈이 다시 찾아야 한다.
+   *    선택은 **배경 · 테두리 · 아이콘 · 글자색**으로 충분히 보인다.
+   */
+  chipText: { fontSize: FONT.body, fontWeight: '600' },
   pickButton: {
     borderRadius: RADIUS.md,
     paddingVertical: SPACING.md,

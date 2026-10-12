@@ -253,6 +253,38 @@ export function scoreExam(questions: ExamQuestion[], answers: readonly ExamAnswe
  * ⚠ 정답 보기도 후보에서 뺀다. 정답은 곧 그 문제의 단어이고 이미 갖고 있다.
  * ⚠ 중복을 걷고 **나온 순서**를 지킨다. 무작위로 섞으면 "아까 본 그 단어"를 찾기 어렵다.
  */
+/**
+ * 이 보기가 **단어장에 담을 만한 것**인가. **순수 함수다.**
+ *
+ * 🔴 **2026-10-12 사장님 제보.** 결과 화면의 「시험에 나온 새 단어」에
+ *    *"We had lunch at a branch of the restaurant."* 같은 **문장이 섞여 있었다.**
+ *    `axis: 'usage'` 문제는 *"어느 문장이 이 단어를 바르게 썼나"* 를 묻기 때문에
+ *    **보기 자체가 문장**이다. 그걸 그대로 단어 후보로 담고 있었다.
+ *
+ * ⚠ **`axis` 로만 거르지 않는다.** 보기 모양은 모델이 정하고, 뜻 문제에도 긴 구절이 올 수 있다.
+ *   서버가 축 이름을 바꾸거나 새 축을 더해도 이 검사는 계속 맞아야 한다 — 그래서 **모양으로** 본다.
+ */
+export function isWordLike(text: string): boolean {
+  const t = text.trim();
+  if (t === '') return false;
+  // 줄바꿈이 있으면 문장이다
+  if (/[\r\n]/.test(t)) return false;
+  // 문장 부호로 끝나면 문장이다(마침표 · 물음표 · 느낌표 — 전각 포함)
+  if (/[.!?。！？]$/.test(t)) return false;
+  // 문장 중간의 마침표 + 공백 — 두 문장이 붙은 것
+  if (/[.!?。！？]\s/.test(t)) return false;
+  if (t.length > WORD_LIKE_MAX_CHARS) return false;
+  // 띄어쓰기를 쓰는 언어: 낱말 몇 개까지 **구(phrase)** 로 본다
+  const tokens = t.split(/\s+/);
+  if (tokens.length > WORD_LIKE_MAX_TOKENS) return false;
+  return true;
+}
+
+/** 단어·구로 볼 최대 글자 수. 한중일 단어는 짧고, 영어 구도 이 안에 들어온다 */
+const WORD_LIKE_MAX_CHARS = 32;
+/** `conflict-free agreement` 같은 두세 낱말 구까지는 담을 만하다 */
+const WORD_LIKE_MAX_TOKENS = 3;
+
 export function collectNewWords(
   questions: readonly ExamQuestion[],
   ownedWords: readonly string[],
@@ -264,11 +296,27 @@ export function collectNewWords(
   const seen = new Set<string>();
   const out: string[] = [];
   for (const q of questions) {
+    /*
+     * 🔴 **철자 문제(`form`)의 오답은 단어가 아니다.** 2026-10-12 서버 실측:
+     *
+     * ```
+     * Q: Which word is spelled correctly for a separate line of development?
+     *    brunch · branched · ✔branch · brench      ← brench 는 없는 말이다
+     *    bottlecap · ✔bottleneck · bottlenose · bottlework
+     * ```
+     *
+     * 이 축은 **일부러 틀린 철자**를 오답으로 낸다. 그걸 「새 단어」로 담게 하면
+     * **틀린 철자를 단어장에 넣어 가르치는 꼴**이다 — 없느니만 못하다.
+     * ⚠ `meaning`·`usage` 의 오답은 같은 분야의 **실제 단어**라(replication · rollback · backup)
+     *   담을 값이 있다. 그래서 축으로 가른다.
+     */
+    if (q.axis === 'form') continue;
     q.choices.forEach((choice, index) => {
       // 정답은 그 문제의 단어다. 후보가 아니다
       if (index === q.answerIndex) return;
       const text = choice.trim();
-      if (!text || owned.has(text) || seen.has(text)) return;
+      // 🔴 문장은 담지 않는다(`isWordLike` 머리 주석)
+      if (!text || !isWordLike(text) || owned.has(text) || seen.has(text)) return;
       seen.add(text);
       out.push(text);
     });
