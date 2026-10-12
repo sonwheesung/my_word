@@ -69,6 +69,17 @@ type Phase = 'loading' | 'solving' | 'failed';
  *    **모양만 다른 가짜 진행 막대**가 된다. 이 화면이 애초에 가짜 막대를 거부한 이유가 그것이다.
  *    목록은 *기다림이 무엇을 사는지*를 알려 줄 뿐, *얼마나 왔는지*는 아는 척하지 않는다.
  */
+/**
+ * 접수증을 얼마나 자주 물어보나.
+ *
+ * ⚠ 짧게 하면 90초 동안 **스무 번 넘게** 서버를 때린다. 길게 하면 다 됐는데 기다린다.
+ *   물음 자체는 DB 한 줄 읽기라 싸지만, 공짜는 아니다.
+ */
+const POLL_MS = 3000;
+
+/** ⚠ 화면이 사라진 뒤 깨어나도 `alive` 검사가 막는다 */
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
 const WAIT_STEPS: Array<{ title: string; sub: string }> = [
   { title: '씨앗 단어 고르기', sub: '복습할 때 · 자주 틀림 · 무작위' },
   { title: '헷갈리는 단어 찾기', sub: '비슷한 뜻으로 보기를 만든다' },
@@ -193,49 +204,114 @@ export default function ExamScreen({
           setPhase('failed');
           return;
         }
-        const plan = await examService.buildSeeds(categoryId);
-        const words = toSeedPayload(plan);
-        if (!alive) return;
-        if (words.length === 0) {
-          setFailure('no-words');
-          setPhase('failed');
-          return;
-        }
-        let result = await commonServer.generateExam({
-          language,
-          uiLang,
-          count: EXAM_SIZE,
-          words,
-        });
         /*
-         * 🔴 **세션이 끊겼으면 한 번 되살리고 다시 해 본다.**
-         *    기기 세션은 부팅 때만 만들어지는데, 그 사이 서버에서 주체가 사라질 수 있다
-         *    (탈퇴 · 운영 정리). 그대로 두면 「다시 시도」가 영원히 실패한다.
-         * ⚠ **한 번만** 한다. 루프가 되면 재등록 레이트리밋(IP당 10회/600초)에 걸린다.
+         * 🔴 **들고 있는 접수증이 있으면 그것을 이어받는다**(2026-10-12).
+         *    다시 시작하면 서버가 접수증을 또 발급하고 **원가가 두 번 나간다.**
+         *    앱을 껐다 켜고 다시 들어온 사람이 밟는 길이 정확히 이 자리다.
          */
-        if (!result.ok && (result.reason === 'unauthorized' || result.reason === 'not-signed-in')) {
-          const revived = await ensureDeviceSession();
+        const saved = await examService.loadJob();
+        if (!alive) return;
+        let jobId = saved?.jobId ?? '';
+        if (saved !== null) {
+          // 경과 초를 **이어서** 센다. 0 으로 되돌리면 방금 시작한 것처럼 보인다
+          const elapsedMs = Date.now() - new Date(saved.startedAt).getTime();
+          if (Number.isFinite(elapsedMs) && elapsedMs > 0) {
+            setElapsed(Math.floor(elapsedMs / 1000));
+          }
+        } else {
+          const plan = await examService.buildSeeds(categoryId);
+          const words = toSeedPayload(plan);
           if (!alive) return;
-          if (revived) {
-            result = await commonServer.generateExam({ language, uiLang, count: EXAM_SIZE, words });
+          if (words.length === 0) {
+            setFailure('no-words');
+            setPhase('failed');
+            return;
+          }
+          let started = await commonServer.startExam({ language, uiLang, count: EXAM_SIZE, words });
+          /*
+           * 🔴 **세션이 끊겼으면 한 번 되살리고 다시 해 본다.**
+           *    기기 세션은 부팅 때만 만들어지는데, 그 사이 서버에서 주체가 사라질 수 있다
+           *    (탈퇴 · 운영 정리). 그대로 두면 「다시 시도」가 영원히 실패한다.
+           * ⚠ **한 번만** 한다. 루프가 되면 재등록 레이트리밋(IP당 10회/600초)에 걸린다.
+           */
+          if (!started.ok && (started.reason === 'unauthorized' || started.reason === 'not-signed-in')) {
+            const revived = await ensureDeviceSession();
+            if (!alive) return;
+            if (revived) {
+              started = await commonServer.startExam({ language, uiLang, count: EXAM_SIZE, words });
+            }
+          }
+          if (!alive) return;
+          if (!started.ok) {
+            setFailure(started.reason);
+            setPhase('failed');
+            return;
+          }
+          jobId = started.jobId;
+          /*
+           * 🔴 **접수증을 먼저 적고 기다린다.** 적기 전에 앱이 죽으면 만들어진 시험을
+           *    영영 못 찾는다 — 원가는 이미 나간 뒤다. 못 적으면 아예 시작하지 않는다.
+           */
+          try {
+            await examService.saveJob({
+              jobId,
+              categoryId,
+              language,
+              uiLang,
+              startedAt: new Date().toISOString(),
+            });
+          } catch (error: any) {
+            console.warn('접수증 저장 실패:', error);
+            if (!alive) return;
+            setFailure('error');
+            setPhase('failed');
+            return;
           }
         }
-        if (!alive) return;
-        if (!result.ok) {
-          setFailure(result.reason);
-          setPhase('failed');
+
+        /*
+         * 접수증을 물어본다. ⚠ **앱이 따로 시간을 재지 않는다** — 서버가 6분 넘은 접수증을
+         *   `failed` 로 바꿔 읽는다(`AI_EXAM_SYSTEM.md` §4.5). 두 곳에서 재면 어긋난다.
+         */
+        while (alive) {
+          const asked = await commonServer.examJob(jobId);
+          if (!alive) return;
+          if (!asked.ok) {
+            // 🔴 `not-found` 는 남의 접수증이거나 사라진 것이다. 버리고 처음부터 할 수 있게 한다
+            if (asked.reason === 'not-found') await examService.clearJob();
+            // ⚠ 잠깐 끊긴 것일 수 있다. 오프라인이면 다음 물음에서 다시 붙는다
+            if (asked.reason === 'offline') {
+              await sleep(POLL_MS);
+              continue;
+            }
+            setFailure(asked.reason);
+            setPhase('failed');
+            return;
+          }
+          if (asked.job.status === 'pending') {
+            await sleep(POLL_MS);
+            continue;
+          }
+          await examService.clearJob();
+          if (!alive) return;
+          if (asked.job.status === 'failed') {
+            setFailure(asked.job.reason);
+            setPhase('failed');
+            return;
+          }
+          const exam = asked.job.exam;
+          setQuestions(exam.questions);
+          setAnswers(exam.questions.map(() => null));
+          setExamId(exam.examId ?? `local-${Date.now()}`);
+          setIndex(0);
+          setPicked(null);
+          setPhase('solving');
+          // ⚠ `degraded` 는 에러가 아니다. 시험은 정상이고 새 문제만 못 만든 것이다.
+          //   사용자에게 사유를 설명하지 않는다 — 들어도 할 일이 없다.
+          if (exam.degraded !== null && __DEV__) {
+            console.log('[exam] degraded:', exam.degraded);
+          }
           return;
-        }
-        setQuestions(result.exam.questions);
-        setAnswers(result.exam.questions.map(() => null));
-        setExamId(result.exam.examId ?? `local-${Date.now()}`);
-        setIndex(0);
-        setPicked(null);
-        setPhase('solving');
-        // ⚠ `degraded` 는 에러가 아니다. 시험은 정상이고 새 문제만 못 만든 것이다.
-        //   사용자에게 사유를 설명하지 않는다 — 들어도 할 일이 없다.
-        if (result.exam.degraded !== null && __DEV__) {
-          console.log('[exam] degraded:', result.exam.degraded);
         }
       } catch (error: any) {
         console.warn('시험 생성 실패:', error);
@@ -348,7 +424,14 @@ export default function ExamScreen({
             <Text style={[styles.waitHint, { color: colors.textSecondary }]}>
               {over
                 ? t('거의 다 됐어요. 조금만 더 기다려 주세요')
-                : t('{{sec}}초쯤 걸려요. 앱을 닫지 말아 주세요', { sec: EXAM_EXPECTED_WAIT_SEC })}
+                : /*
+                    🔴 **더 이상 "닫지 말아 주세요"가 아니다**(2026-10-12 접수증 도입).
+                       서버가 뒤에서 만들고 앱은 다시 들어와 이어받는다. 못 하게 해 놓고
+                       부탁하던 것을, 할 수 있게 만든 뒤 사실대로 적는다.
+                  */
+                  t('{{sec}}초쯤 걸려요. 나갔다 와도 이어서 볼 수 있어요', {
+                      sec: EXAM_EXPECTED_WAIT_SEC,
+                    })}
             </Text>
           )}
 

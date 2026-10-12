@@ -1,5 +1,6 @@
 import {
   EXAM_HISTORY_MAX,
+  EXAM_JOB_KEY,
   EXAM_PREFS_KEY,
   EXAM_SEED_COUNT,
   EXAMS_KEY,
@@ -324,6 +325,43 @@ export function collectNewWords(
   return out;
 }
 
+// ── 접수증 ──────────────────────────────────────────────────────────────────
+
+/**
+ * 받아 둔 시험 접수증 (2026-10-12).
+ *
+ * 🔴 **이 값이 있으면 새 시험을 시작하지 않는다.** 다시 시작하면 서버가 접수증을 또 발급하고
+ *    **원가가 두 번 나간다.** 화면은 언제나 "들고 있는 접수증이 있나"를 먼저 묻는다.
+ */
+export interface ExamJob {
+  jobId: string;
+  categoryId: number;
+  language: string;
+  uiLang: string;
+  /** 언제 접수했나. 화면이 경과 초를 **이어서** 세는 데 쓴다 */
+  startedAt: string;
+}
+
+/** 저장된 값을 읽는다. 🔴 어떤 입력에도 던지지 않는다 */
+export function parseExamJob(raw: string | null): ExamJob | null {
+  if (!raw) return null;
+  let o: unknown;
+  try {
+    o = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (typeof o !== 'object' || o === null) return null;
+  const j = o as Record<string, unknown>;
+  const jobId = typeof j.jobId === 'string' ? j.jobId : '';
+  const categoryId = typeof j.categoryId === 'number' && Number.isFinite(j.categoryId) ? j.categoryId : null;
+  const language = typeof j.language === 'string' ? j.language : '';
+  const uiLang = typeof j.uiLang === 'string' ? j.uiLang : '';
+  const startedAt = typeof j.startedAt === 'string' ? j.startedAt : '';
+  if (!jobId || categoryId === null || !language || !uiLang || !startedAt) return null;
+  return { jobId, categoryId, language, uiLang, startedAt };
+}
+
 // ── 기록 ────────────────────────────────────────────────────────────────────
 
 /**
@@ -483,6 +521,25 @@ export function parseExamPrefs(raw: string | null): ExamPrefs {
 }
 
 export const examService = {
+  /** 들고 있는 접수증. 없거나 깨졌으면 `null` */
+  async loadJob(): Promise<ExamJob | null> {
+    return parseExamJob(await readRaw(EXAM_JOB_KEY));
+  },
+
+  /** ⚠ 실패해도 삼키지 **않는다** — 못 적으면 시험을 잃는다. 부르는 쪽이 알아야 한다 */
+  async saveJob(job: ExamJob): Promise<void> {
+    await writeRaw(EXAM_JOB_KEY, JSON.stringify(job));
+  },
+
+  /** 끝났거나 실패했을 때. ⚠ 실패해도 삼킨다 — 남아 있어도 다음에 물어보면 `not-found` 다 */
+  async clearJob(): Promise<void> {
+    try {
+      await writeRaw(EXAM_JOB_KEY, '');
+    } catch (error: any) {
+      console.warn('접수증 비우기 실패:', error);
+    }
+  },
+
   async loadPrefs(): Promise<ExamPrefs> {
     return parseExamPrefs(await readRaw(EXAM_PREFS_KEY));
   },

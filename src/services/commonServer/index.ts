@@ -12,6 +12,7 @@ import type {
   Bootstrap,
   CommonServerConfig,
   EntitlementView,
+  ExamJobStatus,
   ExamResponse,
   MyInquiry,
   Result,
@@ -24,7 +25,7 @@ import type {
 export type * from './types';
 
 /** 앱에 복사할 때 이 값을 복사본 주석에 남긴다 — 서버 계약이 바뀌었는지 판단하는 유일한 단서다. */
-export const SDK_VERSION = '2026-10-08'; // 단어 밀기(syncWords) 추가. 앞판은 AI 시험 + req() 호출별 타임아웃. 추가만이라 쓰는 앱만 재복사한다(지금은 My Word)
+export const SDK_VERSION = '2026-10-12'; // 시험 접수증(startExam · examJob) 추가. 앞판은 단어 밀기. 추가만이라 쓰는 앱만 재복사한다(지금은 My Word)
 
 const DEFAULT_TIMEOUT_MS = 10000;
 
@@ -539,6 +540,77 @@ export function createCommonServer(cfg: CommonServerConfig) {
           return { ok: false, reason: 'error' };
         }
         return { ok: true, exam: j };
+      } catch {
+        return { ok: false, reason: 'error' };
+      }
+    },
+
+    /**
+     * 시험 생성을 **접수만** 시킨다. 접수증(jobId)이 즉시 온다 (2026-10-12).
+     *
+     * 🔴 **이것이 기본 경로다.** `generateExam`(동기)은 이걸 못 쓰는 옛 번들을 위해 남아 있다.
+     * ⚠ 접수만으로는 무료 횟수가 줄지 않는다. 다만 **다 쓴 사람은 여기서 바로 거절**된다
+     *   — 90초를 기다린 뒤에 거절하면 기다린 시간을 통째로 버리게 한다.
+     */
+    async startExam(args: {
+      language: string;
+      uiLang: string;
+      count?: number;
+      words: { word: string; meaning?: string }[];
+    }): Promise<Result<{ jobId: string }>> {
+      if (!baseUrl) return { ok: false, reason: 'not-configured' };
+      if (!(await loadToken())) return { ok: false, reason: 'not-signed-in' };
+
+      const res = await req('/api/v1/ai/exam/start', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ app: cfg.appCode, ...args }),
+      }, true);
+      if (!res) return { ok: false, reason: 'offline' };
+      if (res.status === 401) {
+        await setSession(null, null);
+        return { ok: false, reason: 'unauthorized' };
+      }
+      if (res.status === 403) return { ok: false, reason: 'quota-exhausted' };
+      if (!res.ok) return { ok: false, reason: mapFail(res.status) };
+      try {
+        const j = (await res.json()) as { jobId?: unknown };
+        const jobId = typeof j.jobId === 'string' ? j.jobId : '';
+        if (!jobId) return { ok: false, reason: 'error' };
+        return { ok: true, jobId };
+      } catch {
+        return { ok: false, reason: 'error' };
+      }
+    },
+
+    /**
+     * 접수증 하나를 물어본다. **빠른 호출이다** — 기본 타임아웃으로 충분하다.
+     *
+     * ⚠ `ok: false, reason: 'not-found'` 는 **남의 접수증이거나 사라진 것**이다.
+     *   앱은 들고 있던 접수증을 버리고 처음부터 시작하면 된다.
+     */
+    async examJob(jobId: string): Promise<Result<{ job: ExamJobStatus }>> {
+      if (!baseUrl) return { ok: false, reason: 'not-configured' };
+      if (!(await loadToken())) return { ok: false, reason: 'not-signed-in' };
+
+      const qs = `?app=${encodeURIComponent(cfg.appCode)}&id=${encodeURIComponent(jobId)}`;
+      const res = await req(`/api/v1/ai/exam/job${qs}`, { method: 'GET' }, true);
+      if (!res) return { ok: false, reason: 'offline' };
+      if (res.status === 401) {
+        await setSession(null, null);
+        return { ok: false, reason: 'unauthorized' };
+      }
+      if (res.status === 404) return { ok: false, reason: 'not-found' };
+      if (!res.ok) return { ok: false, reason: mapFail(res.status) };
+      try {
+        const j = (await res.json()) as { status?: unknown; exam?: unknown; reason?: unknown };
+        if (j.status === 'done' && j.exam) {
+          return { ok: true, job: { status: 'done', exam: j.exam as ExamResponse } };
+        }
+        if (j.status === 'failed') {
+          return { ok: true, job: { status: 'failed', reason: String(j.reason ?? 'error') } };
+        }
+        return { ok: true, job: { status: 'pending' } };
       } catch {
         return { ok: false, reason: 'error' };
       }

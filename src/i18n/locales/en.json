@@ -66,7 +66,6 @@
   "{{n}}회차": "Attempt {{n}}",
   "{{saved}}개 저장, {{failed}}개 실패": "{{saved}} saved, {{failed}} failed",
   "{{sec}}초": "{{sec}}s",
-  "{{sec}}초쯤 걸려요. 앱을 닫지 말아 주세요": "This takes about {{sec}} seconds. Please keep the app open",
   "{{total}}문제 중 {{correct}}개 맞혔어요": "You got {{correct}} of {{total}} right",
   "{{word}} — {{meaning}}, 기억나세요?": "{{word}} — {{meaning}}. Remember it?",
   "{{word}} 발음 듣기": "Play pronunciation of {{word}}",
@@ -581,5 +580,10 @@
   "같은 카테고리에 같은 단어가 있어요. 그래도 저장할까요?": "The same word is already in this category. Save anyway?",
   "그래도 저장": "Save anyway",
   "이렇게 바꿀까요?": "Save these changes?",
-  "복습 기록은 그대로 남아요.": "Your review history stays."
+  "복습 기록은 그대로 남아요.": "Your review history stays.",
+  "{{sec}}초쯤 걸려요. 나갔다 와도 이어서 볼 수 있어요": "About {{sec}}s. You can leave and come back",
+  "전체 {{count}}문제_one": "All {{count}} questions",
+  "전체 {{count}}문제_other": "All {{count}} questions",
+  "틀린 문제 {{now}} / {{total}}": "Wrong {{now}} / {{total}}",
+  "새 단어 보기": "See new words"
 }

@@ -1,13 +1,16 @@
 import { useTranslation } from 'react-i18next';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import {
   ActivityIndicator,
   Animated,
+  FlatList,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -20,6 +23,8 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useToast } from '../hooks/useToast';
 import { commonServer } from '../services/commonServer/client';
 import { collectNewWords, examService, type ExamRecord } from '../services/examService';
+import type { ExamQuestion } from '../services/commonServer/types';
+import BottomSheet from '../components/BottomSheet';
 import { dictionaryService } from '../services/dictionaryService';
 import { wordService } from '../services/wordService';
 
@@ -44,9 +49,14 @@ interface ExamResultScreenProps {
   onHome: () => void;
 }
 
+/** 점수를 보여 주는 시간. ⚠ 누르면 바로 넘어간다 */
+const SCORE_HOLD_MS = 1900;
+
 export default function ExamResultScreen({ examId, onBack, onHome }: ExamResultScreenProps) {
   const { t } = useTranslation();
   const { colors } = useTheme();
+  /** 한 페이지 = 화면 너비. ⚠ 회전·분할 화면에서 바뀌므로 상수로 박지 않는다 */
+  const { width: pageWidth } = useWindowDimensions();
   const { toast, showToast, hideToast } = useToast();
 
   const [record, setRecord] = useState<ExamRecord | null>(null);
@@ -57,6 +67,12 @@ export default function ExamResultScreen({ examId, onBack, onHome }: ExamResultS
 
   /** 담을 수 있는 후보(오답 보기 중 내 단어장에 없는 것) */
   const [candidates, setCandidates] = useState<string[]>([]);
+  /** `score` → `review` → `pick`. 비어 있는 단계는 건너뛴다 */
+  const [stage, setStage] = useState<'score' | 'review' | 'pick'>('score');
+  /** 전체 20문제 — 기본은 접어 둔다. 헤더 버튼으로 연다 */
+  const [allOpen, setAllOpen] = useState(false);
+  /** 오답노트에서 지금 몇 번째인가(0부터) */
+  const [page, setPage] = useState(0);
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
   /** 이번에 담은 단어. 다시 담지 못하게 하고 결과를 보여준다 */
@@ -289,6 +305,129 @@ export default function ExamResultScreen({ examId, onBack, onHome }: ExamResultS
   const score = latest?.score ?? { correct: 0, wrong: 0, skipped: 0, total: 0, accuracy: 0 };
   const answers = latest?.answers ?? [];
 
+  /*
+   * 🔴 **한 영역에 한 화면이다**(2026-10-12 ⑤ · 아티팩트로 합의).
+   *    전에는 점수 · 새 단어 · 문제 20개가 한 장에 쌓여 **끝까지 스크롤**해야 했다.
+   *
+   *    점수 → 오답노트(한 문제당 한 화면) → 새 단어 담기
+   *
+   * 🔴 **틀린 것부터 보여 준다.** 시험을 막 끝낸 사람이 가장 알고 싶은 것은 *무엇을 틀렸나* 다.
+   * 🔴 **담기를 마지막에 둔다.** 오답을 다 본 뒤라 어떤 단어가 약한지 알고 고른다.
+   * ⚠ 오답이 0개면 오답노트를, 담을 단어가 0개면 담기를 **건너뛴다.** 빈 화면을 넘기게 하지 않는다.
+   */
+  const wrongIndexes = useMemo(
+    () =>
+      record === null
+        ? []
+        : record.questions
+            .map((q, i) => (answers[i] === q.answerIndex ? -1 : i))
+            .filter((i) => i >= 0),
+    [record, answers],
+  );
+
+  /*
+   * 점수를 보여 준 뒤 **스스로** 넘어간다.
+   * ⚠ 버튼을 두지 않는다 — 점수는 읽는 것이지 조작하는 것이 아니다.
+   *   다만 **기다리기 싫은 사람을 위해 눌러서 넘길 수 있게** 한다(아래 Pressable).
+   */
+  useEffect(() => {
+    if (loading || stage !== 'score') return;
+    const id = setTimeout(() => setStage(wrongIndexes.length > 0 ? 'review' : 'pick'), SCORE_HOLD_MS);
+    return () => clearTimeout(id);
+  }, [loading, stage, wrongIndexes.length]);
+
+
+  /**
+   * 문제 한 개 카드. **오답노트 한 페이지**와 **전체 목록**이 같은 것을 쓴다 (2026-10-12 ⑤).
+   * 🔴 베껴 두면 한쪽만 고쳐진다 — 신고 버튼이 한쪽에만 생기는 식으로 어긋난다.
+   */
+  const questionCard = useCallback(
+    (question: ExamQuestion, index: number) => {
+        const answer = answers[index];
+        const correct = answer === question.answerIndex;
+        const skipped = answer === null || answer === undefined;
+        const isReported = reported.has(question.id);
+        return (
+          <View
+            key={question.id}
+            style={[styles.reviewCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+          >
+            <View style={styles.reviewHead}>
+              <MaterialIcons
+                name={correct ? 'check-circle' : skipped ? 'remove-circle-outline' : 'cancel'}
+                size={18}
+                color={correct ? colors.success : skipped ? colors.textTertiary : colors.dangerText}
+              />
+              <Text style={[styles.reviewWord, { color: colors.text }]}>{question.word}</Text>
+            </View>
+
+            <Text style={[styles.reviewPrompt, { color: colors.text }]}>{question.prompt}</Text>
+
+            {question.choices.map((choice: string, choiceIndex: number) => {
+              const isAnswer = choiceIndex === question.answerIndex;
+              const isMine = choiceIndex === answer;
+              return (
+                <View
+                  key={`${question.id}-r-${choiceIndex}`}
+                  style={[
+                    styles.reviewChoice,
+                    isAnswer && { backgroundColor: colors.successBg },
+                    !isAnswer && isMine && { backgroundColor: colors.dangerBg },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.reviewChoiceText,
+                      { color: colors.textSecondary },
+                      isAnswer && { color: colors.successText, fontWeight: '700' },
+                      !isAnswer && isMine && { color: colors.dangerText },
+                    ]}
+                  >
+                    {choice}
+                  </Text>
+                  {isMine && (
+                    <Text style={[styles.reviewTag, { color: colors.textTertiary }]}>
+                      {t('내 답')}
+                    </Text>
+                  )}
+                </View>
+              );
+            })}
+
+            {/* ⚠ 해설은 `null` 일 수 있다 — 그 언어로 아직 만들어지지 않은 문제다. 칸을 비워 둔다 */}
+            {question.meaning !== null && (
+              <Text style={[styles.reviewMeaning, { color: colors.text }]}>
+                {t('뜻')}: {question.meaning}
+              </Text>
+            )}
+            {question.explanation !== null && (
+              <Text style={[styles.reviewExplanation, { color: colors.textSecondary }]}>
+                {question.explanation}
+              </Text>
+            )}
+
+            <TouchableOpacity
+              style={styles.reportButton}
+              onPress={() => void handleReport(question.id)}
+              disabled={isReported || reporting !== null}
+              accessibilityRole="button"
+              accessibilityLabel={t('이 문제가 틀렸어요')}
+            >
+              {reporting === question.id ? (
+                <ActivityIndicator size="small" color={colors.textTertiary} />
+              ) : (
+                <Text style={[styles.reportText, { color: isReported ? colors.success : colors.textTertiary }]}>
+                  {isReported ? t('신고했어요') : t('이 문제가 틀렸어요')}
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        );
+    },
+    [answers, colors, handleReport, reported, reporting, t],
+  );
+
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar style={colors.isDark ? 'light' : 'dark'} />
@@ -300,6 +439,18 @@ export default function ExamResultScreen({ examId, onBack, onHome }: ExamResultS
         title={t('시험 결과')}
         onBack={onBack}
         rightAccessory={
+          <View style={styles.headRight}>
+            {/*
+              🔴 **전체 목록을 없애지 않았다.** 나눠 놓으면 "세 번째 문제 다시 보기"가 멀어지는데,
+                 그건 한 장짜리 화면이 가졌던 **유일한 장점**이다. 접어 두되 한 번에 닿게 한다.
+            */}
+            <TouchableOpacity
+              onPress={() => setAllOpen(true)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+            >
+              <Text style={[styles.headAll, { color: colors.primary }]}>{t('전체')}</Text>
+            </TouchableOpacity>
           <Animated.View
             ref={targetRef}
             collapsable={false}
@@ -312,10 +463,18 @@ export default function ExamResultScreen({ examId, onBack, onHome }: ExamResultS
               </View>
             )}
           </Animated.View>
+          </View>
         }
       />
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+      {/* ① 점수 — 스스로 넘어간다. ⚠ 기다리기 싫으면 눌러서 바로 */}
+      {stage === 'score' && (
+        <Pressable
+          style={styles.stageCenter}
+          onPress={() => setStage(wrongIndexes.length > 0 ? 'review' : 'pick')}
+          accessibilityRole="button"
+          accessibilityLabel={t('다음')}
+        >
         <View style={[styles.scoreCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.scoreValue, { color: colors.primaryStrong }]}>{score.accuracy}%</Text>
           <Text style={[styles.scoreLine, { color: colors.textSecondary }]}>
@@ -330,7 +489,36 @@ export default function ExamResultScreen({ examId, onBack, onHome }: ExamResultS
             </Text>
           )}
         </View>
+        </Pressable>
+      )}
 
+      {/* ② 오답노트 — **한 문제당 한 화면.** 좌우로 넘긴다 */}
+      {stage === 'review' && (
+        <FlatList
+          data={wrongIndexes}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          keyExtractor={(i: number) => String(i)}
+          getItemLayout={(_: unknown, i: number) => ({ length: pageWidth, offset: pageWidth * i, index: i })}
+          onMomentumScrollEnd={(e) =>
+            setPage(Math.round(e.nativeEvent.contentOffset.x / Math.max(1, pageWidth)))
+          }
+          renderItem={({ item }: { item: number }) => (
+            <ScrollView
+              style={{ width: pageWidth }}
+              contentContainerStyle={styles.pageContent}
+              showsVerticalScrollIndicator={false}
+            >
+              {questionCard(record.questions[item], item)}
+            </ScrollView>
+          )}
+        />
+      )}
+
+      {/* ③ 새 단어 담기 — 맨 끝 */}
+      {stage === 'pick' && (
+        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {/*
           🔴 단어 담기 — 이 화면의 진짜 값이다.
           점수보다 **위**에 두지 않는다(먼저 보고 싶은 것은 점수다). 바로 아래가 맞다.
@@ -420,102 +608,47 @@ export default function ExamResultScreen({ examId, onBack, onHome }: ExamResultS
             </Text>
           </View>
         )}
-
-        <Text style={[styles.sectionLabel, { color: colors.text }]}>{t('문제 다시 보기')}</Text>
-
-        {record.questions.map((question, index) => {
-          const answer = answers[index];
-          const correct = answer === question.answerIndex;
-          const skipped = answer === null || answer === undefined;
-          const isReported = reported.has(question.id);
-          return (
-            <View
-              key={question.id}
-              style={[styles.reviewCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-            >
-              <View style={styles.reviewHead}>
-                <MaterialIcons
-                  name={correct ? 'check-circle' : skipped ? 'remove-circle-outline' : 'cancel'}
-                  size={18}
-                  color={correct ? colors.success : skipped ? colors.textTertiary : colors.dangerText}
-                />
-                <Text style={[styles.reviewWord, { color: colors.text }]}>{question.word}</Text>
-              </View>
-
-              <Text style={[styles.reviewPrompt, { color: colors.text }]}>{question.prompt}</Text>
-
-              {question.choices.map((choice, choiceIndex) => {
-                const isAnswer = choiceIndex === question.answerIndex;
-                const isMine = choiceIndex === answer;
-                return (
-                  <View
-                    key={`${question.id}-r-${choiceIndex}`}
-                    style={[
-                      styles.reviewChoice,
-                      isAnswer && { backgroundColor: colors.successBg },
-                      !isAnswer && isMine && { backgroundColor: colors.dangerBg },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.reviewChoiceText,
-                        { color: colors.textSecondary },
-                        isAnswer && { color: colors.successText, fontWeight: '700' },
-                        !isAnswer && isMine && { color: colors.dangerText },
-                      ]}
-                    >
-                      {choice}
-                    </Text>
-                    {isMine && (
-                      <Text style={[styles.reviewTag, { color: colors.textTertiary }]}>
-                        {t('내 답')}
-                      </Text>
-                    )}
-                  </View>
-                );
-              })}
-
-              {/* ⚠ 해설은 `null` 일 수 있다 — 그 언어로 아직 만들어지지 않은 문제다. 칸을 비워 둔다 */}
-              {question.meaning !== null && (
-                <Text style={[styles.reviewMeaning, { color: colors.text }]}>
-                  {t('뜻')}: {question.meaning}
-                </Text>
-              )}
-              {question.explanation !== null && (
-                <Text style={[styles.reviewExplanation, { color: colors.textSecondary }]}>
-                  {question.explanation}
-                </Text>
-              )}
-
-              <TouchableOpacity
-                style={styles.reportButton}
-                onPress={() => void handleReport(question.id)}
-                disabled={isReported || reporting !== null}
-                accessibilityRole="button"
-                accessibilityLabel={t('이 문제가 틀렸어요')}
-              >
-                {reporting === question.id ? (
-                  <ActivityIndicator size="small" color={colors.textTertiary} />
-                ) : (
-                  <Text style={[styles.reportText, { color: isReported ? colors.success : colors.textTertiary }]}>
-                    {isReported ? t('신고했어요') : t('이 문제가 틀렸어요')}
-                  </Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          );
-        })}
-      </ScrollView>
+        </ScrollView>
+      )}
 
       <View style={[styles.footer, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
-        <TouchableOpacity
-          style={[styles.homeButton, { backgroundColor: colors.primaryStrong }]}
-          onPress={onHome}
-          accessibilityRole="button"
-        >
-          <Text style={styles.homeButtonText}>{t('홈으로')}</Text>
-        </TouchableOpacity>
+        {stage === 'review' && (
+          <>
+            {/* 어디쯤인지 — 점이 아니라 숫자다. 20개까지 갈 수 있어 점은 못 센다 */}
+            <Text style={[styles.pageCount, { color: colors.textSecondary }]}>
+              {t('틀린 문제 {{now}} / {{total}}', { now: page + 1, total: wrongIndexes.length })}
+            </Text>
+            <TouchableOpacity
+              style={[styles.homeButton, { backgroundColor: colors.primaryStrong }]}
+              onPress={() => setStage('pick')}
+              accessibilityRole="button"
+            >
+              <Text style={styles.homeButtonText}>
+                {candidates.length > 0 ? t('새 단어 보기') : t('홈으로')}
+              </Text>
+            </TouchableOpacity>
+          </>
+        )}
+        {stage !== 'review' && (
+          <TouchableOpacity
+            style={[styles.homeButton, { backgroundColor: colors.primaryStrong }]}
+            onPress={onHome}
+            accessibilityRole="button"
+          >
+            <Text style={styles.homeButtonText}>{t('홈으로')}</Text>
+          </TouchableOpacity>
+        )}
       </View>
+
+      {/* 전체 문제 — 접어 둔 것 */}
+      <BottomSheet
+        visible={allOpen}
+        onClose={() => setAllOpen(false)}
+        title={t('전체 {{count}}문제', { count: record.questions.length })}
+        maxHeightRatio={0.9}
+      >
+        {record.questions.map(questionCard)}
+      </BottomSheet>
 
       {/*
         날아가는 알약 (시안 #13). 🔴 **맨 위에, 그리고 Toast 보다 아래**에 둔다 —
@@ -531,6 +664,14 @@ export default function ExamResultScreen({ examId, onBack, onHome }: ExamResultS
 }
 
 const styles = StyleSheet.create({
+  headRight: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
+  headAll: { fontSize: FONT.label, fontWeight: '700' },
+  /** 점수만 있는 화면 — 가운데 세운다 */
+  stageCenter: { flex: 1, justifyContent: 'center', padding: SPACING.lg },
+  /** 오답노트 한 페이지 */
+  pageContent: { padding: SPACING.lg, paddingBottom: SPACING.xl },
+  pageCount: { fontSize: FONT.caption, fontWeight: '600', textAlign: 'center', marginBottom: SPACING.sm },
+
   container: { flex: 1 },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scrollView: { flex: 1 },

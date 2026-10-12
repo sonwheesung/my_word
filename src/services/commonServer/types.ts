@@ -148,6 +148,18 @@ export interface ExamQuestion {
   explanation: string | null;
 }
 
+/**
+ * 접수증 하나를 물어본 결과 (2026-10-12).
+ *
+ * 🔴 `pending` 은 **아직 만드는 중**이다. 에러가 아니다 — 앱은 기다리거나 나가면 된다.
+ * ⚠ 서버가 6분 넘게 `pending` 인 접수증을 `failed('unavailable')` 로 바꿔 읽는다
+ *   (`AI_EXAM_SYSTEM.md` §4.5). **앱이 따로 시간을 재지 않는다** — 두 곳에서 재면 어긋난다.
+ */
+export type ExamJobStatus =
+  | { status: 'pending' }
+  | { status: 'done'; exam: ExamResponse }
+  | { status: 'failed'; reason: string };
+
 export interface ExamResponse {
   ok: true;
   examId: string | null;
