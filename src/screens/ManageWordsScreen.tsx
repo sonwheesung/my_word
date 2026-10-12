@@ -47,6 +47,17 @@ interface ManageWordsScreenProps {
   onImportWords: () => void;
 }
 
+/**
+ * 「…」 메뉴 항목. ⚠ **가끔 쓰는 것만** 넣는다 — 매일 쓰는 「단어 추가」는 떠 있는 ＋ 버튼이다.
+ * 🔴 개수에 상한이 없다(시트다). 그래도 늘릴 때마다 *정말 가끔 쓰는 것인가*를 먼저 묻는다.
+ */
+const MORE_MENU = [
+  { key: 'share-all', label: '전체 공유', icon: 'content-copy' },
+  { key: 'share-pick', label: '골라서 공유', icon: 'checklist' },
+  { key: 'import', label: '단어 받기 (CSV)', icon: 'file-download' },
+  { key: 'manage-category', label: '카테고리 관리', icon: 'folder' },
+] as const;
+
 export default function ManageWordsScreen({
   onBack,
   onAddWord,
@@ -327,15 +338,19 @@ export default function ManageWordsScreen({
    * ⚠ **가끔 쓰는 것만** 넣는다. 매일 쓰는 「단어 추가」는 떠 있는 ＋ 버튼으로 따로 있다 —
    *   메뉴 안에 넣으면 가장 자주 하는 일이 두 번 누르는 일이 된다.
    */
-  const showMoreMenu = useCallback(() => {
-    Alert.alert(t('단어장'), undefined, [
-      { text: t('전체 공유'), onPress: handleShareAll },
-      { text: t('골라서 공유'), onPress: () => setIsSelectMode(true) },
-      { text: t('단어 받기 (CSV)'), onPress: onImportWords },
-      { text: t('카테고리 관리'), onPress: onManageCategories },
-      { text: t('취소'), style: 'cancel' },
-    ]);
-  }, [handleShareAll, onImportWords, onManageCategories, t]);
+  /*
+   * 🔴 **`Alert` 로 만들지 않는다**(2026-10-12 실기기에서 당했다).
+   *    안드로이드 `AlertDialog` 는 버튼을 **3개까지만** 받고 RN 은 넘는 것을 **조용히 버린다** —
+   *    경고도 타입 오류도 없다. 다섯 번째였던 `취소`가 사라져 **뒤로가기도 바깥 탭도 안 먹는
+   *    막다른 상태**가 됐다. 나가려면 앱을 강제 종료해야 했다.
+   *    → 항목이 넷 이상인 메뉴는 `BottomSheet` 다. `__tests__/alertButtons.test.ts` 가 기계로 막는다.
+   */
+  const [moreOpen, setMoreOpen] = useState(false);
+  /** 시트를 닫고 **닫힌 뒤에** 실행한다 — 시트가 떠 있는 채로 다음 화면이 열리면 겹친다 */
+  const runFromMenu = useCallback((fn: () => void) => {
+    setMoreOpen(false);
+    fn();
+  }, []);
 
   if (loading) {
     return (
@@ -402,7 +417,7 @@ export default function ManageWordsScreen({
                  매일 쓰는 것(단어 보기 · 추가)에 자리를 준다.
             */
             <TouchableOpacity
-              onPress={showMoreMenu}
+              onPress={() => setMoreOpen(true)}
               style={styles.moreButton}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               accessibilityRole="button"
@@ -570,6 +585,31 @@ export default function ManageWordsScreen({
         </TouchableOpacity>
       )}
 
+      {/* 「…」 메뉴 — 🔴 Alert 가 아니다(위 showMoreMenu 주석) */}
+      <BottomSheet visible={moreOpen} onClose={() => setMoreOpen(false)} title={t('단어장')}>
+        {MORE_MENU.map((item) => (
+          <TouchableOpacity
+            key={item.key}
+            style={[styles.menuRow, { borderBottomColor: colors.border }]}
+            onPress={() =>
+              runFromMenu(
+                item.key === 'share-all'
+                  ? handleShareAll
+                  : item.key === 'share-pick'
+                    ? () => setIsSelectMode(true)
+                    : item.key === 'import'
+                      ? onImportWords
+                      : onManageCategories,
+              )
+            }
+            accessibilityRole="button"
+          >
+            <MaterialIcons name={item.icon} size={22} color={colors.primary} />
+            <Text style={[styles.menuText, { color: colors.text }]}>{t(item.label)}</Text>
+          </TouchableOpacity>
+        ))}
+      </BottomSheet>
+
       {/* 단어 상세 — 시트 */}
       <BottomSheet
         visible={!!selectedWord}
@@ -684,6 +724,15 @@ export default function ManageWordsScreen({
 }
 
 const styles = StyleSheet.create({
+  menuRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+    paddingVertical: SPACING.lg,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  menuText: { fontSize: FONT.body, fontWeight: '600' },
+
   flex: {
     flex: 1,
   },

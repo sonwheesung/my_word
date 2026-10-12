@@ -1,8 +1,11 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-
 import { parseLastCategory, pickDefaultCategory } from '../src/services/categoryService';
 import type { Category } from '../src/types/word';
+
+// ⚠ 이 저장소의 소스검사 테스트가 쓰는 모양 그대로다(`quizOrder.test.ts`).
+//   `node:fs` 로 쓰면 `npx tsc --noEmit` 이 타입을 못 찾는다 — jest 는 babel 이라 그냥 돈다.
+declare const __dirname: string;
+const fs = require('fs') as { readFileSync(p: string, enc: string): string };
+const path = require('path') as { join(...parts: string[]): string };
 
 /**
  * 🔴 **단어 추가 화면이 매번 첫 카테고리로 되돌아가던 결함**(2026-10-12 사장님 제보).
@@ -80,7 +83,7 @@ describe('parseLastCategory — 어떤 입력에도 던지지 않는다', () => 
  * ⚠ 주석은 걷어낸다 — **내 주석이 옛 코드를 인용**하고 있어서, 안 걷으면 가드가 통과한다.
  */
 describe('AddWordScreen 이 실제로 쓰는가 (소스 검사)', () => {
-  const src = readFileSync(join(__dirname, '..', 'src', 'screens', 'AddWordScreen.tsx'), 'utf8')
+  const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'screens', 'AddWordScreen.tsx'), 'utf8')
     .replace(/\/\*[\s\S]*?\*\//g, '')
     .replace(/\/\/.*$/gm, '');
 
