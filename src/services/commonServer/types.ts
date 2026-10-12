@@ -1,8 +1,10 @@
 // 공통 서버 클라이언트 SDK — 타입.
-//
-// ⚠️ 원본: common_server/client/types.ts 에서 복사 (2026-10-08, SDK_VERSION 2026-10-08).
+// ⚠️ 원본: common_server/client/types.ts 에서 복사 (2026-10-12, SDK_VERSION 2026-10-12.2).
 //    이 파일은 손으로 고치지 말 것 — 서버 계약이 바뀌면 원본을 갱신하고 다시 복사한다.
 //    (앱 4~5개 규모엔 monorepo·npm 패키지 오버헤드가 이득보다 크다는 판단)
+//
+//
+//    이 파일은 손으로 고치지 말 것 — 서버 계약이 바뀌면 원본을 갱신하고 다시 복사한다.
 //
 // 이 폴더는 각 앱의 `src/services/commonServer/`로 **복사해서** 쓴다(앱 4~5개 규모에선 monorepo·npm 패키지
 // 오버헤드가 이득보다 크다). 복사본에는 어느 버전에서 가져왔는지 주석을 남긴다.
@@ -176,4 +178,19 @@ export interface ExamResponse {
    * ⚠ **에러가 아니다.** 시험은 정상으로 나왔고 창고에서만 낸 것이다.
    */
   degraded: string | null;
+}
+
+/**
+ * 동기화·복구가 다르게 다루는 네 종류 (SDK 2026-10-12.2).
+ *
+ * 🔴 이름이 그대로 쿼리로 간다(`?kind=`). 바꾸면 서버와 어긋난다.
+ */
+export type SyncKind = 'words' | 'categories' | 'results' | 'exams';
+
+/** 서버가 들고 있는 개수. 복구 화면의 「서버」 칸이 이 값이다 */
+export interface SyncCounts {
+  words: number;
+  categories: number;
+  results: number;
+  exams: number;
 }

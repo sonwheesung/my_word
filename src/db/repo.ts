@@ -7,7 +7,11 @@
  * 🔴 **동작을 바꾸지 않는다. 저장 엔진만 바꾼다.**
  *    이번 전환의 목표는 엔진 교체이지 모델 재설계가 아니다. 한 번에 둘을 바꾸면 깨졌을 때
  *    어느 쪽인지 모른다. 그래서:
- *    - 삭제는 지금처럼 **진짜 지운다**(soft delete 아님). `deleted_at` 칸은 동기화가 쓸 자리로 비워 둔다
+ *    - ~~삭제는 지금처럼 **진짜 지운다**(soft delete 아님). `deleted_at` 칸은 동기화가 쓸 자리로 비워 둔다~~
+ *      → 🔴 **2026-10-12 에 묘비로 바꿨다.** 서버 복구를 켜는 순간 하드 삭제는 버그가 된다 —
+ *        *"지웠다"* 는 사실이 남지 않아 밀 것이 없고, **당기면 지운 것이 되살아난다.**
+ *        읽는 쪽은 처음부터 `deleted_at IS NULL` 을 걸고 있었으므로 바꾼 곳은 지우는 둘뿐이다.
+ *        `docs/SERVER_RESTORE_PLAN.md` §4
  *    - id 는 여전히 `@my_word_next_id`(AsyncStorage) 가 발급한다 — 백업의 `repairNextId` 가
  *      그 값을 고쳐 주는 구조라 건드리면 그쪽이 같이 흔들린다
  *    - 뜻 · 예문 · 태그는 JSON 문자열 그대로 둔다
@@ -41,6 +45,8 @@ interface CategoryRow {
   display_order: number;
   created_at: string;
   updated_at: string;
+  /** 묘비. 🔴 화면이 쓰는 함수는 전부 `deleted_at IS NULL` 을 걸고, `syncRepo` 만 이걸 본다 */
+  deleted_at: string | null;
 }
 
 interface WordRow {
@@ -54,6 +60,8 @@ interface WordRow {
   language: string | null;
   created_at: string;
   updated_at: string;
+  /** 묘비. 🔴 화면이 쓰는 함수는 전부 `deleted_at IS NULL` 을 걸고, `syncRepo` 만 이걸 본다 */
+  deleted_at: string | null;
 }
 
 interface ResultRow {
@@ -137,11 +145,28 @@ export const categoryRepo = {
   /**
    * 🔴 카테고리를 지우면 그 안의 단어도 같이 지운다 — 지금 동작과 같다.
    *    한 트랜잭션으로 묶어 **카테고리만 사라지고 단어가 떠도는 상태**를 만들지 않는다.
+   *
+   * 🔴 **행을 지우지 않고 묘비를 세운다**(2026-10-12 · `docs/SERVER_RESTORE_PLAN.md` §4).
+   *    서버 복구를 켜는 순간 하드 삭제는 버그가 된다 — *"지웠다"* 는 사실이 남지 않아
+   *    서버에 갈 것이 없고, **당기면 지운 것이 되살아난다.**
+   *    ⚠ 읽는 쪽은 손대지 않았다. `getAll`·`getById` 가 **이미** `deleted_at IS NULL` 을 건다.
    */
-  delete(db: SqlDriver, id: number): void {
+  delete(db: SqlDriver, id: number, now: string): void {
     db.tx(() => {
-      db.run('DELETE FROM words WHERE category_id = ?', [id]);
-      db.run('DELETE FROM categories WHERE category_id = ?', [id]);
+      /*
+       * 🔴 `updated_at` 을 **같이 올린다.** 밀기가 `lastUpdatedAt` 이후에 바뀐 것만 보내므로,
+       *    안 올리면 묘비가 **영원히 안 밀린다** — 오류도 없이 서버에만 살아 있게 된다.
+       */
+      db.run('UPDATE words SET deleted_at = ?, updated_at = ? WHERE category_id = ? AND deleted_at IS NULL', [
+        now,
+        now,
+        id,
+      ]);
+      db.run('UPDATE categories SET deleted_at = ?, updated_at = ? WHERE category_id = ? AND deleted_at IS NULL', [
+        now,
+        now,
+        id,
+      ]);
     });
   },
 
@@ -220,8 +245,13 @@ export const wordRepo = {
     return wordRepo.getById(db, id);
   },
 
-  delete(db: SqlDriver, id: number): void {
-    db.run('DELETE FROM words WHERE word_id = ?', [id]);
+  /** 🔴 묘비를 세운다 — 이유는 `categoryRepo.delete` 주석과 같다 */
+  delete(db: SqlDriver, id: number, now: string): void {
+    db.run('UPDATE words SET deleted_at = ?, updated_at = ? WHERE word_id = ? AND deleted_at IS NULL', [
+      now,
+      now,
+      id,
+    ]);
   },
 };
 
@@ -451,5 +481,109 @@ export const backupRepo = {
         }
       }
     });
+  },
+};
+// ── 백업·복구 (2026-10-12 · `docs/SERVER_RESTORE_PLAN.md`) ──────────────────
+
+/** 밀기가 보내는 단어 한 줄. 🔴 `deletedAt` 이 들어 있다 — 그게 묘비를 만든 이유다 */
+export interface SyncWordRow {
+  wordId: number;
+  categoryId: number | null;
+  word: string;
+  meanings: string[];
+  language: string | null;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+}
+
+/** 밀기가 보내는 카테고리 한 줄 */
+export interface SyncCategoryRow {
+  categoryId: number;
+  categoryName: string;
+  description: string | null;
+  displayOrder: number;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+}
+
+/**
+ * 밀기가 읽는 곳. **`wordRepo`·`categoryRepo` 와 일부러 분리했다.**
+ *
+ * 🔴 **여기만 묘비를 본다.** 화면이 쓰는 `getAll` 은 `deleted_at IS NULL` 을 걸어야 하고,
+ *    밀기는 반대로 묘비를 **보내야** 한다. 한 함수에 플래그를 달아 둘을 겸하게 만들면
+ *    언젠가 화면이 지운 단어를 보여 준다 — 그 실수는 조용하고, 사용자에게는 버그로 보인다.
+ */
+export const syncRepo = {
+  /** 묘비 포함. 오래 바뀐 것부터 — 중간에 끊겨도 커서가 앞으로만 간다 */
+  words(db: SqlDriver): SyncWordRow[] {
+    return db
+      .all<WordRow>('SELECT * FROM words ORDER BY updated_at, word_id')
+      .map((r) => ({
+        wordId: r.word_id,
+        categoryId: r.category_id,
+        word: r.word,
+        meanings: arr(r.meanings),
+        language: r.language,
+        createdAt: r.created_at,
+        updatedAt: r.updated_at,
+        deletedAt: r.deleted_at,
+      }));
+  },
+
+  categories(db: SqlDriver): SyncCategoryRow[] {
+    return db
+      .all<CategoryRow>('SELECT * FROM categories ORDER BY display_order, category_id')
+      .map((r) => ({
+        categoryId: r.category_id,
+        categoryName: r.category_name,
+        description: r.description,
+        displayOrder: r.display_order,
+        createdAt: r.created_at,
+        updatedAt: r.updated_at,
+        deletedAt: r.deleted_at,
+      }));
+  },
+
+  /**
+   * 퀴즈 결과 — 밀기가 보내는 모양. 🔴 **단어·정답·내 답은 보내지 않는다**(사적인 내용이다).
+   *
+   * ⚠ 묘비가 없다. 푼 기록은 한 번 쓰이면 바뀌지도 지워지지도 않는다.
+   */
+  results(db: SqlDriver): Array<{
+    resultId: number;
+    wordId: number;
+    isCorrect: boolean;
+    quizType: string;
+    answerType: string | null;
+    takenAt: string;
+  }> {
+    return db
+      .all<ResultRow>('SELECT * FROM quiz_results ORDER BY result_id')
+      .map((r) => ({
+        resultId: r.result_id,
+        wordId: r.word_id,
+        isCorrect: r.is_correct === 1,
+        quizType: r.quiz_type,
+        answerType: r.answer_type,
+        takenAt: r.taken_at,
+      }));
+  },
+
+  /**
+   * 살아 있는 개수 — 서버가 돌려주는 수와 맞춰 보는 값이다(`needsRewind`).
+   *
+   * ⚠ 묘비를 빼고 센다. 서버의 `countKind` 도 묘비를 빼고 센다. **두 쪽이 같은 것을 세야**
+   *   되감기 판정이 성립한다 — 한쪽만 묘비를 세면 영원히 되감는다.
+   */
+  aliveCounts(db: SqlDriver): { words: number; categories: number; results: number; exams: number } {
+    const one = (sql: string): number => db.get<{ n: number }>(sql)?.n ?? 0;
+    return {
+      words: one('SELECT count(*) AS n FROM words WHERE deleted_at IS NULL'),
+      categories: one('SELECT count(*) AS n FROM categories WHERE deleted_at IS NULL'),
+      results: one('SELECT count(*) AS n FROM quiz_results'),
+      exams: one('SELECT count(*) AS n FROM exams'),
+    };
   },
 };

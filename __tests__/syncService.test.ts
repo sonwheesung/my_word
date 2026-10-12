@@ -1,10 +1,13 @@
 /**
  * 단어 밀기 검증. 순수 함수와, 소스를 훑는 규칙 하나를 다룬다.
  *
- * 🔴 이 파일이 지키는 가장 무거운 약속: **밀기만 한다.**
- *    서버에서 단어를 당겨 오지 않는다. 당기면 재설치한 사용자가 "서버엔 있는데 내 기기엔
- *    없는" 상태를 보게 되고, 그 순간 서버가 복구 수단인 척하게 된다 — 실제로는 아니다
- *    (기기 식별자가 앱 삭제로 사라지므로). 복구는 백업 파일이 한다.
+ * 🔴 이 파일이 지키는 가장 무거운 약속: **이 서비스는 밀기만 한다.**
+ *
+ * ⚠ **2026-10-12 에 당기기가 생겼다. 그런데 이 약속은 그대로다.**
+ *   당기기는 `restoreService` 에 따로 두었다(`__tests__/restoreService.test.ts`) —
+ *   미는 쪽은 부팅마다 조용히 돌고, 당기는 쪽은 **사용자가 고른 순간에만** 돈다.
+ *   한 서비스에 섞으면 자동 경로가 언젠가 기기를 덮어쓸 수 있고, 그 사고는 조용하다.
+ *   그래서 여기서는 여전히 "당기는 호출이 없다"를 본다.
  *
  * 두 번째 약속: **사적인 칸을 안 보낸다.** 메모·예문·태그는 분석에 쓰지 않는데 사적이다.
  */
@@ -101,8 +104,23 @@ describe('🔴 toPayload — 사적인 칸을 안 보낸다', () => {
     expect(asText).not.toContain('사적인 메모');
     expect(asText).not.toContain('사적인 예문');
     expect(asText).not.toContain('비밀');
+    /*
+     * 🔴 `deletedAt` 은 2026-10-12 에 더했다. **사적인 칸이 아니라 「지웠다」는 사실이다.**
+     *    없으면 복구가 지운 단어를 되살린다 — 서버에는 그 줄이 남아 있기 때문이다.
+     *    목록을 **정확히** 맞추는 이 검사가 이 파일의 핵심이다. 칸을 더하려면 여기를 고쳐야 하고,
+     *    고치려면 그 칸이 사적인지 한 번 생각하게 된다.
+     */
     expect(Object.keys(payload).sort()).toEqual(
-      ['categoryId', 'createdAt', 'language', 'meanings', 'updatedAt', 'word', 'wordId'].sort(),
+      [
+        'categoryId',
+        'createdAt',
+        'deletedAt',
+        'language',
+        'meanings',
+        'updatedAt',
+        'word',
+        'wordId',
+      ].sort(),
     );
   });
 
@@ -140,6 +158,8 @@ describe('parseState — 어떤 입력에도 던지지 않는다', () => {
       serverTotal: 12,
       // 옛 저장본에는 없는 칸이다 — 없으면 null 로 읽어야 한다(2026-10-07 추가)
       rewoundFor: null,
+      // 종류별 장부도 옛 저장본에 없다 — 없으면 빈 객체다(2026-10-12 추가)
+      kinds: {},
     });
   });
 
@@ -172,11 +192,16 @@ describe('🔴 밀기만 한다 (소스 훑기)', () => {
     }
   });
 
-  it('🔴 서버에서 단어를 당겨 오는 호출이 없다', () => {
+  it('🔴 서버에서 당겨 오는 호출이 없다', () => {
     const src = stripComments(read('src/services/syncService.ts'));
-    // SDK 에서 쓰는 것은 밀기 하나뿐이어야 한다
+    /*
+     * SDK 에서 쓰는 것은 **미는 둘**뿐이어야 한다.
+     * 🔴 `syncPull` · `syncCounts` 가 이 목록에 들어오면 FAIL 이다 — 그 둘은 `restoreService` 의 것이다.
+     */
     const calls = src.match(/commonServer\.\w+/g) ?? [];
-    expect(new Set(calls)).toEqual(new Set(['commonServer.isConfigured', 'commonServer.syncWords']));
+    expect(new Set(calls)).toEqual(
+      new Set(['commonServer.isConfigured', 'commonServer.syncWords', 'commonServer.syncPush']),
+    );
   });
 
   it('🔴 단어를 쓰지 않는다 — 이 서비스는 읽기만 한다', () => {

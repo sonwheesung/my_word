@@ -1,8 +1,10 @@
 // 공통 서버 클라이언트 SDK.
-//
-// ⚠️ 원본: common_server/client/index.ts 에서 복사 (2026-10-08, SDK_VERSION 2026-10-08).
+// ⚠️ 원본: common_server/client/index.ts 에서 복사 (2026-10-12, SDK_VERSION 2026-10-12.2).
 //    이 파일은 손으로 고치지 말 것 — 서버 계약이 바뀌면 원본을 갱신하고 다시 복사한다.
 //    (앱 4~5개 규모엔 monorepo·npm 패키지 오버헤드가 이득보다 크다는 판단)
+//
+//
+//    이 파일은 손으로 고치지 말 것 — 서버 계약이 바뀌면 원본을 갱신하고 다시 복사한다.
 //
 // 이 모듈은 **throw 하지 않는다**. 네트워크가 끊겨 있든 서버가 없든 화면은 조용히 안내만 하면 되므로,
 // 실패를 타입으로 돌려준다(호출부에서 try/catch를 강제하지 않는다).
@@ -18,6 +20,8 @@ import type {
   Result,
   Subject,
   SupportCategory,
+  SyncCounts,
+  SyncKind,
 } from './types';
 
 // types.ts에는 런타임 값이 하나도 없다. `export *`로 두면 실제 import가 남아 소비자 번들에
@@ -25,7 +29,7 @@ import type {
 export type * from './types';
 
 /** 앱에 복사할 때 이 값을 복사본 주석에 남긴다 — 서버 계약이 바뀌었는지 판단하는 유일한 단서다. */
-export const SDK_VERSION = '2026-10-12'; // 시험 접수증(startExam · examJob) 추가. 앞판은 단어 밀기. 추가만이라 쓰는 앱만 재복사한다(지금은 My Word)
+export const SDK_VERSION = '2026-10-12.2'; // 동기화 네 종류(syncPush · syncPull · syncCounts) 추가. 앞판은 시험 접수증. 🔴 새 이름만 더하므로 추가만이다 — 쓰는 앱만 재복사한다(지금은 My Word)
 
 const DEFAULT_TIMEOUT_MS = 10000;
 
@@ -659,6 +663,123 @@ export function createCommonServer(cfg: CommonServerConfig) {
       try {
         const j = (await res.json()) as { accepted?: number; dropped?: number; total?: number };
         return { ok: true, accepted: j.accepted ?? 0, dropped: j.dropped ?? 0, total: j.total ?? 0 };
+      } catch {
+        return { ok: false, reason: 'error' };
+      }
+    },
+    /**
+     * 학습 데이터 밀기 — **종류별로** (SDK 2026-10-12.2).
+     *
+     * 🔴 `syncWords` 는 **그대로 남는다.** 그걸 부르는 번들이 이미 기기에 깔려 있고,
+     *    서버도 두 라우트를 같은 구현(`lib/sync.ts`)으로 받는다.
+     *    새 번들은 네 종류를 전부 이 함수로 보낸다.
+     *
+     * ⚠ 한 번에 보낼 수 있는 개수는 서버가 정한다(`results` 1000 · 나머지 500).
+     *   넘기면 `error` 가 아니라 400 이 오고, 그건 앱이 나누지 않았다는 뜻이다.
+     */
+    async syncPush(
+      kind: SyncKind,
+      items: readonly unknown[],
+    ): Promise<Result<{ accepted: number; dropped: number; total: number }>> {
+      if (!baseUrl) return { ok: false, reason: 'not-configured' };
+      if (!(await loadToken())) return { ok: false, reason: 'not-signed-in' };
+
+      const res = await req(
+        '/api/v1/sync/push',
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ app: cfg.appCode, kind, items }),
+        },
+        true,
+      );
+      if (!res) return { ok: false, reason: 'offline' };
+      if (res.status === 401) {
+        await setSession(null, null);
+        return { ok: false, reason: 'unauthorized' };
+      }
+      if (!res.ok) return { ok: false, reason: mapFail(res.status) };
+      try {
+        const j = (await res.json()) as { accepted?: number; dropped?: number; total?: number };
+        return { ok: true, accepted: j.accepted ?? 0, dropped: j.dropped ?? 0, total: j.total ?? 0 };
+      } catch {
+        return { ok: false, reason: 'error' };
+      }
+    },
+
+    /**
+     * 복구 — 한 페이지 당긴다 (SDK 2026-10-12.2).
+     *
+     * 🔴 **이 SDK 에서 처음으로 서버 내용을 기기로 가져오는 함수다.** 지금까지는 밀기만 했다.
+     *    `items` 를 **해석하지 않고 그대로** 넘긴다 — 모양을 아는 것은 앱이고, 여기서 풀면
+     *    서버 계약이 바뀔 때 SDK 와 앱 두 곳을 고쳐야 한다.
+     *
+     * ⚠ `nextAfter` 가 `null` 이면 끝이다. 앱이 그걸로 루프를 멈춘다.
+     */
+    async syncPull(
+      kind: SyncKind,
+      after?: number | null,
+      limit?: number,
+    ): Promise<Result<{ items: unknown[]; nextAfter: number | null }>> {
+      if (!baseUrl) return { ok: false, reason: 'not-configured' };
+      if (!(await loadToken())) return { ok: false, reason: 'not-signed-in' };
+
+      const q = new URLSearchParams({ app: cfg.appCode, kind });
+      if (typeof after === 'number' && after > 0) q.set('after', String(after));
+      if (typeof limit === 'number' && limit > 0) q.set('limit', String(limit));
+
+      const res = await req(`/api/v1/sync/pull?${q.toString()}`, { method: 'GET' }, true);
+      if (!res) return { ok: false, reason: 'offline' };
+      if (res.status === 401) {
+        await setSession(null, null);
+        return { ok: false, reason: 'unauthorized' };
+      }
+      if (!res.ok) return { ok: false, reason: mapFail(res.status) };
+      try {
+        const j = (await res.json()) as { items?: unknown; nextAfter?: unknown };
+        return {
+          ok: true,
+          items: Array.isArray(j.items) ? j.items : [],
+          nextAfter: typeof j.nextAfter === 'number' ? j.nextAfter : null,
+        };
+      } catch {
+        return { ok: false, reason: 'error' };
+      }
+    },
+
+    /**
+     * 서버가 들고 있는 개수 (SDK 2026-10-12.2).
+     *
+     * 🔴 복구 화면이 **아무것도 내려받기 전에** 「가져올 게 있나」를 말해야 한다.
+     *    「이 기기 유지」를 고를 사람에게 수천 줄을 먼저 받게 하지 않기 위한 함수다.
+     */
+    async syncCounts(): Promise<Result<{ counts: SyncCounts }>> {
+      if (!baseUrl) return { ok: false, reason: 'not-configured' };
+      if (!(await loadToken())) return { ok: false, reason: 'not-signed-in' };
+
+      const res = await req(
+        `/api/v1/sync/counts?app=${encodeURIComponent(cfg.appCode)}`,
+        { method: 'GET' },
+        true,
+      );
+      if (!res) return { ok: false, reason: 'offline' };
+      if (res.status === 401) {
+        await setSession(null, null);
+        return { ok: false, reason: 'unauthorized' };
+      }
+      if (!res.ok) return { ok: false, reason: mapFail(res.status) };
+      try {
+        const j = (await res.json()) as { counts?: Partial<SyncCounts> };
+        const n = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
+        return {
+          ok: true,
+          counts: {
+            words: n(j.counts?.words),
+            categories: n(j.counts?.categories),
+            results: n(j.counts?.results),
+            exams: n(j.counts?.exams),
+          },
+        };
       } catch {
         return { ok: false, reason: 'error' };
       }

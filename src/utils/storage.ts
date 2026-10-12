@@ -181,7 +181,7 @@ export const categoryStorage = {
     if (db !== null) {
       // 🔴 카테고리와 그 안의 단어를 **한 트랜잭션으로** 지운다(repo 주석) —
       //    카테고리만 사라지고 단어가 떠도는 상태를 만들지 않는다
-      categoryRepo.delete(db, id);
+      categoryRepo.delete(db, id, new Date().toISOString());
       return;
     }
     let categories = await this.getAll();
@@ -286,7 +286,7 @@ export const wordStorage = {
   async delete(id: number): Promise<void> {
     const db = getDb();
     if (db !== null) {
-      wordRepo.delete(db, id);
+      wordRepo.delete(db, id, new Date().toISOString());
       return;
     }
     let words = await this.getAll();

@@ -95,23 +95,44 @@ Screen → Service → utils/storage.ts (AsyncStorage / localStorage)
 `generateExam` 만 타임아웃이 **120초**다 — 기본 10초로는 서버가 멀쩡히 문제를 만드는 동안 앱이 abort 하고
 `offline` 이라고 말한다(그 호출의 원가는 이미 나갔으므로 가장 나쁜 실패다).
 
-## syncService.ts (단어 밀기)
+## syncService.ts (학습 데이터 밀기)
 
 | 함수 | 반환 | 설명 |
 |------|------|------|
 | `syncService.pushOnce()` | `{pushed, remaining, reason?}` | **던지지 않는다.** 실패하면 다음 기회에 다시 민다 |
 | `syncService.loadState()` · `saveState(s)` | `SyncState` | 저장 실패는 삼킨다 |
-| `pickChanged(words, since, limit?)` | `Word[]` | 순수 함수. 🔴 경계를 **`>=`** 로 본다 — `>` 면 같은 밀리초의 단어를 영원히 빠뜨린다 |
-| `toPayload(words)` | 서버 모양 | 🔴 **메모·예문·태그를 안 담는다** |
+| `syncService.pushRest()` | `[{kind, pushed, reason?}]` | 카테고리·결과·시험. 🔴 `ENABLED_KINDS` 밖은 쳐다보지 않는다 |
+| `pickChanged(words, since, limit?)` | `PushableWord[]` | 순수 함수. 🔴 경계를 **`>=`** 로 본다 — `>` 면 같은 밀리초의 단어를 영원히 빠뜨린다 |
+| `pickResults(results, after, limit)` | 결과 배열 | 순수 함수. ⚠ 경계가 **`>`** 다 — 푼 기록은 바뀌지 않으므로 다시 보낼 이유가 없다 |
+| `toPayload(words)` | 서버 모양 | 🔴 **메모·예문·태그를 안 담는다.** `deletedAt` 은 담는다(묘비) |
+| `fingerprint(json)` | `string` | 순수 함수. 작고 통째로 미는 종류(카테고리·시험)가 "바뀌었나"를 판정한다 |
+| `wordsForPush()` | `PushableWord[]` | 🔴 **묘비를 포함해** 읽는다(`syncRepo`). `wordService.getWords()` 로는 못 본다 |
+| `isEnabled(kind)` | `boolean` | 공시된 종류인가 |
 | `needsRewind(state, localCount)` | `boolean` | 순수 함수. 🔴 **서버가 나보다 적게 들고 있으면 장부를 되감는다**(아래) |
 | `parseState(raw)` | `SyncState` | 어떤 입력에도 throw 하지 않는다 |
 
 🔴 **기기가 정본이고 서버는 사본이자 분석 창고다**(mission 기둥 6 승계). 이 서비스가 통째로
 실패해도 사용자는 아무것도 잃지 않으므로 **실패를 화면에 띄우지 않는다.**
 
-🔴 **밀기만 한다.** 당기기(서버 → 기기)가 없다 — 신원이 기기 식별자뿐이라 앱을 지우면 사라지고,
-서버를 복구 수단으로 쓰면 재설치한 사용자가 *"서버엔 있는데 내 기기엔 없는"* 최악을 겪는다.
-복구는 백업 파일이 한다. `__tests__/syncService.test.ts` 가 소스를 읽어 이 규칙을 지킨다.
+🔴 **이 서비스는 밀기만 한다.** 당기기는 `restoreService` 에 따로 있다(아래) —
+미는 쪽은 부팅마다 조용히 돌고 당기는 쪽은 사용자가 고른 순간에만 돈다. 섞으면 자동 경로가
+언젠가 기기를 덮어쓸 수 있고 그 사고는 조용하다. `__tests__/syncService.test.ts` 가 소스를 읽어
+이 서비스에 `syncPull`·`syncCounts`·`restoreService` 가 들어오면 FAIL 한다.
+
+### 🔴 밀 수 있는 종류는 **처리방침이 정한다** (2026-10-12)
+
+```
+ENABLED_KINDS = ['words']      ← 지금 이것뿐이다
+```
+
+서버에 표(`user_categories`·`user_quiz_results`·`user_exams`)와 라우트를 다 만들어 두었지만
+**켜지 않았다.** 게시 중인 `privacy-policy.html` 이 *"퀴즈 기록·설정)은 기기 밖으로 나가지
+않습니다"* · *"시험의 점수와 답안은 기기에만 저장되며 서버로 전송되지 않습니다"* 라고 말한다.
+켜는 것은 코드가 아니라 **문서를 고치는 결정**이다(`SERVER_RESTORE_PLAN.md` §8 B 단계).
+
+🔴 `__tests__/syncDisclosure.test.ts` 가 `ENABLED_KINDS` 와 처리방침 본문을 **대조한다.**
+공시되지 않은 종류가 켜져 있으면 FAIL 하고, 그 가드 자신이 0개를 검사하고 초록이 되지 않도록
+*"지금 처리방침은 퀴즈 기록·시험을 부정하고 있다"* 를 함께 확인한다.
 
 🔴 **기기 장부를 서버가 주는 숫자로 의심한다**(2026-10-07 실기기에서 찾았다). 장부는
 *"10:46 까지 다 밀었다"* 인데 서버에는 단어가 **17개 중 1개**뿐이었다. 서버는 매번 자기가 가진
@@ -217,3 +238,31 @@ SDK 에는 로그인 · 권한 · 내 문의 조회도 있지만 이 앱은 쓰�
 | `BACKUP_KEYS` | 백업이 담는 4개 키. `@my_word_ad_free` 와 SecureStore 키는 일부러 없다 |
 | `readRaw(key)` · `writeRaw(key, value)` | 원시 값. 읽기 오류는 null |
 | `clearAllData()` | 본체 4개 키를 지운다 |
+
+## restoreService.ts (서버 복구)
+
+| 함수 | 반환 | 설명 |
+|------|------|------|
+| `restoreService.serverCounts()` | `{counts}` | 🔴 **아무것도 내려받기 전에** 「가져올 게 있나」를 말한다 |
+| `restoreService.fetchAll()` | `{backup, counts}` | 네 종류를 끝까지 당겨 **복원 파일 모양**으로 조립한다. 아직 안 쓴다 |
+| `restoreService.apply(backup)` | — | `backupService.restore` 에 맡긴다 |
+| `toWords` · `toCategories` · `toResults` · `toExams` | 기기 모양 | 순수 함수. 🔴 서버는 `meanings`·`questions`·`attempts`·`score` 를 **JSON 문자열**로 준다 |
+| `nextIdFor(words, categories, results)` | `number` | 🔴 카운터 하나를 셋이 함께 쓴다. 낮게 잡으면 **퀴즈 결과가 엉뚱한 단어에 붙는다** |
+
+🔴 **덮어쓰기지 합치기가 아니다.** 같은 id 가 서로 다른 단어를 가리키는 경우를 다루려면 병합
+코드가 필요하고, 그 코드는 틀렸을 때 조용히 틀린다. 그래서 「이 기기 유지」와 「가져오기」 중
+하나를 사용자가 고른다. 직전 상태는 화면이 `myword-before-restore.json` 으로 남긴다.
+
+🔴 **빈 것으로 기기를 덮지 않는다.** 서버가 0개를 돌려줬을 때 그대로 덮으면 복구가 아니라
+삭제다 — 네트워크가 반쯤 되는 상태에서 실제로 일어날 수 있다. `reason: 'empty'` 로 물러난다.
+
+⚠ **되돌려 주지 못하는 것: 예문 · 태그 · 메모.** 밀기가 그 셋을 보내지 않는다(사적인 내용이다).
+그래서 복구 수단이 둘이고 역할이 다르다:
+
+```
+백업 파일   전부 돌아온다              🚫 파일을 잃으면 끝이다
+서버 복구   단어 · 뜻 · 기록이 돌아온다   ✅ 폰을 잃어도 남아 있다
+```
+
+⚠ 당기는 루프에 **상한(`MAX_PAGES` 200)** 과 **커서 전진 검사**가 있다. 서버가 같은 커서를
+다시 주면 영원히 같은 페이지를 받으며 데이터 요금과 배터리만 쓴다.

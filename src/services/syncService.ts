@@ -1,7 +1,11 @@
 import { SYNC_STATE_KEY } from '../constants/appConfig';
+import { getDb } from '../db';
+import { syncRepo } from '../db/repo';
 import { readRaw, writeRaw } from '../utils/storage';
 import { commonServer, ensureDeviceSession } from './commonServer/client';
+import { examService } from './examService';
 import { wordService } from './wordService';
+import type { SyncKind } from './commonServer/types';
 import type { Word } from '../types/word';
 
 /**
@@ -47,6 +51,12 @@ export interface SyncState {
    *    이것이 없으면 **부팅마다 전부 다시 밀게 된다.**
    */
   rewoundFor: number | null;
+  /**
+   * 종류별 장부 (2026-10-12). **없으면 빈 객체다** — 옛 상태를 읽어도 터지지 않는다.
+   *
+   * ⚠ 단어는 여기 안 들어온다(위 `KindState` 주석).
+   */
+  kinds: Record<string, KindState>;
 }
 
 export const EMPTY_STATE: SyncState = {
@@ -54,6 +64,7 @@ export const EMPTY_STATE: SyncState = {
   lastSyncedAt: null,
   serverTotal: null,
   rewoundFor: null,
+  kinds: {},
 };
 
 /** 🔴 어떤 입력에도 던지지 않는다 — 상태 하나가 깨졌다고 동기화가 멈추면 안 된다 */
@@ -72,7 +83,25 @@ export function parseState(raw: string | null): SyncState {
     lastSyncedAt: typeof o.lastSyncedAt === 'string' ? o.lastSyncedAt : null,
     serverTotal: typeof o.serverTotal === 'number' && Number.isFinite(o.serverTotal) ? o.serverTotal : null,
     rewoundFor: typeof o.rewoundFor === 'number' && Number.isFinite(o.rewoundFor) ? o.rewoundFor : null,
+    kinds: parseKinds(o.kinds),
   };
+}
+
+/** 🔴 어떤 입력에도 던지지 않는다 — 장부 한 칸이 깨졌다고 동기화가 멈추면 안 된다 */
+export function parseKinds(raw: unknown): Record<string, KindState> {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return {};
+  const out: Record<string, KindState> = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof value !== 'object' || value === null) continue;
+    const v = value as Record<string, unknown>;
+    out[key] = {
+      cursor: typeof v.cursor === 'number' && Number.isFinite(v.cursor) ? v.cursor : null,
+      fingerprint: typeof v.fingerprint === 'string' ? v.fingerprint : null,
+      serverTotal:
+        typeof v.serverTotal === 'number' && Number.isFinite(v.serverTotal) ? v.serverTotal : null,
+    };
+  }
+  return out;
 }
 
 /**
@@ -106,22 +135,55 @@ export function needsRewind(state: SyncState, localCount: number): boolean {
  *   빠뜨린다(한 번에 여러 개를 저장하는 가져오기에서 실제로 일어난다).
  *   서버가 멱등이라 같은 것을 다시 밀어도 비용은 한 줄 갱신뿐이다.
  */
-export function pickChanged(words: readonly Word[], since: string | null, limit: number = BATCH): Word[] {
+/**
+ * 밀기가 필요한 칸만 모은 모양 (2026-10-12).
+ *
+ * 🔴 `Word` 를 그대로 받지 않는 이유: 묘비를 포함해 읽는 `syncRepo.words()` 는 **예문·태그·메모를
+ *    아예 읽지 않는다**(보내지 않을 칸을 메모리에 올릴 이유가 없다). 그래서 `Word` 가 아니다.
+ *    `Word` 는 이 모양을 만족하므로 옛 경로(AsyncStorage 폴백)도 그대로 들어온다.
+ */
+export interface PushableWord {
+  wordId: number;
+  word: string;
+  meanings?: string[];
+  language?: string | null;
+  categoryId: number | null;
+  createdAt: string;
+  updatedAt: string;
+  /** 🔴 묘비. 없으면(옛 저장소) `undefined` 다 */
+  deletedAt?: string | null;
+}
+
+export function pickChanged<T extends PushableWord>(
+  words: readonly T[],
+  since: string | null,
+  limit: number = BATCH,
+): T[] {
   const changed = since === null ? [...words] : words.filter((w) => w.updatedAt >= since);
   // 오래된 것부터 민다 — 중간에 끊겨도 `lastUpdatedAt` 이 앞으로만 간다
   changed.sort((a, b) => a.updatedAt.localeCompare(b.updatedAt) || a.wordId - b.wordId);
   return changed.slice(0, limit);
 }
 
-/** 서버가 받는 모양으로 편다. 🔴 메모·예문·태그는 **보내지 않는다** — 분석에 쓰지 않는데 사적인 내용이다 */
-export function toPayload(words: readonly Word[]): Array<{
+/**
+ * 서버가 받는 모양으로 편다.
+ *
+ * 🔴 메모·예문·태그는 **보내지 않는다** — 분석에 쓰지 않는데 사적인 내용이다.
+ *    게시된 처리방침도 *"메모·예문·태그는 전송되지 않습니다"* 라고 적고 있다.
+ *
+ * 🔴 **`deletedAt` 은 2026-10-12 에 더했다. 사적인 칸이 아니라 「지웠다」는 사실이다.**
+ *    이게 없으면 복구가 **지운 단어를 되살린다** — 서버에는 지운 줄이 그대로 남아 있기 때문이다.
+ *    보내는 값은 시각 하나이고, 그 시각이 담긴 단어는 복구에서 **제외되기 위해** 쓰인다.
+ */
+export function toPayload(words: readonly PushableWord[]): Array<{
   wordId: number;
   word: string;
   meanings: string[];
   language: string | null;
-  categoryId: number;
+  categoryId: number | null;
   createdAt: string;
   updatedAt: string;
+  deletedAt: string | null;
 }> {
   return words.map((w) => ({
     wordId: w.wordId,
@@ -131,7 +193,96 @@ export function toPayload(words: readonly Word[]): Array<{
     categoryId: w.categoryId,
     createdAt: w.createdAt,
     updatedAt: w.updatedAt,
+    deletedAt: w.deletedAt ?? null,
   }));
+}
+
+/**
+ * 밀 단어를 어디서 읽나.
+ *
+ * 🔴 **`wordService.getWords()` 로는 묘비를 볼 수 없다**(그쪽은 `deleted_at IS NULL` 을 건다).
+ *    SQLite 가 정본이면 `syncRepo` 로 읽어 **지운 것까지** 보낸다.
+ * ⚠ 폴백(AsyncStorage · 웹)은 묘비 자체가 없는 저장소다 — 거기서는 지운 단어가 서버에 남는다.
+ *   1.8.0 부터 모든 기기가 SQLite 로 이사하므로 이 경로는 점점 비어 간다.
+ */
+export async function wordsForPush(): Promise<PushableWord[]> {
+  const db = getDb();
+  if (db !== null) return syncRepo.words(db);
+  return wordService.getWords();
+}
+
+/**
+ * 🔴 **지금 밀 수 있는 종류. 처리방침에 적혀 있는 것만이다.**
+ *
+ * 2026-10-12 실측 — 게시 중인 `docs/privacy-policy.html` 이 이렇게 말한다:
+ *
+ * ```
+ * 「단어와 그 뜻은 제5-3항에 따라 서버에도 보관되며 …
+ *   그 밖의 항목(메모·예문·태그·퀴즈 기록·설정)은 기기 밖으로 나가지 않습니다」
+ * 「시험의 점수와 답안은 기기에만 저장되며 서버로 전송되지 않습니다」
+ * ```
+ *
+ * 그래서 서버에 표와 라우트를 만들어 두었어도 **카테고리·퀴즈 결과·시험 성적표는 켜지 않는다.**
+ * 켜는 것은 코드가 아니라 **문서를 고치는 결정**이다(`docs/SERVER_RESTORE_PLAN.md` §8 B 단계).
+ *
+ * 🔴 **기계가 지킨다** — `__tests__/syncDisclosure.test.ts` 가 이 배열과 처리방침을 대조해
+ *    공시되지 않은 종류가 켜져 있으면 FAIL 한다. 이 주석을 지우고 배열만 늘리는 길은 막혀 있다.
+ */
+export const ENABLED_KINDS: readonly SyncKind[] = ['words'];
+
+export const isEnabled = (kind: SyncKind): boolean => ENABLED_KINDS.includes(kind);
+
+/**
+ * 종류별 장부. 단어는 기존 칸(`lastUpdatedAt` …)을 그대로 쓰고 **이 칸에는 안 들어온다** —
+ * 이미 기기에 저장된 상태를 다시 해석하지 않기 위해서다.
+ *
+ * ⚠ `cursor` 는 **추가만 되는 종류**(결과)가 쓴다. `fingerprint` 는 **작고 통째로 미는 종류**
+ *   (카테고리 · 시험)가 쓴다. 둘을 한 칸에 겸하게 만들지 않는다.
+ */
+export interface KindState {
+  /** 결과: 여기까지 밀었다(`resultId`) */
+  cursor: number | null;
+  /** 카테고리 · 시험: 마지막으로 민 내용의 지문. 같으면 보낼 것이 없다 */
+  fingerprint: string | null;
+  /** 서버가 아는 개수(진단용) */
+  serverTotal: number | null;
+}
+
+export const EMPTY_KIND: KindState = { cursor: null, fingerprint: null, serverTotal: null };
+
+/**
+ * 내용 지문. **순수 함수다.**
+ *
+ * 🔴 암호 해시가 아니다 — 내용이 **바뀌었는지**만 알면 되고, 여기서 충돌이 나도 손해는
+ *    "한 번 안 밀린다"뿐이다(다음에 또 바뀌면 밀린다). 그 대가로 의존성이 0 이다.
+ *
+ * ⚠ 길이를 함께 담는다. 길이가 다르면 지문이 같을 수 없게 되어 가장 흔한 변화(추가·삭제)를
+ *   확실히 잡는다.
+ */
+export function fingerprint(json: string): string {
+  let h = 2166136261;
+  for (let i = 0; i < json.length; i += 1) {
+    h ^= json.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return `${json.length}:${(h >>> 0).toString(36)}`;
+}
+
+/**
+ * 밀 결과를 고른다. **순수 함수다.**
+ *
+ * ⚠ 단어와 달리 경계가 `>` 다. 퀴즈 결과는 **한 번 쓰이면 바뀌지 않으므로**(서버도
+ *   `onConflictDoNothing`) 같은 줄을 다시 보낼 이유가 없다. `resultId` 는 전역 카운터에서
+ *   나므로 증가만 한다.
+ */
+export function pickResults<T extends { resultId: number }>(
+  results: readonly T[],
+  after: number | null,
+  limit: number,
+): T[] {
+  const left = after === null ? [...results] : results.filter((r) => r.resultId > after);
+  left.sort((a, b) => a.resultId - b.resultId);
+  return left.slice(0, limit);
 }
 
 export const syncService = {
@@ -160,12 +311,18 @@ export const syncService = {
       if (!commonServer.isConfigured()) return { pushed: 0, remaining: 0, reason: 'not-configured' };
 
       const state = await this.loadState();
-      const words = await wordService.getWords();
+      const words = await wordsForPush();
       /*
        * 🔴 **서버가 나보다 적게 들고 있으면 장부를 되감아 전부 다시 민다**(`needsRewind`).
        *    서버 쓰기는 멱등(같은 키에 덮어쓰기)이라 다시 미는 비용은 줄 갱신뿐이다.
        */
-      const rewind = needsRewind(state, words.length);
+      /*
+       * ⚠ **묘비를 빼고 센다.** 서버의 `countKind` 도 묘비를 빼고 센다 — 두 쪽이 같은 것을
+       *   세야 되감기 판정이 성립한다. 2026-10-12 에 묘비가 들어오면서 생긴 자리다:
+       *   그냥 `words.length` 로 두면 지운 단어가 쌓일수록 **부팅마다 전부 다시 밀게 된다.**
+       */
+      const alive = words.filter((w) => (w.deletedAt ?? null) === null).length;
+      const rewind = needsRewind(state, alive);
       const batch = pickChanged(words, rewind ? null : state.lastUpdatedAt);
       if (batch.length === 0) return { pushed: 0, remaining: 0 };
 
@@ -194,6 +351,8 @@ export const syncService = {
         serverTotal: result.total,
         // 되감았다는 사실을 남긴다 — 같은 숫자로 또 되감지 않기 위해서다
         rewoundFor: rewind ? state.serverTotal : state.rewoundFor,
+        // ⚠ 종류별 장부는 건드리지 않는다 — 단어 밀기는 자기 칸만 쓴다
+        kinds: state.kinds,
       });
       /*
        * ⚠ 방금 민 것을 빼고 센다. `pickChanged` 는 경계를 `>=` 로 보므로(같은 밀리초를 빠뜨리지
@@ -208,6 +367,83 @@ export const syncService = {
       // 🔴 여기서 던지면 부팅이 멈춘다. 삼키되 남긴다
       console.warn('단어 밀기 실패:', error);
       return { pushed: 0, remaining: 0, reason: 'error' };
+    }
+  },
+  /**
+   * 카테고리 · 퀴즈 결과 · 시험 성적표를 민다 (2026-10-12).
+   *
+   * 🔴 **`ENABLED_KINDS` 에 없는 종류는 쳐다보지 않는다.** 지금은 셋 다 꺼져 있다 —
+   *    게시된 처리방침이 *"퀴즈 기록은 기기 밖으로 나가지 않습니다"* 라고 말하기 때문이다.
+   *    코드는 준비돼 있고, 켜는 것은 문서를 고치는 결정이다.
+   *
+   * ⚠ `pushOnce`(단어)와 **따로** 둔다. 단어 경로는 실기기에서 두 번 고쳐 가며 검증한 길이라
+   *   거기에 종류를 섞어 넣지 않는다. 실패해도 서로를 막지 않는다.
+   */
+  async pushRest(): Promise<Array<{ kind: SyncKind; pushed: number; reason?: string }>> {
+    const out: Array<{ kind: SyncKind; pushed: number; reason?: string }> = [];
+    try {
+      if (!commonServer.isConfigured()) return out;
+      const db = getDb();
+      // 🔴 SQLite 가 아니면 보낼 모양을 만들 수 없다. 조용히 아무것도 안 한다
+      if (db === null) return out;
+
+      const state = await this.loadState();
+      const kinds = { ...state.kinds };
+      let touched = false;
+
+      /** 작고 통째로 미는 종류 — 지문이 같으면 보낼 것이 없다 */
+      const pushWhole = async (kind: SyncKind, items: readonly unknown[]): Promise<void> => {
+        const json = JSON.stringify(items);
+        const mark = fingerprint(json);
+        const prev = kinds[kind] ?? EMPTY_KIND;
+        if (prev.fingerprint === mark) return;
+        const res = await commonServer.syncPush(kind, items);
+        if (!res.ok) {
+          out.push({ kind, pushed: 0, reason: res.reason });
+          return;
+        }
+        kinds[kind] = { ...prev, fingerprint: mark, serverTotal: res.total };
+        touched = true;
+        out.push({ kind, pushed: res.accepted });
+      };
+
+      if (isEnabled('categories')) {
+        await pushWhole('categories', syncRepo.categories(db));
+      }
+
+      if (isEnabled('exams')) {
+        await pushWhole('exams', await examService.getRecords());
+      }
+
+      if (isEnabled('results')) {
+        const prev = kinds.results ?? EMPTY_KIND;
+        /*
+         * ⚠ 한 번에 `BATCH` 개까지만 민다. 남은 것은 다음 호출이 가져간다 —
+         *   수천 건을 한 부팅에 몰아 보내면 그 느림은 사용자가 겪는 손해다(단어와 같은 판단).
+         */
+        const batch = pickResults(syncRepo.results(db), prev.cursor, BATCH);
+        if (batch.length > 0) {
+          const res = await commonServer.syncPush('results', batch);
+          if (res.ok) {
+            kinds.results = {
+              ...prev,
+              cursor: batch[batch.length - 1]?.resultId ?? prev.cursor,
+              serverTotal: res.total,
+            };
+            touched = true;
+            out.push({ kind: 'results', pushed: res.accepted });
+          } else {
+            out.push({ kind: 'results', pushed: 0, reason: res.reason });
+          }
+        }
+      }
+
+      if (touched) await this.saveState({ ...state, kinds, lastSyncedAt: new Date().toISOString() });
+      return out;
+    } catch (error: any) {
+      // 🔴 여기서 던지면 부팅이 멈춘다. 삼키되 남긴다(단어 밀기와 같은 규율)
+      console.warn('학습 데이터 밀기 실패:', error);
+      return out;
     }
   },
 };
