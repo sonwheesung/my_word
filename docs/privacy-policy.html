@@ -155,7 +155,7 @@
         <h2>1. 개인정보의 수집 및 이용 목적</h2>
         <p>My Word(이하 "앱")는 사용자의 단어 학습을 돕기 위한 목적으로 개발된 애플리케이션입니다. 본 앱은 별도의 회원가입 없이 사용 가능하며, 계정을 만들거나 이름·이메일·전화번호 등 사용자를 식별할 수 있는 정보를 수집하지 않습니다.</p>
         <p>학습 데이터는 기기 안에만 저장됩니다. 다만 사용자가 <strong>직접 실행한 경우에 한해</strong> 아래 두 기능에서 외부로 데이터가 전송됩니다: 단어 검색(제5항), 문의하기(제6항). 이와 별개로 앱을 실행할 때와 앱이 다시 화면 앞으로 올라올 때, 공지사항·최신 버전 확인과 이용 통계를 위한 요청이 발생하며, 이때 제6-2항의 기기 식별자가 함께 전송됩니다. 자세한 내용은 제6항에 적었습니다.</p>
-        <p>또한 본 앱은 유료 상품(평생 광고 제거)의 인앱 결제를 제공하며, 이 경우에도 결제 정보는 Google Play가 처리할 뿐 본 앱이 수집하거나 저장하지 않습니다. 자세한 내용은 제7항을 참고해 주세요.</p>
+        <p>또한 본 앱은 유료 상품(평생 광고 제거, 구독 상품 My Word Pro)의 인앱 결제를 제공합니다. 결제수단 정보는 어느 경우에도 Google Play가 처리할 뿐 본 앱이 수집하거나 저장하지 않습니다. 다만 <strong>구독 상품에 한하여 혜택의 적용 여부를 판정하기 위해 구독 상태를 회사 서버에 보관</strong>합니다. 자세한 내용은 제7항을 참고해 주세요.</p>
 
         <p>AI 단어 시험 기능을 사용하시는 경우, 시험 문제를 만들고 같은 문제를 반복해 내지 않기 위하여 제5-2항의 정보를 수집&middot;이용합니다. 또한 서비스 개선을 위한 분석과 <strong>이용자 학습 데이터의 복원</strong>을 위하여 제5-3항의 학습 데이터를 수집&middot;이용합니다.</p>
 
@@ -258,11 +258,24 @@
         <p>보관 기간: 접수일로부터 <strong>3년</strong>. 「전자상거래 등에서의 소비자보호에 관한 법률」 제6조 및 같은 법 시행령 제6조에 따른 "소비자의 불만 또는 분쟁처리에 관한 기록"의 보존 기간에 맞춘 것입니다. 기기 식별자도 문의와 같은 기간 보관한 뒤 함께 파기합니다.</p>
         <p>처리위탁 및 보관 위치: 문의 접수 서버는 Vercel Inc.(호스팅)과 Supabase Inc.(데이터베이스)를 이용하며, 데이터베이스는 대한민국(서울) 리전에 저장됩니다. 서비스 제공 과정에서 국외에 소재한 서버를 경유할 수 있습니다.</p>
 
-        <h2>7. 인앱 결제(평생 광고 제거)</h2>
-        <p>본 앱은 광고를 제거하는 유료 상품(상품 ID: <code>remove_ads</code>, 관리형 상품)을 판매합니다. 이는 한 번 결제하면 영구히 적용되는 상품이며 구독이 아닙니다.</p>
+        <h2>7. 인앱 결제(평생 광고 제거 · 구독)</h2>
+        <p>본 앱은 두 가지 유료 상품을 판매합니다. <strong>평생 광고 제거</strong>(상품 ID: <code>remove_ads</code>, 관리형 상품)는 한 번 결제하면 영구히 적용되는 상품이며 구독이 아닙니다. <strong>My Word Pro</strong>(상품 ID: <code>myword_pro</code>)는 월간 또는 연간으로 자동 갱신되는 <strong>구독 상품</strong>입니다. 두 상품은 <strong>개인정보 처리 방식이 다르므로</strong> 아래에서 나누어 설명합니다.</p>
         <div class="notice">
             <p><strong>결제는 Google Play가 전부 처리합니다.</strong> 본 앱은 카드번호·계좌번호 등 결제수단 정보를 입력받지 않으며, 이를 열람하거나 저장하지도 않습니다.</p>
-            <p><strong>본 앱은 구매 토큰을 포함한 어떠한 결제 관련 정보도 자체 서버로 전송하거나 저장하지 않습니다.</strong> 서버를 통한 영수증 검증을 수행하지 않습니다.</p>
+            <p><strong>평생 광고 제거에 관하여, 본 앱은 구매 토큰을 포함한 어떠한 결제 관련 정보도 자체 서버로 전송하거나 저장하지 않습니다.</strong> 이 상품에 관하여는 서버를 통한 영수증 검증을 수행하지 않습니다.</p>
+        </div>
+        <p><strong>구독 상품(My Word Pro)은 처리 방식이 다릅니다.</strong> 구독은 갱신&middot;해지&middot;환불이 있어 기기에서 판정하면 틀리므로, 영수증 검증을 결제 관리 사업자 <strong>RevenueCat, Inc.</strong>(미국)에 위탁하고 그 결과를 전달받아 회사 서버에 보관합니다.</p>
+        <div class="notice">
+            <p><strong>구독에 관하여 회사 서버에 보관하는 항목</strong>은 다음과 같습니다. 모두 제6-2항의 기기 식별자(또는 로그인하신 경우 그 계정에 대응하는 식별자)에 연결되어 보관됩니다.</p>
+            <ul>
+                <li>상품 ID와 요금제(월간/연간)</li>
+                <li>거래 식별자 &mdash; Google Play가 부여하는 값으로, 환불된 거래를 가려내기 위해 보관합니다</li>
+                <li>구독 만료 시각, 결제 실패 시의 유예 종료 시각</li>
+                <li>자동 갱신 예정 여부, 환불 여부</li>
+                <li>결제 환경(실제 결제인지 테스트 결제인지)</li>
+            </ul>
+            <p><strong>보관하지 않는 항목</strong>: 카드번호&middot;계좌번호 등 결제수단 정보, 결제 금액, 주문번호, 결제자의 이름&middot;이메일. 이 정보들은 회사로 전달되지 않습니다.</p>
+            <p><strong>보유 기간</strong>: 구독 상태는 구독이 종료된 뒤에도 재구독&middot;환불&middot;분쟁 처리를 위하여 보관하며, 제8항의 기준(마지막 이용일로부터 1년)에 따라 파기합니다. 이용자가 설정 화면의 &ldquo;서버에 보관된 내용 지우기&rdquo;를 실행하시면 그 즉시 연결이 끊어집니다 &mdash; 다만 <strong>이것은 구독의 해지가 아닙니다.</strong> 결제를 멈추려면 Google Play에서 해지하셔야 합니다.</p>
         </div>
         <p>광고 제거 적용 여부는 앱이 Google Play에 구매 이력을 조회하여 확인하며, 그 결과(구매 여부를 나타내는 값)는 기기 내부(<code>@my_word_ad_free</code>)에만 캐시로 저장됩니다. 이 값에는 결제 금액, 결제 수단, 주문 번호 등이 포함되지 않습니다.</p>
         <p>구매·결제·환불 과정에서 Google이 처리하는 정보에 관하여는 <a href="https://policies.google.com/privacy" target="_blank">Google 개인정보처리방침</a>과 <a href="https://play.google.com/intl/ko/about/play-terms/" target="_blank">Google Play 서비스 약관</a>을 참고해 주세요.</p>
@@ -300,7 +313,7 @@
             <li><strong>전송 구간 암호화</strong>: 앱과 서버 사이의 모든 통신은 HTTPS(TLS)로 암호화하여 전송합니다.</li>
             <li><strong>접근 권한 최소화</strong>: 문의 접수 서버와 데이터베이스에 접근할 수 있는 사람은 제14항의 개인정보 보호책임자로 한정하며, 접근에는 별도의 인증을 요구합니다.</li>
             <li><strong>보유 기간 제한</strong>: 문의 내역과 기기 식별자는 접수일로부터 3년이 지나면 파기합니다(제6·8항).</li>
-            <li><strong>결제 정보 미취급</strong>: 결제는 Google Play가 전담하므로 회사는 카드번호·계좌번호 등 결제수단 정보와 구매 토큰을 전송받지도, 저장하지도 않습니다. 취급하지 않는 정보는 유출될 수 없습니다(제7항).</li>
+            <li><strong>결제수단 정보 미취급</strong>: 결제는 Google Play가 전담하므로 회사는 카드번호&middot;계좌번호 등 결제수단 정보와 결제 금액&middot;주문번호를 전송받지도, 저장하지도 않습니다. 취급하지 않는 정보는 유출될 수 없습니다. 다만 <strong>구독 상품에 한하여 구독 상태(상품 ID, 거래 식별자, 만료 시각 등)는 보관하므로</strong>, 그 범위에서는 이 근거가 적용되지 않고 위의 전송 구간 암호화&middot;접근 권한 최소화&middot;보유 기간 제한이 적용됩니다(제7항).</li>
         </ul>
 
         <h2>12. 개인정보의 국외 이전</h2>
@@ -312,9 +325,10 @@
             <li><strong>Google LLC</strong> (미국) — 인앱 결제 처리(Google Play). 결제 정보는 Google이 직접 처리하며 회사를 거치지 않습니다(제7항).</li>
             <li><strong>Vercel Inc.</strong> (미국) — 문의 접수 서버 호스팅. 이전 항목: 문의 내용, 기기 식별자, 앱 버전·기기 종류. 요청이 국외에 소재한 서버를 경유할 수 있습니다.</li>
             <li><strong>Supabase Inc.</strong> (미국) — 문의 데이터베이스. 이전 항목: 위와 같음. 보유 기간: 3년(제6-2항). 데이터는 <strong>대한민국(서울) 리전</strong>에 저장됩니다.</li>
+            <li><strong>RevenueCat, Inc.</strong> (미국) &mdash; 구독 영수증 검증 및 구독 상태 관리(제7항). 이전 항목: 제6-2항의 기기 식별자, 구독 상태(상품 ID, 거래 식별자, 만료 시각, 갱신 예정 여부, 환불 여부). 이전 시기: 구독을 구매&middot;갱신&middot;해지&middot;환불할 때와 앱이 구독 상태를 확인할 때. 보유 기간: RevenueCat의 정책에 따르며, 회사는 위탁 종료 시 파기를 요청합니다.</li>
             <li><strong>OpenAI, L.L.C.</strong> (미국) &mdash; AI 단어 시험의 문제 생성(제5-2항). 이전 항목: 이용자가 저장한 단어와 그 뜻(최대 10개). 이전 시기: 시험을 만들 때마다. 회사는 저장하지 않도록 요청하는 설정으로 전송하나, OpenAI가 자체 남용 감시 목적으로 일정 기간 보관할 수 있습니다.</li>
         </ul>
-        <p>이용자는 위 국외 이전을 거부할 수 있습니다. 거부하시려면 해당 기능(단어 검색, 문의하기, AI 단어 시험)을 이용하지 않으시면 되며, 광고 관련 이전은 제4항의 방법으로 광고 식별자를 삭제하거나 제7항의 유료 상품(평생 광고 제거)을 구매하여 차단하실 수 있습니다. 다만 거부하시는 경우 해당 기능은 이용하실 수 없습니다.</p>
+        <p>이용자는 위 국외 이전을 거부할 수 있습니다. 거부하시려면 해당 기능(단어 검색, 문의하기, AI 단어 시험)을 이용하지 않거나 <strong>구독을 구매하지 않으시면</strong> 되며, 광고 관련 이전은 제4항의 방법으로 광고 식별자를 삭제하거나 제7항의 유료 상품(평생 광고 제거)을 구매하여 차단하실 수 있습니다. 다만 거부하시는 경우 해당 기능은 이용하실 수 없습니다.</p>
 
         <h2>13. 개인정보처리방침 변경</h2>
         <p>본 방침은 변경될 수 있으며, 변경 시 앱 업데이트 또는 본 페이지를 통해 공지합니다. 변경하는 경우 시행일과 변경 사유·내용을 함께 표시하여 알아보기 쉽게 안내합니다.</p>
@@ -338,7 +352,7 @@
         </div>
 
         <!-- 시행일 2026-08-17 = 본 문서가 GitHub Pages 에 게시된 날. 약관 제3조가 "게시함으로써 효력이 발생한다" 고 정하고 있고, 유료 상품은 그 이후에 판매를 시작하므로 순서가 맞다. -->
-        <p class="date">최초 시행일: 2026년 4월 10일<br>개정 시행일: 2026년 10월 20일 (학습 데이터 복원 기능 준비에 따른 제5-3항 개정 및 제1&middot;2&middot;5-2&middot;8항 반영. <strong>이 개정으로 서버에 보관하는 항목이 늘어납니다</strong> &mdash; 지금까지 보관하던 단어&middot;뜻에 더해 <strong>단어장 이름&middot;설명&middot;순서, 퀴즈 결과, AI 단어 시험의 성적표</strong>가 보관됩니다. 목적에 <strong>학습 내용의 복원</strong>이 추가되었습니다. 메모&middot;예문&middot;태그와 앱 설정은 <strong>종전과 같이 전송되지 않습니다</strong>. 또한 삭제된 CSV 내보내기 기능을 가리키던 제8항을 백업 기능으로 정정하였습니다. <strong>2026년 10월 13일 보완</strong>: 제5-3항의 삭제 방법을 앱 내 &ldquo;서버에 보관된 내용 지우기&rdquo;로 바로잡고(앱만 삭제하면 서버 사본이 지워지지 않는다는 사실을 명시), 연결이 끊긴 사본의 파기 기준(마지막 이용일로부터 1년)을 추가하였으며, 제8항에 같은 안내를 반영하였습니다. 이 보완은 수집 항목을 늘리지 않습니다)<br>개정 시행일: 2026년 10월 7일 (AI 단어 시험 도입에 따른 제5항 개정 &mdash; 제5-2항 신설 및 제1·12항 반영. <strong>이 개정으로 저장하는 항목이 늘어납니다</strong> — 이 기능을 사용하시는 경우에 한하여, 이용자가 저장한 단어와 뜻이 문제 생성을 위해 국외(OpenAI)로 전송되고, 만들어진 문제와 &ldquo;어느 기기에 어떤 문제를 보냈는지&rdquo;가 회사 서버에 저장됩니다. 또한 AI 시험 이용 여부와 관계없이 <strong>이용자가 저장한 단어와 그 뜻이 분석 목적으로 서버에 보관</strong>됩니다. 메모&middot;예문&middot;태그는 전송되지 않습니다)<br>개정 시행일: 2026년 9월 7일 (기기 안에서만 동작하는 학습 알림 추가에 따른 제2항 개정 &mdash; <strong>수집하는 항목은 달라지지 않았고</strong>, 알림은 서버로 전송되지 않으며 알림 문구에 저장하신 단어가 표시될 수 있다는 안내가 추가되었습니다)<br>개정 시행일: 2026년 9월 2일 (활성 집계 시점 확대에 따른 제1·6-1항 개정 &mdash; <strong>수집하는 항목은 달라지지 않았고</strong>, 요청이 발생하는 시점에 &ldquo;앱이 다시 화면 앞으로 올라올 때&rdquo;(최소 5분 간격)가 추가되었습니다)<br>개정 시행일: 2026년 9월 1일 (문의 답변 전달을 위한 기기 식별자 수집 개시에 따른 제6-1·6-2항 개정 및 제1·9·10·11·12항 반영, 문의 보관 기간을 실제 운영과 일치하도록 1년 → 3년으로 정정, 제13항 변경 고지 방식 정비)<br>개정 시행일: 2026년 8월 17일 (인앱 결제 도입에 따른 제1·4항 변경 및 제7항 신설, 제8항 보완, 문의 이메일 변경, 사업자 정보 추가, 제9항 아동 연령 기준 국가별 병기, 개인정보 보호책임자 지정, 제4항 광고 식별자 거부 방법 안내 추가, 제10항 정보주체의 권리·제11항 안전성 확보조치·제12항 국외 이전 신설)</p>
+        <p class="date">최초 시행일: 2026년 4월 10일<br>개정 시행일: <strong>2026년 11월 12일</strong> (구독 상품 <strong>My Word Pro</strong> 도입에 따른 제7항 개정 및 제1&middot;11&middot;12항 반영. <strong>이 개정으로 서버에 보관하는 항목이 늘어납니다</strong> &mdash; 구독을 구매하신 경우에 한하여 <strong>구독 상태</strong>(상품 ID와 요금제, 거래 식별자, 구독 만료 시각, 결제 실패 시의 유예 종료 시각, 자동 갱신 예정 여부, 환불 여부, 결제 환경)가 보관됩니다. <strong>변경 전</strong> 제7항은 *&ldquo;구매 토큰을 포함한 어떠한 결제 관련 정보도 자체 서버로 전송하거나 저장하지 않습니다. 서버를 통한 영수증 검증을 수행하지 않습니다&rdquo;* 였고, <strong>변경 후</strong>에도 평생 광고 제거에 관하여는 종전과 같으나 구독에 관하여는 <strong>RevenueCat, Inc.(미국)에 영수증 검증을 위탁</strong>하고 그 결과를 보관합니다. 카드번호&middot;계좌번호 등 결제수단 정보와 결제 금액&middot;주문번호는 <strong>종전과 같이 보관하지 않습니다</strong>. 제12항 국외 이전에 RevenueCat, Inc.를 추가하였으며, 영문본에서 누락되어 있던 <strong>OpenAI, L.L.C.</strong> 항목을 함께 보충하였습니다. 시행일을 이용약관과 같은 날로 맞추었습니다)<br>개정 시행일: 2026년 10월 20일 (학습 데이터 복원 기능 준비에 따른 제5-3항 개정 및 제1&middot;2&middot;5-2&middot;8항 반영. <strong>이 개정으로 서버에 보관하는 항목이 늘어납니다</strong> &mdash; 지금까지 보관하던 단어&middot;뜻에 더해 <strong>단어장 이름&middot;설명&middot;순서, 퀴즈 결과, AI 단어 시험의 성적표</strong>가 보관됩니다. 목적에 <strong>학습 내용의 복원</strong>이 추가되었습니다. 메모&middot;예문&middot;태그와 앱 설정은 <strong>종전과 같이 전송되지 않습니다</strong>. 또한 삭제된 CSV 내보내기 기능을 가리키던 제8항을 백업 기능으로 정정하였습니다. <strong>2026년 10월 13일 보완</strong>: 제5-3항의 삭제 방법을 앱 내 &ldquo;서버에 보관된 내용 지우기&rdquo;로 바로잡고(앱만 삭제하면 서버 사본이 지워지지 않는다는 사실을 명시), 연결이 끊긴 사본의 파기 기준(마지막 이용일로부터 1년)을 추가하였으며, 제8항에 같은 안내를 반영하였습니다. 이 보완은 수집 항목을 늘리지 않습니다)<br>개정 시행일: 2026년 10월 7일 (AI 단어 시험 도입에 따른 제5항 개정 &mdash; 제5-2항 신설 및 제1·12항 반영. <strong>이 개정으로 저장하는 항목이 늘어납니다</strong> — 이 기능을 사용하시는 경우에 한하여, 이용자가 저장한 단어와 뜻이 문제 생성을 위해 국외(OpenAI)로 전송되고, 만들어진 문제와 &ldquo;어느 기기에 어떤 문제를 보냈는지&rdquo;가 회사 서버에 저장됩니다. 또한 AI 시험 이용 여부와 관계없이 <strong>이용자가 저장한 단어와 그 뜻이 분석 목적으로 서버에 보관</strong>됩니다. 메모&middot;예문&middot;태그는 전송되지 않습니다)<br>개정 시행일: 2026년 9월 7일 (기기 안에서만 동작하는 학습 알림 추가에 따른 제2항 개정 &mdash; <strong>수집하는 항목은 달라지지 않았고</strong>, 알림은 서버로 전송되지 않으며 알림 문구에 저장하신 단어가 표시될 수 있다는 안내가 추가되었습니다)<br>개정 시행일: 2026년 9월 2일 (활성 집계 시점 확대에 따른 제1·6-1항 개정 &mdash; <strong>수집하는 항목은 달라지지 않았고</strong>, 요청이 발생하는 시점에 &ldquo;앱이 다시 화면 앞으로 올라올 때&rdquo;(최소 5분 간격)가 추가되었습니다)<br>개정 시행일: 2026년 9월 1일 (문의 답변 전달을 위한 기기 식별자 수집 개시에 따른 제6-1·6-2항 개정 및 제1·9·10·11·12항 반영, 문의 보관 기간을 실제 운영과 일치하도록 1년 → 3년으로 정정, 제13항 변경 고지 방식 정비)<br>개정 시행일: 2026년 8월 17일 (인앱 결제 도입에 따른 제1·4항 변경 및 제7항 신설, 제8항 보완, 문의 이메일 변경, 사업자 정보 추가, 제9항 아동 연령 기준 국가별 병기, 개인정보 보호책임자 지정, 제4항 광고 식별자 거부 방법 안내 추가, 제10항 정보주체의 권리·제11항 안전성 확보조치·제12항 국외 이전 신설)</p>
         </div>
         <!-- =================== 한국어 끝 =================== -->
 
@@ -438,11 +452,24 @@
         <p>Retention period: <strong>three years</strong> from the date of receipt, aligned with the retention period for "records concerning consumer complaints or dispute resolution" under Article 6 of the Act on Consumer Protection in Electronic Commerce and Article 6 of its Enforcement Decree. The device identifier is retained for the same period and destroyed together with the inquiry.</p>
         <p>Entrustment of processing and storage location: The inquiry server uses Vercel Inc. (hosting) and Supabase Inc. (database), and the database is stored in the Republic of Korea (Seoul) region. Data may pass through servers located outside Korea in the course of providing the service.</p>
 
-        <h2>7. In-App Purchase (Lifetime Ad Removal)</h2>
-        <p>The App sells a paid product that removes advertisements (product ID: <code>remove_ads</code>, a managed product). It applies permanently once purchased and is not a subscription.</p>
+        <h2>7. In-App Purchase (Lifetime Ad Removal &middot; Subscription)</h2>
+        <p>The App sells two paid products. <strong>Lifetime Ad Removal</strong> (product ID: <code>remove_ads</code>, a managed product) applies permanently once purchased and is not a subscription. <strong>My Word Pro</strong> (product ID: <code>myword_pro</code>) is a <strong>subscription product</strong> that renews automatically on a monthly or annual basis. The two products are <strong>handled differently with respect to personal information</strong>, so they are described separately below.</p>
         <div class="notice">
             <p><strong>Payment is handled entirely by Google Play.</strong> The App does not accept payment method information such as card numbers or bank account numbers, and neither views nor stores such information.</p>
-            <p><strong>The App does not transmit or store any payment-related information, including the purchase token, on its own server.</strong> No server-side receipt validation is performed.</p>
+            <p><strong>With respect to Lifetime Ad Removal, the App does not transmit or store any payment-related information, including the purchase token, on its own server.</strong> No server-side receipt validation is performed for that product.</p>
+        </div>
+        <p><strong>The subscription product (My Word Pro) is handled differently.</strong> Because a subscription involves renewal, cancellation and refunds, determining it on the device would produce wrong results; we therefore entrust receipt verification to the payment management provider <strong>RevenueCat, Inc.</strong> (United States), receive the result, and store it on our server.</p>
+        <div class="notice">
+            <p><strong>Items we store on our server for the subscription</strong> are as follows. All of them are stored linked to the device identifier in Section 6-2 (or, where you have signed in, the identifier corresponding to that account).</p>
+            <ul>
+                <li>The product ID and the plan (monthly / annual)</li>
+                <li>A transaction identifier &mdash; a value assigned by Google Play, stored in order to identify refunded transactions</li>
+                <li>The subscription expiry time, and the grace-period end time in the event of a billing failure</li>
+                <li>Whether automatic renewal is scheduled, and whether a refund has occurred</li>
+                <li>The payment environment (whether the payment is real or a test)</li>
+            </ul>
+            <p><strong>Items we do not store</strong>: payment method information such as card or bank account numbers, the payment amount, the order number, and the payer&rsquo;s name or email address. This information is never passed to us.</p>
+            <p><strong>Retention</strong>: subscription status is retained after a subscription ends in order to handle resubscription, refunds and disputes, and is destroyed in accordance with the standard in Section 8 (one year from the last day of use). If you run &ldquo;Erase what is stored on the server&rdquo; on the Settings screen, the link is severed immediately &mdash; however, <strong>this is not a cancellation of the subscription.</strong> To stop payment you must cancel in Google Play.</p>
         </div>
         <p>Whether ad removal applies is confirmed by the App querying the purchase history from Google Play, and the result (a value indicating whether the product has been purchased) is cached only inside the device (<code>@my_word_ad_free</code>). This value does not include the payment amount, payment method, order number, or similar information.</p>
         <p>Regarding the information Google processes in the course of purchase, payment, and refund, please refer to the <a href="https://policies.google.com/privacy" target="_blank">Google Privacy Policy</a> and the <a href="https://play.google.com/intl/ko/about/play-terms/" target="_blank">Google Play Terms of Service</a>.</p>
@@ -480,7 +507,7 @@
             <li><strong>Encryption in transit</strong>: all communication between the App and our server is encrypted using HTTPS (TLS).</li>
             <li><strong>Minimising access rights</strong>: access to the inquiry server and its database is limited to the Personal Information Protection Officer named in Section 14, and separate authentication is required.</li>
             <li><strong>Limited retention</strong>: inquiry records and the device identifier are destroyed three years after receipt (Sections 6 and 8).</li>
-            <li><strong>No handling of payment information</strong>: payment is handled entirely by Google Play, so we neither receive nor store payment method details such as card or account numbers, nor purchase tokens. Information that is never handled cannot be leaked (Section 7).</li>
+            <li><strong>No handling of payment method information</strong>: payment is handled entirely by Google Play, so we neither receive nor store payment method details such as card or account numbers, nor the payment amount or order number. Information that is never handled cannot be leaked. However, <strong>for the subscription product we do store subscription status</strong> (product ID, transaction identifier, expiry time and the like), so this ground does not apply to that extent; instead the encryption in transit, minimised access rights and limited retention described above apply (Section 7).</li>
         </ul>
 
         <h2>12. Transfer of Personal Information Overseas</h2>
@@ -492,8 +519,10 @@
             <li><strong>Google LLC</strong> (United States) — in-app purchase processing (Google Play). Payment information is handled directly by Google and does not pass through us (Section 7).</li>
             <li><strong>Vercel Inc.</strong> (United States) — hosting of the inquiry server. Items transferred: inquiry content, the device identifier, app version and device type. Requests may pass through servers located outside Korea.</li>
             <li><strong>Supabase Inc.</strong> (United States) — the inquiry database. Items transferred: as above. Retention: three years (Section 6-2). The data itself is stored in the <strong>Republic of Korea (Seoul) region</strong>.</li>
+            <li><strong>OpenAI, L.L.C.</strong> (United States) &mdash; generation of AI Word Exam questions (Section 5-2). Items transferred: the words you saved and their meanings (up to 10). When: each time an exam is created. We send them with the setting that asks for them not to be retained, but OpenAI may retain them for a period for its own abuse-monitoring purposes.</li>
+            <li><strong>RevenueCat, Inc.</strong> (United States) &mdash; subscription receipt verification and subscription status management (Section 7). Items transferred: the device identifier in Section 6-2, and subscription status (product ID, transaction identifier, expiry time, whether renewal is scheduled, whether a refund has occurred). When: when a subscription is purchased, renewed, cancelled or refunded, and when the App checks subscription status. Retention: in accordance with RevenueCat&rsquo;s policies; we request destruction when the entrustment ends.</li>
         </ul>
-        <p>You may refuse these overseas transfers. To do so, simply do not use the features concerned (word search, Contact Us); for advertising-related transfers, you may delete your advertising identifier using the method in Section 4, or block them by purchasing the paid product in Section 7 (Lifetime Ad Removal). Please note that if you refuse, the corresponding features will not be available.</p>
+        <p>You may refuse these overseas transfers. To do so, simply do not use the features concerned (word search, Contact Us, AI Word Exam) and <strong>do not purchase a subscription</strong>; for advertising-related transfers, you may delete your advertising identifier using the method in Section 4, or block them by purchasing the paid product in Section 7 (Lifetime Ad Removal). Please note that if you refuse, the corresponding features will not be available.</p>
 
         <h2>13. Changes to This Privacy Policy</h2>
         <p>This Policy may be changed, and any change will be announced through an app update or through this page. When we make a change, we will state the effective date together with the reason for and substance of the change so that it is easy to understand.</p>
