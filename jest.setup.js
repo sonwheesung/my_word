@@ -48,6 +48,48 @@ jest.mock('expo-constants', () => ({
   default: { expoConfig: { version: require('./app.json').expo.version } },
 }));
 
+// react-native-safe-area-context — 테스트에서 **인셋을 측정할 수 없어 자식을 안 그린다.**
+// 🔴 그 결과 App.test 의 트리가 `RNCSafeAreaProvider` 하나에 자식 0개가 되어, 렌더가
+//    throw 하지 않는다는 것 말고는 아무것도 검증하지 못했다(2026-10-13 실측).
+//    초기 인셋을 주면 자식이 즉시 마운트된다 — 라이브러리가 그 용도로 `initialMetrics` 를 둔다.
+jest.mock('react-native-safe-area-context', () => {
+  const actual = jest.requireActual('react-native-safe-area-context');
+  const metrics = { frame: { x: 0, y: 0, width: 390, height: 844 }, insets: { top: 47, left: 0, right: 0, bottom: 34 } };
+  const React = require('react');
+  return {
+    ...actual,
+    SafeAreaProvider: ({ children }) =>
+      React.createElement(actual.SafeAreaProvider, { initialMetrics: metrics }, children),
+    useSafeAreaInsets: () => metrics.insets,
+    initialWindowMetrics: metrics,
+  };
+});
+
+// expo-clipboard 도 같은 계열이다. 🔴 `expo-speech` 목을 넣자 **그 다음 것이 드러났다** —
+// 네이티브 모듈 목은 하나를 고치면 import 그래프의 다음 것이 터지므로, 하나씩 쫓지 말고
+// **앱이 import 하는 expo-* 전부와 목 목록을 대조**하는 것이 맞다(2026-10-13 에 그렇게 찾았다).
+// ⚠ 붙여넣기는 CSV 가져오기에서 쓰고, 읽어 오는 것만 한다 — 빈 문자열이 자연스러운 기본값이다.
+jest.mock('expo-clipboard', () => ({
+  getStringAsync: jest.fn(async () => ''),
+}));
+
+// expo-speech 도 같은 계열이다(expo-modules-core → EventEmitter undefined).
+//
+// 🔴 **이것 때문에 `App.test.tsx` 가 통째로 로드되지 않고 있었다**(2026-10-13 발음 작업으로
+//    `utils/speech.ts` 가 화면 import 그래프에 들어온 뒤부터). 증상이 "스위트 1개 실패"라
+//    테스트 수가 줄어든 것으로만 보이고, 무엇이 안 돌고 있는지는 드러나지 않는다.
+//    `expo-linear-gradient` 가 **1.3.0 부터 두 릴리스 내내** 같은 이유로 죽어 있던 것과 같은 종류다.
+//
+// ⚠ 소리를 내는 것은 검증 대상이 아니므로 **아무것도 하지 않는 함수**로 둔다. 발음 언어 판정은
+//   순수 함수(`detectSpeechLanguage`)라 이 목과 무관하게 따로 검증된다.
+// 🔴 `getAvailableVoicesAsync` 는 **빈 배열**을 준다 — `undefined` 를 주면 호출부가
+//    `.filter` 에서 터지고, 그 터짐이 "목이 부실해서"인지 "코드가 방어를 안 해서"인지 섞인다.
+jest.mock('expo-speech', () => ({
+  speak: jest.fn(),
+  stop: jest.fn(),
+  getAvailableVoicesAsync: jest.fn(async () => []),
+}));
+
 // expo-linear-gradient 도 같은 계열이다(expo-modules-core → EventEmitter undefined).
 // 이것 때문에 App.test.tsx 가 **1.3.0 부터 두 릴리스 내내** 로드조차 안 됐고,
 // CHANGELOG 에 "이전부터 있던 것"으로 두 번 적히며 사실상 포기돼 있었다.

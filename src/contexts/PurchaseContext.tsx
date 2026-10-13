@@ -11,6 +11,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { AD_FREE_KEY, REMOVE_ADS_PRODUCT_ID } from '../constants/appConfig';
 import { commonServer } from '../services/commonServer/client';
+import { subscriptionService } from '../services/subscriptionService';
 
 /**
  * 평생 광고 제거 (관리형 상품 · 비소비성).
@@ -280,8 +281,17 @@ export function PurchaseProvider({ children }: { children: React.ReactNode }) {
       /*
        * 🔴 **구독도 함께 되살린다.** "구매 복원"을 누르는 사람은 기기를 바꿨거나 재설치한
        *    사람이고, 그 사람이 가진 것이 평생 구매인지 구독인지 **본인도 모른다.**
-       *    `fresh` 로 짧은 쿨다운을 쓴다(SDK 주석: 구매 직후·복원 버튼용).
+       *
+       * 🔴 **순서가 중요하다. 스토어에 먼저 물어본 뒤에 서버에 물어본다.**
+       *    `restore()` 가 RevenueCat 쪽 소유자를 지금 주체로 옮기고, 그 결과가 웹훅으로
+       *    우리 서버에 닿는다. 서버를 먼저 읽으면 **옮기기 전의 빈손**을 읽는다 —
+       *    기기를 바꾼 사람에게는 그게 "구독 없음"으로 보이고, 그 화면이 이 버튼의 전부다.
+       *
+       * ⚠ 그래도 `restore()` 의 반환값으로 판정하지 않는다. 소유자 이전은 웹훅 왕복을
+       *   거치므로 **서버의 엔타이틀먼트가 진실**이다. `fresh` 로 짧은 쿨다운을 쓴다
+       *   (SDK 주석: 구매 직후·복원 버튼용).
        */
+      await subscriptionService.restore();
       await refreshPro(true);
       const restored = owned || proActive;
       return restored ? { ok: true } : { ok: false, reason: 'unavailable' };

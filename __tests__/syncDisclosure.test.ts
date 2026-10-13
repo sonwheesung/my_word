@@ -100,8 +100,26 @@ const RULES: Record<string, { forbids: readonly string[]; requires: readonly str
  *    본문에서 첫 `개정 시행일` 을 읽게 했더니, 그 줄을 **지우자 가드가 그 다음(옛) 시행일로
  *    조용히 내려앉아 통과**했다. 폴백이 있는 자리는 지우는 것으로 무력화된다.
  *    상수로 두고 **본문과 일치하는지 대조**하면 지우는 것도 새로 더하는 것도 빨개진다.
+ *
+ * 🔴 **2026-10-13 에 이 상수가 둘로 갈라졌다.** 그때까지는 "최신 개정 = 밀기 범위를 정하는 개정"
+ *    이 늘 같았는데, 성격이 다른 개정 둘이 동시에 대기하게 되면서 어긋났다:
+ *
+ * ```
+ * 2026-10-20  학습 데이터 보관 범위     ← 🔴 **밀기 범위를 정하는 개정**(네 종류를 켜는 근거)
+ * 2026-11-12  구독 상품 도입            ← 문서의 최신 개정. 밀기 범위와 **무관**하다
+ * ```
+ *
+ * 🔴 **하나로 두면 11-12 를 적는 순간 10-20 의 복구 기능이 3주 밀린다.** 구독 약관이
+ *    학습 데이터 밀기를 막을 이유가 없는데 막는다 — 가드가 사실과 다른 판정을 하는 것이다.
+ *    그래서 **켜는 조건(`SCOPE_REVISION`)과 문서 드리프트 탐지(`NEWEST_REVISION`)를 나눈다.**
+ *
+ * ⚠ 다음에 **밀기 범위를 바꾸는** 개정이 나오면 `SCOPE_REVISION` 을 그 날짜로 옮긴다.
+ *   그 외의 개정(가격·구독·문구)은 `NEWEST_REVISION` 만 옮긴다. 둘이 같아지는 날도 있다.
  */
-const LATEST_REVISION = { label: '2026년 10월 20일', at: new Date(2026, 9, 20) };
+/** 🔴 **밀기 범위를 정하는 개정.** 이 날이 오기 전에는 `words` 밖에 켤 수 없다 */
+const SCOPE_REVISION = { label: '2026년 10월 20일', at: new Date(2026, 9, 20) };
+/** 문서의 **최신** 개정. 본문과 대조해 「몰래 바뀜」을 잡는 용도이고 켜는 조건이 아니다 */
+const NEWEST_REVISION = { label: '2026년 11월 12일' };
 
 /** 본문의 **첫** 개정 시행일(목록이 최신순이다) */
 function newestEffectiveDate(squashed: string): string | null {
@@ -164,9 +182,16 @@ describe('🔴 밀기 범위 — 처리방침을 넘지 않는다', () => {
   it('🔴 시행일이 오지 않은 개정으로는 종류를 켜지 않는다', () => {
     // 🔴 본문의 최신 시행일과 이 가드가 아는 시행일이 **같아야 한다.**
     //    지워도(옛 날짜로 내려앉는다) 새로 더해도(모르는 날짜가 앞에 온다) 여기서 걸린다.
-    expect(newestEffectiveDate(text)).toBe(squash(LATEST_REVISION.label));
+    expect(newestEffectiveDate(text)).toBe(squash(NEWEST_REVISION.label));
 
-    if (Date.now() < LATEST_REVISION.at.getTime()) {
+    /*
+     * 🔴 **범위를 정하는 개정이 본문에 아직 있는지도 본다.** 위 검사는 「첫 줄」만 보므로,
+     *    그 아래의 10-20 줄을 지워도 통과한다. 지우면 네 종류를 켠 근거 자체가 사라지는데
+     *    가드는 초록인 상태 — 이 파일이 처음부터 막으려던 그 고장 방식이다.
+     */
+    expect(text).toContain(squash(SCOPE_REVISION.label));
+
+    if (Date.now() < SCOPE_REVISION.at.getTime()) {
       /*
        * 아직 시행 전이다 — 본문에 새 항목이 들어와 있어도 **효력이 없다.**
        * 이 기간에 켤 수 있는 것은 직전 개정으로 이미 공시된 `words` 뿐이다.

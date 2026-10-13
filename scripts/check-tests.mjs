@@ -27,24 +27,26 @@ import { execFileSync } from 'node:child_process';
  *    누가 `.skip` 하나를 붙이면 total 은 그대로, 실패는 0 이라 바닥값을 그냥 통과한다.
  *    "안 도는 것이 늘었는데 더 초록이 되는" 바로 그 자리다. passed 는 스킵도 로드 실패도 함께 깎인다.
  */
-const MIN_PASSING = 682;
-const MIN_SUITES = 31;
+const MIN_PASSING = 706;
+const MIN_SUITES = 32;
 
 /**
  * 로드가 안 되는 것을 아는 스위트. **여기 없는 스위트가 죽으면 FAIL 이다.**
  * 🔴 "1개까지는 봐준다" 식으로 개수만 세면 새 고장이 옛 고장 뒤에 숨는다 — 이름으로 잡는다.
+ *
+ * 🟢 **2026-10-13 에 비었다.** 하나 있던 `__tests__/App.test.tsx` 를 살렸다.
+ *    원인은 Expo 네이티브 모듈 목 두 개(`expo-speech`·`expo-clipboard`)가 빠진 것이었고,
+ *    jest-expo preset 을 들이지 않고 `jest.setup.js` 목 두 줄로 닫혔다(회귀 위험이 없는 쪽).
+ *    🔴 그리고 여기 적어 두었던 조건 — *"살아나는 순간 단언이 0 이므로 화면 텍스트를
+ *    실제로 단언하게 고친다"* — 도 함께 지켰다. 살리자 트리가 **자식 0개**였다
+ *    (안전영역 공급자가 인셋 측정 전에는 자식을 안 그린다). 그래서
+ *    `react-native-safe-area-context` 의 `initialMetrics` 목을 더해 실제 화면이 뜨게 한 뒤,
+ *    **글자가 하나도 없으면 FAIL** 하는 단언을 넣었다.
+ *
+ * ⚠ 비어 있는 것이 정상 상태다. 여기에 이름을 더하는 것은 **고장을 승인하는 일**이므로
+ *   사유와 되살릴 조건을 함께 적는다(위 사례가 그 양식이다).
  */
-const KNOWN_BROKEN = new Map([
-  [
-    '__tests__/App.test.tsx',
-    'preset 이 react-native 라 Expo 네이티브 모듈을 모른다. App 이 전 화면을 끌어와 ' +
-      'expo-clipboard·expo-iap 까지 만난다. 해법은 jest-expo preset 도입(회귀 위험 검토 필요) — jest.setup.js 말미 참조. ' +
-      '🔴 살릴 때 함께 고칠 것: 이 스위트의 유일한 테스트(`renders correctly`)에 **단언이 하나도 없다**. ' +
-      'RN 템플릿 기본 스모크라 렌더가 throw 하면 잡지만, **빈 화면은 통과시킨다** — ' +
-      '`.agents/tester.md` TEST-5 가 "빈 화면 감지 시 즉시 FAIL" 이라고 정한 것과 어긋난다. ' +
-      '살아나는 순간 MIN_PASSING 만 +1 되고 검증은 0 이므로, 되살릴 때 화면 텍스트를 실제로 단언하게 고친다.',
-  ],
-]);
+const KNOWN_BROKEN = new Map([]);
 
 const fail = (msg) => {
   console.error(`\x1b[31mFAIL\x1b[0m  ${msg}`);

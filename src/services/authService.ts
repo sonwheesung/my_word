@@ -26,6 +26,7 @@
  */
 import { commonServer, ensureDeviceSession } from './commonServer/client';
 import { googleAvailable, revokeGoogle, signInGoogle, signOutGoogle } from './googleAuth';
+import { subscriptionService } from './subscriptionService';
 import { syncScheduler } from './syncScheduler';
 import { EMPTY_STATE, syncService } from './syncService';
 
@@ -54,7 +55,22 @@ export const SIGNED_OUT: AuthState = { signedIn: false, email: null };
  * 이 함수가 로그인·로그아웃·서버 사본 삭제 세 곳에서 **똑같이** 불린다.
  * 한 곳이라도 빠지면 그 경로에서만 조용히 서버가 비어 있게 된다.
  */
+/**
+ * 구독 소유자를 지금 주체에 맞춘다.
+ *
+ * 🔴 **주체가 바뀌는 자리마다 이것도 같이 불러야 한다.** 안 부르면 RevenueCat 은 구독을
+ *    **죽은 옛 주체**에 묶어 둔 채이고, 사용자는 **돈을 내면서 pro 가 아닌** 상태가 된다.
+ *    서버가 그걸 혼자 고칠 수 없다 — 조회 키가 주체 ID 라서 새 주체로는 빈손이 돌아온다
+ *    (`subscriptionService` 머리 주석).
+ *
+ * ⚠ 던지지 않는다. 구독 묶기가 실패해도 로그인·로그아웃 자체는 끝나야 한다.
+ */
+async function bindSubscription(): Promise<void> {
+  await subscriptionService.syncSubject(commonServer.getSubject()?.id ?? null);
+}
+
 async function rewindForNewSubject(): Promise<void> {
+  await bindSubscription();
   await syncService.saveState(EMPTY_STATE);
   syncScheduler.now();
 }
@@ -105,6 +121,8 @@ export const authService = {
   async refresh(): Promise<AuthState> {
     const res = await commonServer.restoreSession();
     if (!res.ok) return toState(commonServer.getSubject());
+    // ⚠ 주체가 안 바뀌었으면 `syncSubject` 가 그 자리에서 돌아간다(같은 ID 면 아무것도 안 한다).
+    await bindSubscription();
     return toState(res.subject);
   },
 
@@ -150,6 +168,13 @@ export const authService = {
   async afterServerErased(): Promise<void> {
     await revokeGoogle();
     await ensureDeviceSession();
+    /*
+     * 🔴 **지우기가 구독을 끊는 자리가 바로 여기다.** 옛 주체는 가명화돼 죽었고 구독
+     *    엔타이틀먼트는 그 죽은 주체에 고아로 남는다. 그런데 **Play 에서 돈은 계속 나간다.**
+     *    새 기기 주체로 소유자를 옮겨 두지 않으면 사용자가 「구매 복원」을 누를 때까지
+     *    구독자가 아니다 — 그리고 그 버튼이 자기 문제의 답인 줄 알 사람이 없다.
+     */
+    await bindSubscription();
     /*
      * 🔴 **비우되 밀지는 않는다.** 여기서 `syncScheduler.now()` 를 부르면 방금 지운 것이
      *    곧바로 다시 올라가 지운 의미가 없어진다.
