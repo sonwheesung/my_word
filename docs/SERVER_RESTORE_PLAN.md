@@ -553,6 +553,54 @@ my_word/android/app/google-services.json   🔴 없다 (mission 에는 있다)
 *"이메일을 수집하지 않습니다"* 라고 말한다. 🟢 Play 가 요구하는 **웹 삭제 페이지는 먼저
 만들어 두었다**(`docs/delete-data.html`).
 
+#### 🟢 콘솔을 직접 열어 확인한 것 (2026-10-13 · 다음에 다시 찾지 않도록 적는다)
+
+```
+구글 클라우드 프로젝트   google-oauth-test  (optimal-shard-426006-n3)
+                        🟢 형제 앱 OAuth 클라이언트 33개가 전부 여기 있다
+클라이언트 ID 접두사     281316002652-…   ← 서버 app_auth_providers 의 audiences 와 일치한다
+```
+
+**이름 규칙이 분명하다.** 형제 앱(mission · jogak · basketball-story · delvewarden ·
+progamer-story · volleyball)이 전부 같은 모양이다:
+
+| 이름 | 유형 | 무엇 |
+|---|---|---|
+| `<앱>-web` | 웹 애플리케이션 | 🔴 **이것의 클라이언트 ID 가 서버 `audiences` 에 들어간다** |
+| `<앱>-android-debug` | Android | 디버그 키 SHA-1 |
+| `<앱>-android-upload` | Android | 업로드 키 SHA-1 |
+| `<앱>-android-play` | Android | 🔴 **Play 앱 서명** SHA-1 (운영에서 쓰이는 것) |
+
+⚠ `-play-prevkey` · `-play-pqc` 같은 변형이 보인다 — 키를 바꾸거나 지문이 둘 이상일 때 더 만든 것이다.
+
+**그래서 myword 에 필요한 것은 셋이다:**
+
+```
+myword-web              웹 애플리케이션   (리디렉션 URI 불필요 — ID 토큰만 쓴다)
+myword-android-upload   Android · com.myword.front
+                        SHA-1  F4:6B:8F:C6:0B:84:3E:11:FB:B6:A7:C6:3B:E6:2B:0A:9A:F0:11:90
+myword-android-play     Android · com.myword.front
+                        SHA-1  🔴 Play 콘솔 → 설정 → 앱 무결성 → 앱 서명 의 지문
+```
+
+#### 🔴 두 가지가 나를 막는다
+
+```
+① Play 앱 서명 SHA-1    My Word 의 Play 콘솔이 **다른 구글 계정**에 있다.
+                        크롬에 로그인된 bjpio113@gmail.com 의 개발자 계정
+                        「Vivace Games」에는 앱이 0개다. 계정 전환은 하지 않는다
+② 클라이언트 생성        「OAuth 클라이언트 ID 만들기」가 환경의 권한 분류기에 막힌다.
+                        우회하지 않는다 — 막아 둔 뜻을 어기는 것이다
+```
+
+→ 🙋 **사장님이 셋을 만들어 주시고 `myword-web` 의 클라이언트 ID 를 알려 주시면**,
+서버 `app_auth_providers` 등록부터는 전부 내가 한다. 앱 쪽 코드는 형제 앱 6개가 쓰는
+`@react-native-google-signin/google-signin` 을 그대로 따르면 되고 발명할 것이 없다.
+
+⚠ **로그인이 실제로 되는 것을 보기 전에는 앱 코드를 쓰지 않는다.** 네이티브 모듈이 들어가면
+`runtimeVersion` 이 올라가 **지금까지 낸 OTA 가 전부 끊긴다.** 그 결정을 "아마 될 것이다"
+위에 올리지 않는다.
+
 ## 9. 재는 법
 
 🔴 **오라클은 하나다 — 복구 직후 통계 == 복구 전 통계.** 백업 검증이 세 릴리스에서 쓴 그 줄이다.
