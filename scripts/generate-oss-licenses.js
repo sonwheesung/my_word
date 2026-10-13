@@ -18,6 +18,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { execSync } = require('child_process');
 
 const ROOT = path.join(__dirname, '..');
@@ -37,46 +38,104 @@ const LICENSE_FILENAMES = [
   'license', 'license.md', 'license.txt', 'COPYING', 'COPYING.md',
 ];
 
-function collectProductionPackages() {
-  let raw;
+/**
+ * 고지에 실을 패키지 — **앱에 실제로 들어가는 것만.**
+ *
+ * 🔴 **2026-10-13 에 기준이 바뀌었다**(사장님 결정). 그때까지는 `npm ls --omit=dev --all` 로
+ *    셌는데, 그 기준은 이 페이지가 스스로 적어 둔 문장(*"앱에 실제로 포함된 프로덕션 의존성"*)과
+ *    맞지 않았다 — `@expo/devcert`·`@expo/sudo-prompt` 같은 **내 노트북에서만 도는 빌드 도구**가
+ *    섞여 678개가 되고 페이지가 1.1MB 가 된다.
+ *
+ * 🔴 **그리고 옛 집계에는 버그가 있었다.** 트리를 걷다 이미 본 이름을 만나면 `continue` 해서
+ *    **그 자식까지 건너뛰었다.** 같은 패키지가 트리의 두 자리에 나올 때 자식 없는 자리가 먼저
+ *    걸리면 그 아래가 통째로 빠진다. 단서는 `react-native-purchases` 를 **더했는데 고지가
+ *    221 → 205 로 줄어든 것**이었다 — 늘어나는 방향만 보고 있었다면 못 봤다.
+ *    ⚠ `check:licenses` 는 생성기를 다시 돌려 바이트로 대조하므로 **둘이 같이 틀린 채 초록**이었다.
+ *
+ * 지금은 번들에서 뽑은 목록(`scripts/bundled-packages.json`)을 읽는다.
+ * 그 목록을 만드는 방법과 「낡음」을 막는 지문은 `scripts/collect-bundled-packages.mjs` 에 있다.
+ *
+ * ⚠ **폴백이 없다. 목록이 없거나 지문이 어긋나면 죽는다.** 조용히 옛 값을 쓰는 것이
+ *   이 프로젝트가 이미 밟은 함정이다 — *"폴백이 있는 자리는 지우는 것으로 무력화된다"*.
+ */
+function collectShippedPackages() {
+  const manifestPath = path.join(__dirname, 'bundled-packages.json');
+  let manifest;
   try {
-    raw = execSync('npm ls --omit=dev --all --json', {
-      cwd: ROOT,
-      maxBuffer: 1 << 28,
-      stdio: ['ignore', 'pipe', 'ignore'],
-    }).toString();
+    manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
   } catch (error) {
-    // npm 은 peer 경고 등으로도 비정상 종료한다. stdout 에 트리가 있으면 그대로 쓴다.
-    if (!error.stdout) throw error;
-    raw = error.stdout.toString();
+    throw new Error(
+      `번들 패키지 목록을 읽을 수 없다 (${manifestPath}).\n` +
+        '  → node scripts/collect-bundled-packages.mjs 를 먼저 돌린다.',
+    );
   }
 
+  // 🔴 지문 대조 — 의존성이 바뀐 뒤 목록을 다시 뽑지 않았으면 여기서 멈춘다.
+  const raw = execSync('npm ls --omit=dev --all --json', {
+    cwd: ROOT,
+    maxBuffer: 1 << 28,
+    stdio: ['ignore', 'pipe', 'ignore'],
+    shell: process.platform === 'win32',
+  }).toString();
   const tree = JSON.parse(raw);
-  const found = new Map(); // "name@version" → { name, version }
-
+  const keys = new Set();
+  const walked = new Set();
   (function walk(node) {
-    const deps = node.dependencies || {};
-    for (const [name, info] of Object.entries(deps)) {
-      const key = `${name}@${info.version || '?'}`;
-      if (found.has(key)) continue;
-      found.set(key, { name, version: info.version || '' });
-      walk(info);
+    for (const [name, info] of Object.entries(node.dependencies || {})) {
+      keys.add(`${name}@${(info && info.version) || '?'}`);
+      if (info && info.dependencies && !walked.has(info)) {
+        walked.add(info);
+        walk(info);
+      }
     }
   })(tree);
+  const fingerprint = crypto
+    .createHash('sha256')
+    .update([...keys].sort().join('\n'))
+    .digest('hex');
 
-  return [...found.values()];
+  if (fingerprint !== manifest.productionFingerprint) {
+    throw new Error(
+      '의존성이 바뀐 뒤 번들 패키지 목록을 다시 뽑지 않았다.\n' +
+        `  목록이 아는 트리: ${manifest.productionCount}개 (${String(manifest.productionFingerprint).slice(0, 12)}…)\n` +
+        `  지금의 트리:      ${keys.size}개 (${fingerprint.slice(0, 12)}…)\n` +
+        '  → node scripts/collect-bundled-packages.mjs 를 돌려 목록을 갱신한다.',
+    );
+  }
+
+  const names = [...new Set([...(manifest.bundled || []), ...(manifest.nativeOnly || [])])].sort();
+  if (names.length === 0) {
+    throw new Error('번들 패키지 목록이 비어 있다 — 빈 고지를 만들지 않는다.');
+  }
+
+  const dirs = manifest.dirs || {};
+  const lost = names.filter((name) => !dirs[name]);
+  if (lost.length > 0) {
+    throw new Error(
+      `번들 목록에 설치 경로가 없는 패키지: ${lost.join(', ')}\n` +
+        '  → node scripts/collect-bundled-packages.mjs 를 다시 돌린다(옛 형식의 목록이다).',
+    );
+  }
+
+  return names.map((name) => ({ name, dir: dirs[name] }));
 }
 
-function readPackageJson(name) {
+/**
+ * 🔴 **이름이 아니라 경로를 받는다.** 최상위 `node_modules/<이름>` 을 가정하면 중첩 설치된
+ *    패키지를 못 찾고, 옛 생성기는 그런 패키지를 **조용히 빼고** 고지를 만들었다
+ *    (2026-10-13 실측: `@expo/cli` · `@react-native/virtualized-lists` 둘).
+ *    경로는 `scripts/bundled-packages.json` 의 `dirs` 가 들고 있다.
+ */
+function readPackageJson(relDir) {
   try {
-    return JSON.parse(fs.readFileSync(path.join(NODE_MODULES, name, 'package.json'), 'utf8'));
+    return JSON.parse(fs.readFileSync(path.join(ROOT, relDir, 'package.json'), 'utf8'));
   } catch (error) {
     return null;
   }
 }
 
-function readLicenseText(name) {
-  const dir = path.join(NODE_MODULES, name);
+function readLicenseText(relDir) {
+  const dir = path.join(ROOT, relDir);
   for (const filename of LICENSE_FILENAMES) {
     const file = path.join(dir, filename);
     try {
@@ -121,19 +180,25 @@ function escapeHtml(value) {
 }
 
 function build() {
-  const entries = collectProductionPackages()
-    .map(({ name, version }) => {
-      const pkg = readPackageJson(name);
-      if (!pkg) return null; // 트리에만 있고 설치되지 않은 패키지 — 배포물에 없다
+  const entries = collectShippedPackages()
+    .map(({ name, dir }) => {
+      const pkg = readPackageJson(dir);
+      /*
+       * 🔴 **여기서 조용히 버리지 않는다.** 옛 코드는 `return null` 로 걸러서, 경로를
+       *    못 찾은 패키지가 고지에서 **빠진 줄도 모르게** 사라졌다. 번들에 실린 것은
+       *    반드시 고지에 있어야 하므로, 못 읽으면 멈춘다.
+       */
+      if (!pkg) {
+        throw new Error(`package.json 을 읽을 수 없다: ${name} (${dir})`);
+      }
       return {
         name,
-        version,
+        version: pkg.version || '',
         license: licenseIdOf(pkg),
         homepage: homepageOf(pkg),
-        text: readLicenseText(name),
+        text: readLicenseText(dir),
       };
     })
-    .filter(Boolean)
     .sort((a, b) => a.name.localeCompare(b.name) || a.version.localeCompare(b.version));
 
   const byLicense = new Map();
@@ -311,7 +376,7 @@ const html = `<!DOCTYPE html>
         <p>My Word는 아래 오픈소스 소프트웨어를 사용해 만들었습니다. 각 소프트웨어의 저작권은 원저작자에게 있으며, 해당 라이선스가 요구하는 저작권 고지와 라이선스 전문을 여기에 함께 싣습니다.</p>
 
         <div class="notice">
-            <p>목록은 앱에 실제로 포함되는 <strong>프로덕션 의존성</strong> 기준입니다. 개발·테스트에만 쓰이고 배포물에 들어가지 않는 패키지는 제외했습니다.</p>
+            <p>목록은 앱에 <strong>실제로 포함되는 패키지</strong>만 담았습니다. 배포되는 자바스크립트 번들에 들어간 패키지와, 자바스크립트는 없지만 안드로이드 코드가 앱에 포함되는 패키지입니다. 개발·빌드·테스트에만 쓰이고 배포물에 들어가지 않는 패키지는 제외했습니다.</p>
             <p>총 <strong>${entries.length}개</strong> 패키지 · 라이선스 종류별 개수:</p>
             <ul>
 ${summaryRows}
@@ -329,7 +394,7 @@ ${summaryRows}
         <p>My Word is built with the open source software listed below. Copyright in each package remains with its original authors, and the copyright notices and license texts required by those licenses are reproduced here.</p>
 
         <div class="notice">
-            <p>The list covers the <strong>production dependencies</strong> actually included in the app. Packages used only for development or testing, which are not shipped, are excluded.</p>
+            <p>The list covers only the packages <strong>actually included in the app</strong>: those present in the shipped JavaScript bundle, and those that contribute Android code to the app even without JavaScript. Packages used only for development, build tooling or testing, which are not shipped, are excluded.</p>
             <p><strong>${entries.length}</strong> packages in total · count by license:</p>
             <ul>
 ${summaryRows}

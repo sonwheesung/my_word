@@ -12,6 +12,7 @@
     "test": "jest",
     "check:tests": "node scripts/check-tests.mjs",
     "check:licenses": "node scripts/check-licenses.mjs",
+    "collect:bundled": "node scripts/collect-bundled-packages.mjs",
     "check:docs": "node scripts/check-docs.mjs"
   },
   "dependencies": {
