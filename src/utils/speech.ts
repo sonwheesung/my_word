@@ -82,13 +82,56 @@ export function describeLanguage(language: string): string {
   return LANGUAGE_LABEL[language] ?? language;
 }
 
+/** `siblingHints` 가 보는 최소한의 모양. `Word` 전체를 끌어오지 않으려고 구조로 받는다 */
+export interface HintSource {
+  word: string;
+  categoryId: number;
+  examples?: ReadonlyArray<{ example: string }>;
+}
+
 /**
- * @param text  읽을 문장/단어
- * @param hints 같은 단어의 예문 등 (한자 단독 표기의 일본어/중국어 판별 보조)
+ * 한자 단독 표기를 가를 근거를 모은다 — **이 단어의 예문 + 같은 단어장의 다른 단어.**
+ *
+ * 🔴 **같은 `categoryId` 만 본다.** 옆 단어장의 중국어가 일본어 단어를 뒤집으면 지금보다
+ *    나빠진다. 플래시카드처럼 덱이 단어장을 가로지를 수 있는 화면이 있어 **거르는 쪽을
+ *    호출부에 맡기지 않고 여기서 한다** — 맡기면 한 화면이 빠뜨린다.
+ *
+ * ⚠ 가나는 한 글자만 있어도 결론이 난다. 그래서 전부 이을 필요가 없고 **상한을 둔다** —
+ *   단어장이 수천 개여도 탭 한 번이 느려지지 않아야 한다.
  */
-export async function speak(text: string, hints: string[] = []): Promise<SpeakResult> {
+const HINT_WORD_LIMIT = 60;
+
+export function siblingHints(
+  target: HintSource,
+  pool: ReadonlyArray<HintSource> = [],
+): string[] {
+  const out: string[] = [];
+  for (const e of target.examples ?? []) out.push(e.example);
+  let taken = 0;
+  for (const w of pool) {
+    if (taken >= HINT_WORD_LIMIT) break;
+    if (w.categoryId !== target.categoryId) continue;
+    if (w.word === target.word) continue;
+    out.push(w.word);
+    taken += 1;
+  }
+  return out;
+}
+
+/**
+ * @param text   읽을 문장/단어
+ * @param hints  한자 단독 표기의 일본어/중국어 판별 보조. `siblingHints` 로 만든다
+ * @param stored 저장된 `Word.language`(뜻 찾기가 감지한 값). 없을 수 있다
+ */
+export async function speak(
+  text: string,
+  hints: string[] = [],
+  stored?: string,
+): Promise<SpeakResult> {
   const trimmed = text.trim();
-  const language = trimmed ? detectSpeechLanguage(trimmed, hints) : DEFAULT_SPEECH_LANGUAGE;
+  const language = trimmed
+    ? detectSpeechLanguage(trimmed, hints, stored)
+    : DEFAULT_SPEECH_LANGUAGE;
   const label = describeLanguage(language);
 
   if (!trimmed) return { outcome: 'error', language, label };

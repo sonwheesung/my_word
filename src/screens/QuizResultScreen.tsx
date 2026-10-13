@@ -61,8 +61,9 @@ export default function QuizResultScreen({
    */
   const retryCount = wrongWordIds(results).length;
 
-  // 이 화면에는 Word 객체가 없어 예문 힌트를 넘길 수 없다.
-  // 한자만 있는 단어는 중국어로 추정된다(단어 목록·퀴즈 화면에서는 예문으로 보정된다)
+  // 🔴 이 화면에는 `Word` 객체가 없다 — 퀴즈 결과는 단어 **문자열**만 들고 있다.
+  // 그래서 힌트도 저장된 language 도 못 넘기고, 한자만 있는 단어는 중국어로 추정된다.
+  // (단어장·플래시카드·퀴즈 화면은 `siblingHints` 로 보정된다 — 2026-10-13)
   const speakWord = async (text: string) => {
     const result = await speak(text);
     if (result.outcome === 'unsupported') {

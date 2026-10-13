@@ -70,6 +70,16 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
   const [memo, setMemo] = useState('');
+  /**
+   * 🔴 **뜻 찾기가 감지한 언어.** 2026-10-13 까지 이 값은 **아무 데도 안 갔다** —
+   *    `Word.language` 칸도, SQLite 칸도, 서버 칸도, 복구도 다 있는데 **주는 곳만 없었다.**
+   *    그래서 사장님 단어 31개가 전부 비어 있었고, 한자 단독 표기(`水`)를 읽을 때
+   *    기댈 근거가 하나 모자랐다.
+   *
+   * ⚠ 손으로 넣은 단어는 여전히 비어 있다. 그건 흠이 아니라 **모르는 것을 모른다고
+   *   두는 것**이다 — 추측해서 채우면 그 추측이 영구히 굳는다.
+   */
+  const [detectedLanguage, setDetectedLanguage] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(false);
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [loadingWord, setLoadingWord] = useState(false);
@@ -152,6 +162,8 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
       );
       setTags(wordData.tags ?? []);
       setMemo(wordData.memo ?? '');
+      // 수정하면서 뜻 찾기를 다시 하지 않으면 **원래 값이 그대로 남아야 한다**
+      setDetectedLanguage(wordData.language);
     } catch (error: any) {
       console.warn('단어 조회 실패:', error);
       showToast(t('단어를 불러오는데 실패했습니다'), 'error');
@@ -258,6 +270,7 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
       }
 
       const result = outcome.data;
+      setDetectedLanguage(result.detectedLanguage);
 
       // 기존 데이터 초기화 후 검색 결과로 덮어쓰기
       setMeanings(result.meanings.length > 0 ? result.meanings : ['']);
@@ -372,6 +385,7 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
           examples: filteredExamples,
           tags,
           memo: memo.trim(),
+          ...(detectedLanguage === undefined ? {} : { language: detectedLanguage }),
         });
         showToast(t('단어가 수정되었습니다'), 'success');
         onWordAdded();
@@ -384,6 +398,7 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
           examples: filteredExamples,
           tags,
           memo: memo.trim(),
+          ...(detectedLanguage === undefined ? {} : { language: detectedLanguage }),
         });
         /*
          * 🔴 **나가지 않는다**(2026-10-08 시안 #11). 입력칸만 비우고 커서를 단어 칸으로 돌린다.
@@ -398,6 +413,8 @@ export default function AddWordScreen({ wordId, onWordAdded, onBack }: AddWordSc
         setMeanings(['']);
         setExamples([{ example: '', translation: '' }]);
         setTags([]);
+        // 🔴 비우지 않으면 다음에 손으로 넣는 단어가 **앞 단어의 언어**를 물려받는다
+        setDetectedLanguage(undefined);
         setTagInput('');
         setMemo('');
         // 🔴 다음에 이 화면을 열 때 이 카테고리로 시작한다

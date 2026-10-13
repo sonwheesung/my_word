@@ -22,7 +22,7 @@ import { srsService } from '../services/srsService';
 import { useInterstitialAd } from '../hooks/useInterstitialAd';
 import type { Word } from '../types/word';
 import { useTheme } from '../contexts/ThemeContext';
-import { speak } from '../utils/speech';
+import { siblingHints, speak } from '../utils/speech';
 import { normalizeForCompare } from '../utils/text';
 import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
@@ -491,9 +491,13 @@ export default function QuizScreen({ categoryId, mode, wordCount, direction, ans
     }
   };
 
-  // 예문을 힌트로 넘겨 한자만 있는 단어의 일본어/중국어 판별을 돕는다
+  // 예문 + **같은 단어장의 다른 단어**를 힌트로 넘긴다(2026-10-13 · `siblingHints` 가 거른다)
   const speakWord = async (text: string, word?: Word) => {
-    const result = await speak(text, (word?.examples ?? []).map((e) => e.example));
+    const result = await speak(
+      text,
+      word ? siblingHints(word, allWords) : [],
+      word?.language,
+    );
     if (result.outcome === 'unsupported') {
       showToast(t('{{language}} 음성이 기기에 설치되어 있지 않습니다', { language: t(result.label) }), 'info');
     } else if (result.outcome === 'error') {

@@ -103,26 +103,76 @@ function collectScripts(text: string): Set<Script> {
   return found;
 }
 
-/**
- * 단어를 어떤 언어로 읽어야 하는지 추정해 BCP-47 태그로 돌려준다.
- *
- * 저장 스키마를 늘리지 않으려고 글자 자체에서 추정하는 방식을 택했다.
- * 그래서 한자 단독 표기(猫, 学校)처럼 원리적으로 구분 불가능한 경우가 남는다.
- *
- * @param hints 같은 단어의 예문 등. 한자만 있는 단어의 일본어/중국어 판별에만 쓴다.
- */
-export function detectSpeechLanguage(text: string, hints: string[] = []): string {
-  const scripts = collectScripts(text);
-  if (scripts.size === 0) return DEFAULT_SPEECH_LANGUAGE;
+/** 저장된 `language`(`ja` · `zh` …)를 읽을 수 있는 BCP-47 태그로 편다 */
+const STORED_TO_TAG: Readonly<Record<string, string>> = {
+  ja: 'ja-JP',
+  ko: 'ko-KR',
+  zh: 'zh-CN',
+  'zh-tw': 'zh-TW',
+  en: DEFAULT_SPEECH_LANGUAGE,
+  th: 'th-TH',
+  hi: 'hi-IN',
+  ar: 'ar-SA',
+  he: 'he-IL',
+  ru: 'ru-RU',
+  el: 'el-GR',
+};
 
-  // 한자뿐이라 판별이 안 되는 경우에만 예문을 본다.
-  // 일본어 예문에는 조사가 있어 가나가 거의 확실히 나온다.
+export function storedLanguageToTag(stored: string | undefined): string | null {
+  if (typeof stored !== 'string') return null;
+  const key = stored.trim().toLowerCase().replace(/_/g, '-');
+  if (key === '') return null;
+  return STORED_TO_TAG[key] ?? STORED_TO_TAG[key.split('-')[0] ?? ''] ?? null;
+}
+
+/**
+ * 단어를 어떤 언어로 읽어야 하는지 정해 BCP-47 태그로 돌려준다.
+ *
+ * ```
+ * ① 글자가 말해 주면 그걸 쓴다        가나 · 한글 · 주음 · 라틴 …
+ * ② 한자뿐이면 힌트를 본다            같은 단어장의 다른 단어 · 이 단어의 예문
+ * ③ 그래도 모르면 저장된 language     뜻 찾기가 감지해 둔 값
+ * ④ 그것도 없으면 zh-CN               한자의 다수파
+ * ```
+ *
+ * 🔴 **②를 넓힌 것이 2026-10-13 수정의 핵심이다.** 그 전에는 힌트가 「이 단어의 예문」
+ *    뿐이었고, 예문 없는 한자 단어(`水`)는 근거가 0이라 **④로 떨어져 중국어로 읽혔다.**
+ *    사장님 폰에서 `水`(물)가 「shuǐ」로 발음되는 것을 실제로 들었다(`zho-CHN` 합성 요청).
+ *    같은 단어장에 `食べる`·`飲む`·`行く` 가 있으면 가나가 있으므로 ②에서 끝난다.
+ *
+ * ⚠ **원리적으로 못 푸는 경우는 여전히 남는다** — 한자 단어 하나만 든 단어장. 그때 ③이
+ *   받아 준다. 셋 다 비면 ④는 틀릴 수 있고, 그건 글자만으로는 풀 수 없는 문제다.
+ *
+ * 🚫 **`ExamPrefs.languageByCategory` 를 쓰지 않았다.** AI 시험 설정에서 사용자가 직접 고른
+ *    카테고리별 언어라 가장 강한 근거처럼 보이지만, 그 값은 **백업에 일부러 안 담기는
+ *    기기별 선택**이다(`data-model.md`). 그걸 발음에 쓰면 **복원한 기기에서 같은 단어가
+ *    다르게 발음된다** — 소리가 기기마다 달라지는 것은 지금 흠보다 나쁘다.
+ *    그리고 "AI 시험을 한 번 쓰면 발음이 바뀐다"는 사용자가 이어 붙일 수 없는 인과다.
+ *
+ * @param hints 같은 단어장의 다른 단어 · 이 단어의 예문. 🔴 **다른 단어장을 섞지 마라** —
+ *              옆 단어장의 중국어가 일본어 단어를 뒤집는다.
+ * @param stored 저장된 `Word.language`. 없을 수 있다(손으로 넣은 단어).
+ */
+export function detectSpeechLanguage(
+  text: string,
+  hints: string[] = [],
+  stored?: string,
+): string {
+  const scripts = collectScripts(text);
+  if (scripts.size === 0) return storedLanguageToTag(stored) ?? DEFAULT_SPEECH_LANGUAGE;
+
+  // 한자뿐이라 판별이 안 되는 경우에만 힌트와 저장값을 본다.
+  // 일본어 글에는 조사가 있어 가나가 거의 확실히 나온다.
   const hanOnly =
     scripts.has('han') && !scripts.has('kana') && !scripts.has('hangul') && !scripts.has('bopomofo');
-  if (hanOnly && hints.length > 0) {
-    const hintScripts = collectScripts(hints.join(' '));
-    if (hintScripts.has('kana')) return 'ja-JP';
-    if (hintScripts.has('bopomofo')) return 'zh-TW';
+  if (hanOnly) {
+    if (hints.length > 0) {
+      const hintScripts = collectScripts(hints.join(' '));
+      if (hintScripts.has('kana')) return 'ja-JP';
+      if (hintScripts.has('bopomofo')) return 'zh-TW';
+    }
+    const fromStored = storedLanguageToTag(stored);
+    if (fromStored !== null) return fromStored;
   }
 
   for (const [script, language] of SCRIPT_PRIORITY) {

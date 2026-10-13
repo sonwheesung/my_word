@@ -25,7 +25,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useToast } from '../hooks/useToast';
 import { flashcardService, type CardOrder } from '../services/flashcardService';
 import type { Word } from '../types/word';
-import { speak } from '../utils/speech';
+import { siblingHints, speak } from '../utils/speech';
 
 /**
  * 플래시카드. 카드를 넘기며 익히는 화면이다.
@@ -113,8 +113,9 @@ export default function FlashcardScreen({
 
   const speakCurrent = useCallback(
     async (word: Word) => {
-      // 예문을 함께 넘긴다. 한자만 있는 단어의 일본어/중국어 판별 근거가 된다
-      const result = await speak(word.word, (word.examples ?? []).map((e) => e.example));
+      // 예문 + 같은 단어장의 다른 단어를 판별 근거로 넘긴다(2026-10-13)
+      // ⚠ 덱이 단어장을 가로지를 수 있다 — `siblingHints` 가 categoryId 로 거른다
+      const result = await speak(word.word, siblingHints(word, cards), word.language);
       if (result.outcome === 'unsupported') {
         showToast(
           t('{{language}} 음성이 기기에 설치되어 있지 않습니다', { language: t(result.label) }),
@@ -124,7 +125,8 @@ export default function FlashcardScreen({
         showToast(t('음성 재생에 실패했습니다'), 'error');
       }
     },
-    [showToast, t],
+    // 🔴 `cards` 가 빠지면 덱을 다시 만든 뒤에도 **옛 덱**으로 판별한다(낡은 클로저)
+    [cards, showToast, t],
   );
 
   // 새 카드가 뜰 때 자동 재생. 🔴 실패해도 넘기기는 막지 않는다

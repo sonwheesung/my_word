@@ -31,7 +31,7 @@ import BottomSheet from '../components/BottomSheet';
 import { FONT, HIT_SLOP, RADIUS, SEARCH_DEBOUNCE_MS, SPACING } from '../constants/design';
 import AdBanner, { useAdBannerHeight } from '../components/AdBanner';
 import { useTheme } from '../contexts/ThemeContext';
-import { speak } from '../utils/speech';
+import { siblingHints, speak } from '../utils/speech';
 import { normalizeForCompare } from '../utils/text';
 
 interface ManageWordsScreenProps {
@@ -193,15 +193,20 @@ export default function ManageWordsScreen({
     }
   };
 
-  // 예문을 함께 넘긴다 — 한자만 있는 단어(猫)의 일본어/중국어 판별 근거가 된다
+  /*
+   * 🔴 **같은 단어장의 다른 단어**를 판별 근거로 함께 넘긴다(2026-10-13).
+   *    예문만 넘기던 때는 예문 없는 한자 단어(`水`)가 근거 0이라 **중국어로 읽혔다** —
+   *    사장님 폰에서 실제로 그렇게 났다. 같은 단어장에 `食べる` 가 있으면 가나로 끝난다.
+   */
   const speakWord = useCallback(async (word: Word) => {
-    const result = await speak(word.word, (word.examples ?? []).map((e) => e.example));
+    const result = await speak(word.word, siblingHints(word, words), word.language);
     if (result.outcome === 'unsupported') {
       showToast(t('{{language}} 음성이 기기에 설치되어 있지 않습니다', { language: t(result.label) }), 'info');
     } else if (result.outcome === 'error') {
       showToast(t('음성 재생에 실패했습니다'), 'error');
     }
-  }, [showToast]);
+    // 🔴 `words` 가 빠지면 단어장을 바꿔도 **이전 단어장**으로 판별한다(낡은 클로저)
+  }, [showToast, t, words]);
 
   // 검색 필터링 (selectAllWords보다 먼저 선언)
   useEffect(() => {
