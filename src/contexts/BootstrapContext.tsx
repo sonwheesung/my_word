@@ -66,11 +66,32 @@ export function BootstrapProvider({ children }: { children: React.ReactNode }) {
        * 🔴 결과를 보지 않고 화면도 안 바꾼다. 실패하면 다음 부팅이 다시 민다.
        * ⚠ `await` 하지 않는다 — 이 effect 가 끝나야 할 이유가 없다.
        */
-      void syncService.pushOnce().then((r) => {
-        if (__DEV__ && r.pushed > 0) {
-          console.log(`[sync] 단어 ${r.pushed}개 밀었다 · 남은 ${r.remaining}개`);
-        }
-      });
+      void syncService
+        .pushOnce()
+        .then((r) => {
+          if (__DEV__ && r.pushed > 0) {
+            console.log(`[sync] 단어 ${r.pushed}개 밀었다 · 남은 ${r.remaining}개`);
+          }
+        })
+        /*
+         * 🔴 나머지 종류(카테고리 · 퀴즈 기록 · 시험 성적표)는 **단어 뒤에** 민다.
+         *
+         * 지금은 `ENABLED_KINDS = ['words']` 라 이 호출이 **아무것도 보내지 않는다.**
+         * 그래도 지금 배선해 두는 이유: 처리방침을 개정해 종류를 켜는 사람은
+         * `ENABLED_KINDS` 만 고칠 것이고, 그때 부르는 곳이 없으면
+         * **공시는 넓어졌는데 아무것도 안 밀리고 아무 오류도 안 난다.**
+         * (2026-10-13 실제로 그 상태였다 — 함수는 있고 부르는 곳이 0건이었다)
+         *
+         * ⚠ 앞 호출이 실패해도 이쪽은 돈다 — `pushOnce` 는 던지지 않으므로 `then` 이 이어진다.
+         * ⚠ 직렬로 두는 것은 의도다. 둘을 동시에 보내면 느린 기기에서 단어 밀기가 늦어지고,
+         *   단어 경로는 실기기에서 두 번 고쳐 가며 검증한 길이라 양보받을 쪽이 아니다.
+         */
+        .then(() => syncService.pushRest())
+        .then((rows) => {
+          if (__DEV__ && rows.length > 0) {
+            console.log('[sync] 나머지:', rows.map((r) => `${r.kind} ${r.pushed}`).join(' · '));
+          }
+        });
     })();
 
     return () => {

@@ -101,7 +101,7 @@ Screen → Service → utils/storage.ts (AsyncStorage / localStorage)
 |------|------|------|
 | `syncService.pushOnce()` | `{pushed, remaining, reason?}` | **던지지 않는다.** 실패하면 다음 기회에 다시 민다 |
 | `syncService.loadState()` · `saveState(s)` | `SyncState` | 저장 실패는 삼킨다 |
-| `syncService.pushRest()` | `[{kind, pushed, reason?}]` | 카테고리·결과·시험. 🔴 `ENABLED_KINDS` 밖은 쳐다보지 않는다 |
+| `syncService.pushRest()` | `[{kind, pushed, reason?}]` | 카테고리·결과·시험. 🔴 `ENABLED_KINDS` 밖은 쳐다보지 않는다. **부르는 곳은 `BootstrapContext` 하나**(단어 밀기 뒤에 직렬로) |
 | `pickChanged(words, since, limit?)` | `PushableWord[]` | 순수 함수. 🔴 경계를 **`>=`** 로 본다 — `>` 면 같은 밀리초의 단어를 영원히 빠뜨린다 |
 | `pickResults(results, after, limit)` | 결과 배열 | 순수 함수. ⚠ 경계가 **`>`** 다 — 푼 기록은 바뀌지 않으므로 다시 보낼 이유가 없다 |
 | `toPayload(words)` | 서버 모양 | 🔴 **메모·예문·태그를 안 담는다.** `deletedAt` 은 담는다(묘비) |
@@ -133,6 +133,28 @@ ENABLED_KINDS = ['words']      ← 지금 이것뿐이다
 🔴 `__tests__/syncDisclosure.test.ts` 가 `ENABLED_KINDS` 와 처리방침 본문을 **대조한다.**
 공시되지 않은 종류가 켜져 있으면 FAIL 하고, 그 가드 자신이 0개를 검사하고 초록이 되지 않도록
 *"지금 처리방침은 퀴즈 기록·시험을 부정하고 있다"* 를 함께 확인한다.
+
+#### 🔴 그런데 공시를 넓히는 것만으로는 안 밀린다 (2026-10-13 에 잡았다)
+
+`pushRest()` 를 10-12 에 만들고 **부르는 곳을 안 만들었다.** 테스트도 그 함수를 한 번도
+건드리지 않았으니 601개가 전부 초록이었다. `ENABLED_KINDS = ['words']` 라 그날 증상은 0이었지만,
+처리방침을 개정해 종류를 켜는 사람은 그 배열 **한 줄만** 고칠 것이고 그때 이렇게 된다:
+
+```
+공시   넓어졌다 (처리방침이 퀴즈 기록을 적는다)
+코드   ENABLED_KINDS 에 들어왔다
+실제   🔴 아무것도 안 밀린다 · 오류도 안 난다 · 서버는 영원히 빈 표를 들고 있다
+```
+
+→ `BootstrapContext` 가 `pushOnce()` **뒤에** 직렬로 붙여 부른다. 지금은 아무것도 보내지 않는
+호출이지만, 켜는 날 배선을 찾아 헤매지 않도록 **꺼져 있는 동안에 넣어 둔다.**
+
+⚠ **직렬인 것은 의도다.** 동시에 보내면 느린 기기에서 단어 밀기가 늦어지고, 단어 경로는
+실기기에서 두 번 고쳐 가며 검증한 길이라 양보받을 쪽이 아니다.
+
+가드 넷이 `__tests__/syncService.test.ts` 에 붙었다 — 부팅 경로가 **둘 다** 부르는가 ·
+`await` 로 첫 화면을 막지 않는가 · 켤 수 있는 종류마다 `isEnabled` 분기가 있는가.
+🔴 **「함수가 있다」와 「그 함수가 불린다」는 다른 명제이고, 타입 체크는 전자만 본다.**
 
 🔴 **기기 장부를 서버가 주는 숫자로 의심한다**(2026-10-07 실기기에서 찾았다). 장부는
 *"10:46 까지 다 밀었다"* 인데 서버에는 단어가 **17개 중 1개**뿐이었다. 서버는 매번 자기가 가진

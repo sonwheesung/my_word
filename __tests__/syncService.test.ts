@@ -221,6 +221,57 @@ describe('🔴 밀기만 한다 (소스 훑기)', () => {
   });
 });
 
+describe('🔴 미는 함수가 실제로 불린다 (2026-10-13 에 안 불리고 있었다)', () => {
+  /*
+   * 🔴 **이 describe 는 사고 하나를 보고 생겼다.**
+   *
+   * `pushRest()` 를 2026-10-12 에 만들고 **부르는 곳을 안 만들었다.** 테스트도 안 건드렸으니
+   * 601개가 전부 초록이었다. `ENABLED_KINDS = ['words']` 라 그날은 증상이 0이었지만,
+   * 처리방침을 개정해 종류를 켜는 사람은 `ENABLED_KINDS` **한 줄만** 고칠 것이고
+   * 그때 **공시는 넓어졌는데 아무것도 안 밀리고 아무 오류도 안 난다.**
+   *
+   * ⚠ 「함수가 있다」와 「그 함수가 불린다」는 다른 명제다. 타입 체크는 전자만 본다.
+   */
+  /*
+   * ⚠ **공백을 전부 지우고 본다.** 처음에는 `'syncService.pushOnce()'` 를 그대로 찾았는데,
+   *   호출을 체이닝으로 바꾸자 `syncService\n  .pushOnce()` 가 되어 **가드가 먼저 빨개졌다.**
+   *   잡으려던 것은 「부르는가」이고 줄바꿈은 그 명제와 무관하다 —
+   *   `syncDisclosure.test.ts` 가 처리방침 본문에 쓴 것과 같은 방식이다.
+   */
+  const boot = () => stripComments(read('src/contexts/BootstrapContext.tsx')).replace(/\s+/g, '');
+
+  it('⚠ 가드가 실제로 읽었다', () => {
+    expect(boot()).toContain('syncService');
+  });
+
+  it('🔴 부팅 경로가 pushOnce 와 pushRest 를 **둘 다** 부른다', () => {
+    const src = boot();
+    expect(src).toContain('syncService.pushOnce()');
+    expect(src).toContain('syncService.pushRest()');
+  });
+
+  it('⚠ 부팅을 기다리게 만들지 않는다 — await 가 아니라 떼어 붙인다', () => {
+    const src = boot();
+    // `void syncService` 로 시작하는 꼬리여야 한다. `await syncService.push…` 면 첫 화면이 늦어진다
+    expect(src).toContain('voidsyncService');
+    expect(src).not.toContain('awaitsyncService.push');
+  });
+
+  it('🔴 켤 수 있는 종류마다 미는 분기가 있다', () => {
+    /*
+     * `ENABLED_KINDS` 에 종류를 더하는 것만으로는 안 밀린다 — `pushRest` 안에
+     * 그 종류의 `isEnabled` 분기가 있어야 한다. 새 종류를 추가하고 분기를 안 만들면 여기서 FAIL.
+     * ⚠ `words` 는 `pushOnce` 가 따로 다루므로 뺀다.
+     */
+    const src = stripComments(read('src/services/syncService.ts'));
+    const rest = src.slice(src.indexOf('async pushRest('));
+    expect(rest.length).toBeGreaterThan(200);
+    for (const kind of ['categories', 'results', 'exams']) {
+      expect(rest).toContain(`isEnabled('${kind}')`);
+    }
+  });
+});
+
 describe('🔴 needsRewind — 서버가 나보다 적게 들고 있으면 장부를 의심한다', () => {
   const st = (over: Partial<typeof EMPTY_STATE> = {}) => ({ ...EMPTY_STATE, ...over });
 
