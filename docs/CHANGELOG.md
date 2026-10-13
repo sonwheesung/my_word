@@ -268,6 +268,49 @@ AI 시험 설정에서 **사용자가 직접 고른** 카테고리별 언어라 
 ⏱ **첫 호출 1.7초 · 두 번째부터 239ms.** 1.7초는 `Start proc com.google.android.tts` 비용이다
 (로그에 있다). 매번 느린 것이 아니므로 손대지 않는다.
 
+#### 🟢 릴리스 빌드로 전·후를 나란히 쟀다 (전용 AVD `my_word`)
+
+🔴 **소리를 들을 수 없어도 잴 수 있다.** 오라클은 귀가 아니라 합성 요청 로그다 —
+`GoogleTTSServiceImpl: Synthesis request for locale <코드>`. 에뮬레이터가 `-no-audio` 라도
+그 줄은 찍힌다. **"에뮬레이터에선 발음을 못 잰다"는 그동안의 전제가 틀렸다.**
+
+| 단어 | 가진 근거 | 고치기 전 | 고친 뒤 |
+|---|---|---|---|
+| `機会` · `提案` · `曖昧` | 없음 | `zho-CHN` | `zho-CHN` |
+| `検証` | `language='ja'` | `zho-CHN` | 🟢 **`jpn-JPN`** (③) |
+| `機会` · `提案` · `曖昧` | 같은 단어장에 `食べる` | `zho-CHN` | 🟢 **`jpn-JPN`** (②) |
+| `meticulous` · `resilient` | 라틴 문자 | `eng-USA` | `eng-USA` |
+
+🟢 **근거가 없는 셋이 그대로인 것이 맞다.** 모르는 것을 모른다고 두는 쪽이 지어내는 것보다 낫다.
+⚠ `食べる` 는 시험용으로 넣었다가 지웠다. **서버로는 안 나갔다** — `updated_at` 을 장부보다
+앞선 시각으로 두어 `pickChanged` 가 안 고르게 했다(장부 `lastUpdatedAt`·`serverTotal` 불변 확인).
+
+#### 🔴 재다가 찾은 함정 — **APK 를 다시 깔아도 옛 JS 가 뜰 수 있다**
+
+새로 구운 APK 를 `install -r` 하고 앱을 띄웠는데 **고치기 전 동작이 나왔다.**
+APK 안의 번들에는 수정이 **들어 있었다**(`siblingHints` 실재). 원인은 이것이다:
+
+```
+assets/app.manifest 의 id = 4cd11d27-...   ← 🔴 직전 빌드와 **같다**
+expo-updates: "이 업데이트는 이미 가지고 있다" → files/.expo-internal 의 **옛 사본**을 띄운다
+```
+
+🟢 **실제 사용자에게는 해당 없다** — 새로 설치하면 `updates.db` 가 비어 있어 임베디드 자산이
+새로 복사된다. **이미 그 id 를 캐시해 둔 검증용 기기에서만** 일어난다.
+
+🔴 **그래서 더 위험하다. 「검증했다」고 믿으면서 옛 코드를 보게 된다.**
+→ 같은 기기에 릴리스 APK 를 다시 깔아 잴 때는 **캐시를 먼저 비운다**(단어 DB 는 안 건드린다):
+
+```bash
+adb -s <기기> shell am force-stop com.myword.front
+adb -s <기기> shell 'rm -f /data/data/com.myword.front/databases/updates.db*'
+adb -s <기기> shell 'rm -rf /data/data/com.myword.front/files/.expo-internal'
+# files/SQLite/myword.db 는 그대로 남는다
+```
+
+⚠ 판정은 **커밋 시각으로 하지 마라.** 임베디드 업데이트의 `commit_time` 은 빌드해도 안 바뀐다
+(위 함정의 원인과 같다). **동작으로 판정한다.**
+
 #### 가드 15개 · 변이 9건 전부 빨개짐
 
 | 깨뜨린 것 | 빨개진 검사 |
