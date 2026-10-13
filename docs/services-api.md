@@ -178,6 +178,50 @@ rewoundFor    같은 숫자로는 두 번 되감지 않는다 (부팅마다 전�
 
 ⚠ 부팅에서 `setLoaded(true)` **뒤에** 떼어 붙인다 — 사용자에게 값을 주지 않는 일이 첫 화면을 막으면 안 된다.
 
+## syncScheduler.ts (언제 미는가)
+
+| 함수 | 설명 |
+|------|------|
+| `syncScheduler.schedule()` | 「바뀌었다」를 알린다. **3초로 묶는다** — 10개를 연달아 넣어도 요청은 하나다 |
+| `syncScheduler.now()` | 앱 복귀. 묶을 이유가 없으므로 **바로** 민다 |
+| `syncScheduler.register(fn)` | 실제로 미는 함수를 꽂는다. 🔴 **`BootstrapContext` 한 곳에서만** |
+| `syncScheduler.isPending()` | 보낼 것이 밀려 있나(진단·테스트) |
+
+부르는 곳: `wordService.{createWord,updateWord,deleteWord}` · `categoryService.{createCategory,
+updateCategory,deleteCategory,reorderCategories}` · `quizService.saveQuizResults` ·
+`examService.saveRecord`(재시험도 여기를 거친다) · `BootstrapContext`(복귀).
+
+### 🔴 왜 만들었나 — 15시간
+
+```
+10-12 20:43   앱이 서버에 마지막으로 올림
+10-12 20:46   사장님이 일본어 12개를 넣으심
+10-13 11:35   🔴 그 사이 약 15시간 동안 그 12개는 서버에 없었다
+```
+
+밀기가 **JS 프로세스 시작당 1회**였다. 홈 버튼은 프로세스를 안 죽이므로 폰을 내려놓으면
+그 상태가 밤새 이어진다. 「분석 창고」였을 때는 흠이 아니었지만 **「복구 수단」으로는 흠이다.**
+
+### 🟢 큐는 만들지 않았다 — 이미 있다
+
+`pickChanged` 가 `updated_at >= 마지막으로 민 시각` 인 것을 고른다. 저장·수정·삭제가 전부 그
+칸을 올리므로(삭제는 묘비가 올린다), 실패하면 `lastUpdatedAt` 이 안 움직이고 **쌓인 것이 다음
+성공 때 전부 함께 간다.** 기기 DB 자체가 큐다. 그래서 이 파일은 **타이머 하나**이고 자료구조가 없다.
+
+### ⚠ 네트워크 감지 모듈을 쓰지 않은 이유
+
+「인터넷이 붙는 순간」을 들으려면 네이티브 모듈이 필요하고, 그러면 `runtimeVersion` 이 올라가
+**지금까지 낸 OTA 가 전부 끊긴다.** 실패를 30초→2분→5분으로 다시 미는 것이 같은 일을 하고,
+백그라운드 백업에서 「붙는 그 순간」과 「붙고 30초 안」의 차이는 사용자에게 의미가 없다.
+
+### 🔴 고리를 피하려고 잎으로 두었다
+
+`wordService → syncService → wordService` 가 되므로, 이 모듈은 **아무것도 import 하지 않는다.**
+미는 함수는 부팅 배선이 `register()` 로 꽂는다. 꽂히기 전에 들어온 저장도 버리지 않는다.
+
+⚠ 겹침을 막는 곳은 `run()` 안의 한 줄이다. `schedule()`·`now()` 의 같은 검사는 **최적화**이고
+안전장치가 아니다 — 그 둘을 지워도 테스트가 안 깨지고, `run()` 쪽을 지우면 깨진다.
+
 ## shareService.ts (CSV)
 
 | 함수 | 설명 |

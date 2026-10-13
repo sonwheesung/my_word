@@ -11,6 +11,7 @@ import { examRepo } from '../db/repo';
 import { quizService } from './quizService';
 import { quizResultStorage } from '../utils/storage';
 import { srsService } from './srsService';
+import { syncScheduler } from './syncScheduler';
 import { wordService } from './wordService';
 import type { ExamQuestion } from './commonServer/types';
 import type { Word } from '../types/word';
@@ -640,15 +641,24 @@ export const examService = {
     return next;
   },
 
+  /*
+   * 🔴 **시험 기록을 쓰는 유일한 자리다.** `addAttempt`(재시험)도 여기를 거친다 —
+   *    그래서 미는 예약도 여기 한 곳에만 건다.
+   *
+   * ⚠ 성적표도 아직 서버로 가지 않는다(처리방침 시행 10-20). 꺼져 있는 동안 이 호출은
+   *   타이머만 걸고 아무것도 보내지 않는다.
+   */
   async saveRecord(record: ExamRecord): Promise<void> {
     const db = getDb();
     if (db !== null) {
       examRepo.save(db, record as unknown as Record<string, unknown>, EXAM_HISTORY_MAX);
+      syncScheduler.schedule();
       return;
     }
     const existing = parseRecords(await readRaw(EXAMS_KEY));
     const merged = trimRecords([record, ...existing.filter((r) => r.examId !== record.examId)]);
     await writeRaw(EXAMS_KEY, JSON.stringify(merged));
+    syncScheduler.schedule();
   },
 
   /**

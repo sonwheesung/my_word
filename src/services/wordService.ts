@@ -1,6 +1,7 @@
 import i18n from '../i18n';
 import { wordStorage } from '../utils/storage';
 import { normalizeForCompare } from '../utils/text';
+import { syncScheduler } from './syncScheduler';
 import type { Word, WordRequest } from '../types/word';
 
 export const wordService = {
@@ -30,15 +31,31 @@ export const wordService = {
     ) || null;
   },
 
+  /*
+   * 🔴 **쓰고 나면 서버로 밀 것을 예약한다**(2026-10-13).
+   *
+   *    `syncScheduler.schedule()` 은 **3초 뒤에 한 번** 민다. 연달아 넣으면 계속 미뤄져
+   *    마지막 입력 3초 뒤에 **한 번에** 간다 — 10개를 넣어도 요청은 하나다.
+   *
+   * ⚠ **await 하지 않는다.** 저장 버튼의 반응이 통신을 기다리면 안 된다.
+   * ⚠ 실패해도 사용자에게 알리지 않는다 — 기기가 정본이라 아무것도 잃지 않는다.
+   *    실패한 것은 `updated_at` 이 그대로 남아 다음 성공 때 함께 간다.
+   */
   async createWord(data: WordRequest): Promise<Word> {
-    return wordStorage.create(data);
+    const made = await wordStorage.create(data);
+    syncScheduler.schedule();
+    return made;
   },
 
   async updateWord(id: number, data: WordRequest): Promise<Word> {
-    return wordStorage.update(id, data);
+    const saved = await wordStorage.update(id, data);
+    syncScheduler.schedule();
+    return saved;
   },
 
   async deleteWord(id: number): Promise<void> {
-    return wordStorage.delete(id);
+    await wordStorage.delete(id);
+    // 🔴 삭제도 민다 — 묘비가 `updated_at` 을 올리므로 「지웠다」가 그대로 실려 간다
+    syncScheduler.schedule();
   },
 };

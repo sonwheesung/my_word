@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import { AppState } from 'react-native';
 import { commonServer, ensureDeviceSession } from '../services/commonServer/client';
 import { syncService } from '../services/syncService';
+import { syncScheduler } from '../services/syncScheduler';
 import { noticeService } from '../services/noticeService';
 import type { AnnouncementItem, Bootstrap } from '../services/commonServer/types';
 
@@ -66,6 +67,23 @@ export function BootstrapProvider({ children }: { children: React.ReactNode }) {
        * 🔴 결과를 보지 않고 화면도 안 바꾼다. 실패하면 다음 부팅이 다시 민다.
        * ⚠ `await` 하지 않는다 — 이 effect 가 끝나야 할 이유가 없다.
        */
+      /*
+       * 🔴 **미는 함수를 스케줄러에 꽂는다** — 여기 한 곳에서만 한다(2026-10-13).
+       *
+       *    `syncScheduler` 는 「언제」만 알고 「무엇을」은 모르는 잎 모듈이다. 그렇게 나눈
+       *    이유는 import 고리다 — `wordService → syncService → wordService` 가 되기 때문이다.
+       *    꽂는 일을 부팅 배선이 맡으면 그 고리가 생기지 않고, **어디서 꽂는지도 한눈에 보인다.**
+       *
+       * ⚠ 꽂기 **전에** 들어온 저장도 버려지지 않는다 — 스케줄러가 표시해 두었다가 지금 한 번 돈다.
+       */
+      syncScheduler.register(async () => {
+        const r = await syncService.pushOnce();
+        await syncService.pushRest();
+        if (r.reason === 'not-configured') return 'off';
+        if (r.reason !== undefined) return 'retry';
+        return r.remaining > 0 ? 'more' : 'done';
+      });
+
       void syncService
         .pushOnce()
         .then((r) => {
@@ -113,7 +131,20 @@ export function BootstrapProvider({ children }: { children: React.ReactNode }) {
     //    그대로 ErrorBoundary 에 걸려 **오프라인에서 오류 화면**이 된다.
     // 쿨다운 5분도 SDK 안에 있다 — 여기서 디바운스를 다시 만들지 않는다.
     const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') void commonServer.heartbeat();
+      if (state !== 'active') return;
+      void commonServer.heartbeat();
+      /*
+       * 🔴 **앱으로 돌아올 때도 민다**(2026-10-13).
+       *
+       *    이게 없으면 밀기가 **JS 프로세스 시작당 1회**다. 홈 버튼은 프로세스를 안 죽이므로
+       *    폰을 내려놓으면 그 상태가 밤새 이어진다 — 10-12 에 사장님이 넣으신 일본어 12개가
+       *    **약 15시간 동안 서버에 없었다.** 그 사이에 폰을 잃으면 돌아올 것이 없다.
+       *
+       * ⚠ `schedule()` 이 아니라 `now()` 다. 복귀는 묶을 이유가 없고, 저장 직후의 3초 대기는
+       *   「연달아 입력」을 묶으려는 것이지 여기에 쓸 지연이 아니다.
+       * ⚠ 보낼 것이 없으면 요청이 나가지 않는다(`pickChanged` 가 빈 배열을 준다).
+       */
+      syncScheduler.now();
     });
     return () => sub.remove();
   }, []);

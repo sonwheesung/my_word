@@ -250,11 +250,30 @@ describe('🔴 미는 함수가 실제로 불린다 (2026-10-13 에 안 불리�
     expect(src).toContain('syncService.pushRest()');
   });
 
-  it('⚠ 부팅을 기다리게 만들지 않는다 — await 가 아니라 떼어 붙인다', () => {
+  it('⚠ 부팅을 기다리게 만들지 않는다 — 떼어 붙인다', () => {
+    /*
+     * 🔴 처음에는 파일 전체에서 `await syncService.push…` 를 금지했는데, 2026-10-13 에
+     *    스케줄러 콜백이 생기면서 **가드가 먼저 빨개졌다.** 콜백은 결과를 보고 다음 동작을
+     *    정해야 하므로 **기다리는 것이 맞다** — 금지해야 할 것은 「부팅 경로가 기다리는 것」이다.
+     *    그래서 파일 전체가 아니라 **자리로** 가른다.
+     */
     const src = boot();
-    // `void syncService` 로 시작하는 꼬리여야 한다. `await syncService.push…` 면 첫 화면이 늦어진다
-    expect(src).toContain('voidsyncService');
-    expect(src).not.toContain('awaitsyncService.push');
+    const reg = src.indexOf('syncScheduler.register(');
+    const detached = src.indexOf('voidsyncService.pushOnce()');
+    expect(reg).toBeGreaterThanOrEqual(0);
+    // 부팅 밀기는 꽂은 **뒤에**, 그리고 `void` 로 떼어 붙인다
+    expect(detached).toBeGreaterThan(reg);
+
+    const waits: number[] = [];
+    for (let i = src.indexOf('awaitsyncService.'); i !== -1; i = src.indexOf('awaitsyncService.', i + 1)) {
+      waits.push(i);
+    }
+    // ⚠ 0개면 콜백이 결과를 안 보고 있다는 뜻이다 — 그것도 결함이므로 함께 단언한다
+    expect(waits.length).toBeGreaterThan(0);
+    for (const at of waits) {
+      expect(at).toBeGreaterThan(reg);
+      expect(at).toBeLessThan(detached);
+    }
   });
 
   it('🔴 켤 수 있는 종류마다 미는 분기가 있다', () => {

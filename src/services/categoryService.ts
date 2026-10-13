@@ -2,6 +2,7 @@ import i18n from '../i18n';
 import { LAST_CATEGORY_KEY } from '../constants/appConfig';
 import { categoryStorage, readRaw, wordStorage, writeRaw } from '../utils/storage';
 import { normalizeForCompare } from '../utils/text';
+import { syncScheduler } from './syncScheduler';
 import type { Category, CategoryRequest } from '../types/word';
 
 /**
@@ -68,7 +69,15 @@ export const categoryService = {
     if (duplicate) {
       throw new Error(i18n.t('이미 같은 이름의 카테고리가 존재합니다'));
     }
-    return categoryStorage.create(data);
+    const made = await categoryStorage.create(data);
+    /*
+     * ⚠ **단어장은 아직 서버로 가지 않는다**(`ENABLED_KINDS` 가 막는다 · 처리방침 시행 10-20).
+     *   그래도 지금 걸어 두는 이유는, 켜는 사람이 `ENABLED_KINDS` 한 줄만 고칠 것이고
+     *   그때 **부르는 곳이 없으면 공시는 넓어졌는데 아무것도 안 밀린다.**
+     *   꺼져 있는 동안 이 호출은 타이머만 걸고 아무것도 보내지 않는다.
+     */
+    syncScheduler.schedule();
+    return made;
   },
 
   async updateCategory(id: number, data: CategoryRequest): Promise<Category> {
@@ -80,16 +89,21 @@ export const categoryService = {
     if (duplicate) {
       throw new Error(i18n.t('이미 같은 이름의 카테고리가 존재합니다'));
     }
-    return categoryStorage.update(id, data);
+    const saved = await categoryStorage.update(id, data);
+    syncScheduler.schedule();
+    return saved;
   },
 
   async deleteCategory(id: number): Promise<void> {
-    return categoryStorage.delete(id);
+    await categoryStorage.delete(id);
+    // 🔴 그 안의 단어도 함께 묘비가 된다 — 단어 쪽은 지금도 서버로 간다
+    syncScheduler.schedule();
   },
 
   async reorderCategories(
     orders: Array<{ categoryId: number; displayOrder: number }>,
   ): Promise<void> {
-    return categoryStorage.reorder(orders);
+    await categoryStorage.reorder(orders);
+    syncScheduler.schedule();
   },
 };

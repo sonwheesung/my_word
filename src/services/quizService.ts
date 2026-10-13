@@ -2,6 +2,7 @@ import i18n from '../i18n';
 import { quizResultStorage, wordStorage, categoryStorage, readRaw, writeRaw } from '../utils/storage';
 import { QUIZ_PREFS_KEY } from '../constants/appConfig';
 import { formatLocalDate, toLocalDateKey } from '../utils/date';
+import { syncScheduler } from './syncScheduler';
 
 export interface QuizResult {
   wordId: number;
@@ -235,6 +236,12 @@ export const quizService = {
 
   async saveQuizResults(results: QuizResult[]): Promise<void> {
     await quizResultStorage.saveResults(results);
+    /*
+     * ⚠ 퀴즈 기록도 아직 서버로 가지 않는다(처리방침 시행 10-20). 꺼져 있는 동안
+     *   이 호출은 타이머만 걸고 아무것도 보내지 않는다 — `categoryService` 와 같은 이유로 지금 건다.
+     * 🔴 **한 판이 끝날 때 한 번**이다. 문제마다가 아니다 — 저장 자체가 한 판 묶음이다.
+     */
+    syncScheduler.schedule();
   },
 
   async getWeakWordIds(limit: number = 20): Promise<number[]> {
