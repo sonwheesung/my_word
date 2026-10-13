@@ -32,6 +32,7 @@ import { backupFile } from '../services/backupFile';
 import { backupService, type BackupFile, type BackupError, type BackupSummary } from '../services/backupService';
 import { restoreService, RESTORE_READY, type RestoreFail } from '../services/restoreService';
 import { syncService, EMPTY_STATE } from '../services/syncService';
+import { authService, SIGNED_OUT, type AuthState, type SignInFail } from '../services/authService';
 import { commonServer } from '../services/commonServer/client';
 import ConfirmSheet from '../components/ConfirmSheet';
 import type { SyncCounts } from '../services/commonServer/types';
@@ -81,6 +82,13 @@ export default function SettingsScreen({ onBack, onSupport, onNotices }: Setting
   const [serverCounts, setServerCounts] = useState<SyncCounts | 'off' | null>(null);
   const [serverCandidate, setServerCandidate] = useState<BackupFile | null>(null);
   const [serverBusy, setServerBusy] = useState(false);
+  /*
+   * 로그인(2026-10-13 · C 단계). 🔴 `null` 은 **아직 확인 중**이다 —
+   * 「로그인 안 됨」과 같은 값으로 두면 콜드부팅 직후 로그인해 둔 사람에게
+   * 「구글로 로그인」 줄이 잠깐 보였다가 사라진다.
+   */
+  const [auth, setAuth] = useState<AuthState | null>(null);
+  const [authBusy, setAuthBusy] = useState(false);
   const [confirmErase, setConfirmErase] = useState(false);
   const [eraseBusy, setEraseBusy] = useState(false);
 
@@ -90,6 +98,24 @@ export default function SettingsScreen({ onBack, onSupport, onNotices }: Setting
    * ⚠ **실패를 화면에 띄우지 않는다.** 인터넷이 없을 때 설정 화면에 빨간 줄이 뜨면
    *   사용자는 앱이 고장 난 줄 안다. 못 물어봤으면 부제가 일반 문구로 남는다.
    */
+  /*
+   * 계정 상태. 🔴 **여기서만 묻는다** — 계정 줄이 이 화면에만 있고, 부팅마다 요청을 하나
+   *   더할 이유가 없다. 오프라인이면 기기에 들고 있는 값으로 답한다(로그아웃시키지 않는다).
+   */
+  useEffect(() => {
+    if (!authService.isAvailable()) {
+      setAuth(SIGNED_OUT);
+      return;
+    }
+    let alive = true;
+    void authService.refresh().then((next) => {
+      if (alive) setAuth(next);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   useEffect(() => {
     let alive = true;
     void restoreService.serverCounts().then((res) => {
@@ -252,6 +278,12 @@ export default function SettingsScreen({ onBack, onSupport, onNotices }: Setting
         return;
       }
       await syncService.saveState(EMPTY_STATE);
+      /*
+       * 🔴 탈퇴는 **그 주체를 가명화**한다. 구글로 들어와 있었다면 권한까지 회수하고 기기
+       *    세션을 되살려야, 화면이 「로그인됨」으로 남아 있지 않고 다음 밀기도 떠돌지 않는다.
+       */
+      await authService.afterServerErased();
+      setAuth(SIGNED_OUT);
       setServerCounts({ words: 0, categories: 0, results: 0, exams: 0 });
       showToast(t('서버에 보관된 내용을 지웠어요'), 'success');
     } catch {
@@ -259,6 +291,60 @@ export default function SettingsScreen({ onBack, onSupport, onNotices }: Setting
     } finally {
       setEraseBusy(false);
       setConfirmErase(false);
+    }
+  };
+
+  /** 로그인 실패를 사용자 말로. 🔴 취소는 아무 말도 하지 않는다 — 스스로 닫은 것이다 */
+  const describeSignInFail = (fail: SignInFail): string | null => {
+    switch (fail.kind) {
+      case 'cancelled':
+        return null;
+      case 'unavailable':
+        return t('이 버전에서는 로그인을 쓸 수 없어요');
+      case 'google':
+        /*
+         * 🔴 구글이 준 코드를 그대로 붙인다. `DEVELOPER_ERROR` 는 **우리 설정 문제**이고
+         *    (서명 지문·패키지 이름), 그 글자가 보여야 원인을 찾을 수 있다.
+         */
+        return fail.code === undefined
+          ? t('구글 로그인에 실패했어요')
+          : t('구글 로그인에 실패했어요 ({{code}})', { code: fail.code });
+      default:
+        return fail.reason === 'offline'
+          ? t('인터넷에 연결한 뒤 다시 시도해 주세요')
+          : t('로그인하지 못했어요. 잠시 후 다시 시도해 주세요');
+    }
+  };
+
+  const handleSignIn = async () => {
+    if (authBusy) return;
+    setAuthBusy(true);
+    try {
+      const fail = await authService.signIn();
+      if (fail !== null) {
+        const message = describeSignInFail(fail);
+        if (message !== null) showToast(message, 'error');
+        return;
+      }
+      const next = await authService.refresh();
+      setAuth(next);
+      showToast(t('로그인했어요. 이 기기의 학습 내용을 계정으로 올리고 있어요'), 'success');
+    } catch {
+      showToast(t('로그인하지 못했어요. 잠시 후 다시 시도해 주세요'), 'error');
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    if (authBusy) return;
+    setAuthBusy(true);
+    try {
+      await authService.signOut();
+      setAuth(SIGNED_OUT);
+      showToast(t('로그아웃했어요. 이 기기의 단어와 기록은 그대로예요'), 'info');
+    } finally {
+      setAuthBusy(false);
     }
   };
 
@@ -521,6 +607,87 @@ export default function SettingsScreen({ onBack, onSupport, onNotices }: Setting
                     </Text>
                     <MaterialIcons name="chevron-right" size={22} color={colors.textTertiary} />
                   </View>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        )}
+
+        {/*
+          * 계정 — 🔴 이 빌드에 구글 로그인이 없으면(Expo Go · 웹) **절 자체를 안 그린다.**
+          *   눌러도 「쓸 수 없어요」만 나오는 줄을 두는 것은 알려 주는 일이 아니다.
+          */}
+        {authService.isAvailable() && (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('계정')}</Text>
+            <View style={[styles.notifyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              {auth === null ? (
+                /* 🔴 확인 중. 「로그인 안 됨」으로 그리면 로그인해 둔 사람에게 깜빡인다 */
+                <View style={styles.notifyRow}>
+                  <View style={styles.notifyLabel}>
+                    <Text style={[styles.linkSubtitle, { color: colors.textTertiary }]}>
+                      {t('확인 중…')}
+                    </Text>
+                  </View>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                </View>
+              ) : auth.signedIn ? (
+                <>
+                  <View style={styles.notifyRow}>
+                    <View style={styles.notifyLabel}>
+                      <Text style={[styles.linkTitle, { color: colors.text }]}>
+                        {t('구글 계정으로 로그인됨')}
+                      </Text>
+                      <Text
+                        style={[styles.linkSubtitle, { color: colors.textTertiary }]}
+                        numberOfLines={1}
+                      >
+                        {auth.email ?? t('이 계정으로 학습 내용이 보관돼요')}
+                      </Text>
+                    </View>
+                    <MaterialIcons name="verified-user" size={22} color={colors.primary} />
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => void handleSignOut()}
+                    disabled={authBusy}
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                    style={[styles.notifyTimeRow, { borderTopColor: colors.borderLight }]}
+                  >
+                    <View style={styles.notifyLabel}>
+                      <Text style={[styles.linkTitle, { color: colors.text }]}>{t('로그아웃')}</Text>
+                      <Text style={[styles.linkSubtitle, { color: colors.textTertiary }]}>
+                        {t('이 기기의 단어와 기록은 지워지지 않아요')}
+                      </Text>
+                    </View>
+                    {authBusy ? (
+                      <ActivityIndicator size="small" color={colors.primary} />
+                    ) : (
+                      <MaterialIcons name="logout" size={22} color={colors.textTertiary} />
+                    )}
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <TouchableOpacity
+                  onPress={() => void handleSignIn()}
+                  disabled={authBusy}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  style={styles.notifyRow}
+                >
+                  <View style={styles.notifyLabel}>
+                    <Text style={[styles.linkTitle, { color: colors.text }]}>
+                      {t('구글로 로그인')}
+                    </Text>
+                    <Text style={[styles.linkSubtitle, { color: colors.textTertiary }]}>
+                      {t('폰을 바꾸거나 잃어버려도 학습 내용을 돌려받을 수 있어요')}
+                    </Text>
+                  </View>
+                  {authBusy ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : (
+                    <MaterialIcons name="login" size={22} color={colors.primary} />
+                  )}
                 </TouchableOpacity>
               )}
             </View>

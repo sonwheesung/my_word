@@ -606,5 +606,19 @@
   "단어 · 단어장 · 퀴즈 기록 · AI 시험 성적표의 서버 사본이 지워져요. 이 기기의 내용은 그대로 남지만, 폰을 잃으셨을 때 돌려받을 수 없게 됩니다. 지난 문의와의 연결도 끊겨서 그 문의에 대한 답변을 더는 확인하실 수 없어요. 계속 쓰시면 새 식별자로 처음부터 다시 보관됩니다": "The server copy of your words, word lists, quiz records and AI exam reports will be erased. What is on this device stays, but you will not be able to get it back if you lose your phone. The link to your past inquiries is also cut, so you can no longer see replies to them. If you keep using the app, a new identifier starts storing from scratch",
   "서버에 보관된 내용을 지웠어요": "Erased what the server was keeping",
   "지우지 못했어요. 잠시 후 다시 시도해 주세요": "Couldn't erase it. Please try again in a moment",
-  "서버에 아직 일부만 올라가 있어서 지금 복구하면 기록이 사라져요": "Only part of your data is on the server yet, so restoring now would erase your records"
+  "서버에 아직 일부만 올라가 있어서 지금 복구하면 기록이 사라져요": "Only part of your data is on the server yet, so restoring now would erase your records",
+  "계정": "Account",
+  "확인 중…": "Checking…",
+  "구글 계정으로 로그인됨": "Signed in with Google",
+  "이 계정으로 학습 내용이 보관돼요": "Your learning content is kept under this account",
+  "로그아웃": "Sign out",
+  "이 기기의 단어와 기록은 지워지지 않아요": "The words and records on this device are not deleted",
+  "구글로 로그인": "Sign in with Google",
+  "폰을 바꾸거나 잃어버려도 학습 내용을 돌려받을 수 있어요": "Get your learning content back even if you change or lose your phone",
+  "이 버전에서는 로그인을 쓸 수 없어요": "Sign-in isn't available in this build",
+  "구글 로그인에 실패했어요": "Google sign-in didn't work",
+  "구글 로그인에 실패했어요 ({{code}})": "Google sign-in didn't work ({{code}})",
+  "로그인하지 못했어요. 잠시 후 다시 시도해 주세요": "Couldn't sign you in. Please try again in a moment",
+  "로그인했어요. 이 기기의 학습 내용을 계정으로 올리고 있어요": "You're signed in. This device's learning content is being uploaded to your account",
+  "로그아웃했어요. 이 기기의 단어와 기록은 그대로예요": "Signed out. The words and records on this device are unchanged"
 }
