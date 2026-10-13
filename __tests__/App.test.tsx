@@ -46,28 +46,46 @@ function visibleTexts(node: unknown): string[] {
 }
 
 /**
- * 비동기 초기화를 흘려보낸다. 앱은 언어와 저장소가 준비될 때까지 **아무것도 그리지 않는다**
- * (`App.tsx` 의 `languageReady`·`dbReady`). 한 번만 flush 하면 그 게이트 안쪽을 못 본다.
+ * 화면에 글자가 나올 때까지 비동기 초기화를 흘려보낸다. 앱은 언어와 저장소가 준비될 때까지
+ * **아무것도 그리지 않는다**(`App.tsx` 의 `languageReady`·`dbReady`).
+ *
+ * 🔴 **고정 횟수로 돌리면 간헐적으로 실패한다**(2026-10-13 에 실제로 났다). 20번을 돌리고
+ *    단언했더니 혼자 돌릴 때는 통과하고 전체 묶음에서 가끔 빨개졌다 — 기계가 바쁠 때
+ *    그 횟수 안에 초기화가 안 끝나기 때문이다.
+ *
+ * ⚠ **간헐적으로 빨개지는 가드는 없는 것보다 나쁘다.** 「다시 돌려서 초록 나오면 넘어가기」를
+ *   가르치고, 그러면 진짜 고장도 같은 방식으로 지나간다. 그래서 횟수가 아니라 **조건**으로 기다린다.
+ *
+ * 🔴 그래도 **무한정 기다리지 않는다.** 상한에 닿으면 그냥 돌아오고, 호출부의 단언이
+ *    「글자가 없다」로 실패한다 — 기다리다 멈추는 것보다 **무엇이 틀렸는지 말하는 실패**가 낫다.
  */
-async function settle(times = 20): Promise<void> {
-  for (let i = 0; i < times; i += 1) {
+async function settleUntilPainted(maxTicks = 200): Promise<void> {
+  for (let i = 0; i < maxTicks; i += 1) {
     // eslint-disable-next-line no-await-in-loop
     await ReactTestRenderer.act(async () => {
       await Promise.resolve();
       await new Promise((r) => setTimeout(r, 1));
     });
+    if (currentTexts().length > 5) return;
   }
+}
+
+/** `settleUntilPainted` 가 들여다보는 트리. 렌더러를 모듈 수준에 둬야 조건을 볼 수 있다. */
+let tree: ReactTestRenderer.ReactTestRenderer | null = null;
+const currentTexts = (): string[] => (tree === null ? [] : visibleTexts(tree.toJSON()));
+
+/** 앱을 띄우고 **그려질 때까지** 기다린 뒤 보이는 글자를 돌려준다. */
+async function renderApp(): Promise<string[]> {
+  await ReactTestRenderer.act(() => {
+    tree = ReactTestRenderer.create(<App />);
+  });
+  await settleUntilPainted();
+  return currentTexts();
 }
 
 describe('앱이 뜬다', () => {
   it('🔴 빈 화면이 아니다 — 글자가 하나도 없으면 즉시 FAIL', async () => {
-    let tree!: ReactTestRenderer.ReactTestRenderer;
-    await ReactTestRenderer.act(() => {
-      tree = ReactTestRenderer.create(<App />);
-    });
-    await settle();
-
-    const texts = visibleTexts(tree.toJSON());
+    const texts = await renderApp();
     /*
      * 🔴 **이 한 줄이 이 파일의 전부다.** 2026-10-13 까지 여기가 비어 있었고
      *    (자식 0개) 그래도 테스트는 초록이었다.
@@ -81,13 +99,7 @@ describe('앱이 뜬다', () => {
   });
 
   it('단어가 없는 첫 사용자에게 **다음에 할 일**을 보여 준다', async () => {
-    let tree!: ReactTestRenderer.ReactTestRenderer;
-    await ReactTestRenderer.act(() => {
-      tree = ReactTestRenderer.create(<App />);
-    });
-    await settle();
-
-    const texts = visibleTexts(tree.toJSON());
+    const texts = await renderApp();
     /*
      * 저장소 목이 비어 있으므로 **빈 상태 화면**이 떠야 한다. 이것이 신규 설치의 첫 화면이고,
      * 여기가 비면 사용자는 무엇을 해야 하는지 모른다(CLAUDE.md 의 「데이터 없을 때 빈 상태 안내」).
