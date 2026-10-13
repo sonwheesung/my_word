@@ -401,3 +401,62 @@ describe('🔴 서버가 일부만 들고 있으면 복구를 내놓지 않는�
     expect(src).toContain("serverCounts==='off'||!RESTORE_READY?null:(");
   });
 });
+
+/*
+ * ─────────── 🔴 구독을 켜는 날 함께 고쳐야 하는 자리 (2026-10-13) ───────────
+ *
+ * `common/GLOBAL_DATA_COMPLIANCE.md` §6.1 이 요구한다 — **구독이 있으면 「계정 삭제 ≠ 구독
+ * 해지」를 별도로 안내해야 한다.** 지금 확인 시트는 광고 제거만 말하고 **구독을 말하지 않는다.**
+ *
+ * 🔴 지금은 그게 맞다. 구독을 **살 길이 아직 없다**(페이월·결제 코드가 없다).
+ *    문제는 **켜는 날 이 줄을 잊는 것**이고, 잊으면 돈을 내는 사람이 「지우면 해지된다」고
+ *    믿은 채 누른다. 그 사고는 조용하다 — 결제는 계속 나가고 앱은 구독자로 안 본다.
+ *
+ * ⚠ 그래서 **기억에 맡기지 않고 조건부로 막는다.** 아래 테스트는 지금 초록이고,
+ *   **구독을 사는 길이 생기는 순간 빨개진다.** 주석이 아니라 가드여야 하는 이유다.
+ */
+describe('🔴 구독을 살 수 있게 되면 지우기 시트가 구독을 말해야 한다', () => {
+  /** 구독을 사는 길이 생겼는지 — 페이월 화면이나 구독 구매 호출 중 하나라도 있으면 생긴 것이다 */
+  const subscriptionSellable = (): string[] => {
+    const signals: string[] = [];
+    const screens = path.join(__dirname, '..', 'src', 'screens');
+    for (const file of fs.readdirSync(screens)) {
+      if (/paywall|subscri|구독/i.test(file)) signals.push(`화면 ${file}`);
+    }
+    const purchase = stripComments(read('src/contexts/PurchaseContext.tsx'));
+    for (const call of ['requestSubscription', 'purchasePackage', 'getSubscriptions', "'subs'"]) {
+      if (purchase.includes(call)) signals.push(`결제 호출 ${call}`);
+    }
+    return signals;
+  };
+
+  it('⚠ 가드가 실제로 읽었다 — 시트 문구를 찾을 수 있다', () => {
+    expect(stripComments(read(SETTINGS))).toContain('서버 사본이 지워져요');
+  });
+
+  it('🔴 구독을 살 길이 생겼는데 시트가 구독을 말하지 않으면 FAIL', () => {
+    const signals = subscriptionSellable();
+    const sheetMentionsSubscription = stripComments(read(SETTINGS)).includes(
+      '구독',
+    );
+    if (signals.length === 0) {
+      // 아직 팔 길이 없다. 시트가 구독을 말하지 않는 것이 맞다.
+      expect(sheetMentionsSubscription).toBe(false);
+      return;
+    }
+    throw new Error(
+      [
+        '구독을 살 길이 생겼다: ' + signals.join(' · '),
+        sheetMentionsSubscription
+          ? '🟢 시트가 구독을 말한다 — 이 테스트를 지우고 위 describe 를 정리하라.'
+          : [
+              '🔴 그런데 「서버에 보관된 내용 지우기」 확인 시트가 구독을 말하지 않는다.',
+              '   GLOBAL_DATA_COMPLIANCE §6.1: 구독이 있으면 「계정 삭제 ≠ 구독 해지」 별도 안내.',
+              '   시트 문구에 아래 둘을 넣어라(연출 사전 #24 시안):',
+              '     · 구독 결제는 멈추지 않아요 — Play 스토어에서 해지해야 멈춰요',
+              '     · 지운 뒤 구독이 안 보이면 설정 > 구매 복원을 한 번 눌러 주세요',
+            ].join('\n'),
+      ].join('\n'),
+    );
+  });
+});
