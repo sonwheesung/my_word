@@ -28,7 +28,10 @@ import {
   toExams,
   toResults,
   toWords,
+  RESTORE_KINDS,
+  RESTORE_READY,
 } from '../src/services/restoreService';
+import { ENABLED_KINDS, isEnabled } from '../src/services/syncService';
 
 describe('toWords — 서버가 준 단어를 기기 모양으로', () => {
   it('JSON 문자열로 온 뜻을 푼다', () => {
@@ -315,5 +318,86 @@ describe('🔴 복구 화면 (소스 훑기)', () => {
     const src = stripComments(read(SETTINGS)).replace(/\s+/g, '');
     expect(src).toContain("setServerCounts('off')");
     expect(src).toContain("serverCounts==='off'?null:(");
+  });
+});
+
+// ── 🔴 서버 사본 지우기 — 게시된 처리방침이 약속한 길 (2026-10-13) ──────────────
+
+describe('🔴 서버에 보관된 내용 지우기 (소스 훑기)', () => {
+  it('⚠ 가드가 실제로 읽었다', () => {
+    expect(read(SETTINGS)).toContain('handleEraseServer');
+  });
+
+  it('🔴 되돌릴 수 없으므로 확인을 받는다 — danger 로', () => {
+    const src = stripComments(read(SETTINGS)).replace(/\s+/g, '');
+    expect(src).toContain('visible={confirmErase}');
+    expect(src).toContain('tone="danger"');
+    // 줄을 누르면 바로 지우지 않는다. 시트를 연다
+    expect(src).toContain('onPress={()=>setConfirmErase(true)}');
+    expect(src).not.toContain('onPress={()=>voidhandleEraseServer()}');
+  });
+
+  it('🔴 장부를 함께 비운다 — 안 비우면 새 식별자의 서버가 영원히 빈 채로 남는다', () => {
+    /*
+     * 지운 뒤 다음 부팅은 **새 주체**를 만든다. 그런데 장부가 "이미 다 올렸다"고 적혀
+     * 있으면 `pickChanged` 가 아무것도 안 고르고, 그 기기는 복구 수단을 잃은 채로 돈다.
+     * 되감기가 잡아 주기는 하지만 **저절로 되는 것에 기대지 않는다.**
+     */
+    const src = stripComments(read(SETTINGS)).replace(/\s+/g, '');
+    const del = src.indexOf('commonServer.deleteAccount()');
+    const reset = src.indexOf('syncService.saveState(EMPTY_STATE)');
+    expect(del).toBeGreaterThanOrEqual(0);
+    expect(reset).toBeGreaterThan(del); // 성공한 뒤에 비운다
+  });
+
+  it('🔴 기기는 건드리지 않는다 — 서버 사본만 지운다', () => {
+    const src = stripComments(read(SETTINGS));
+    const body = src.slice(
+      src.indexOf('const handleEraseServer'),
+      src.indexOf('const handleExportBackup'),
+    );
+    expect(body.length).toBeGreaterThan(200);
+    for (const banned of ['clearAllData', 'backupService.restore', 'wordRepo', 'Updates.reload']) {
+      expect(body).not.toContain(banned);
+    }
+  });
+});
+
+// ── 🔴 복구가 **삭제**가 되는 자리 (2026-10-13 실물에서 잡았다) ────────────────────
+
+describe('🔴 서버가 일부만 들고 있으면 복구를 내놓지 않는다', () => {
+  it('RESTORE_KINDS 는 네 종류 전부다 — 하나라도 빠지면 그 종류가 지워진다', () => {
+    expect([...RESTORE_KINDS].sort()).toEqual(['categories', 'exams', 'results', 'words']);
+  });
+
+  it('🔴 판정이 밀기와 같은 한 줄에 묶여 있다 — 따로 기억할 것을 만들지 않는다', () => {
+    expect(RESTORE_READY).toBe(RESTORE_KINDS.every(isEnabled));
+  });
+
+  it('⚠ 지금은 단어만 켜져 있으므로 복구가 꺼져 있다 (10-20 에 함께 켜진다)', () => {
+    /*
+     * 🔴 10-20 에 `ENABLED_KINDS` 를 넷으로 고치는 순간 이 검사가 빨개진다. 그게 목적이다 —
+     *    그날 이 줄과 `SERVER_RESTORE_PLAN.md` §8 을 **같은 커밋에서** 고치게 만든다.
+     */
+    expect([...ENABLED_KINDS]).toEqual(['words']);
+    expect(RESTORE_READY).toBe(false);
+  });
+
+  it('🔴 줄을 가리는 것과 별개로, 누르는 순간 다시 센다', () => {
+    /*
+     * 한 종류의 밀기만 실패해 있어도 같은 사고가 난다. 켜고 끄는 판정 하나에 기대지 않는다.
+     */
+    const src = stripComments(read(SETTINGS)).replace(/\s+/g, '');
+    expect(src).toContain('current.categories>0&&got.counts.categories===0');
+    expect(src).toContain('current.quizResults>0&&got.counts.results===0');
+    // 그 검사가 쓰기보다 앞이다
+    expect(src.indexOf('got.counts.categories===0')).toBeLessThan(
+      src.indexOf('runRestore(got.backup)'),
+    );
+  });
+
+  it('🔴 준비가 안 됐으면 줄 자체를 안 띄운다', () => {
+    const src = stripComments(read(SETTINGS)).replace(/\s+/g, '');
+    expect(src).toContain("serverCounts==='off'||!RESTORE_READY?null:(");
   });
 });

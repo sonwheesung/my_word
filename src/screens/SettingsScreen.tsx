@@ -30,7 +30,10 @@ import TimePickerSheet from '../components/TimePickerSheet';
 import RestoreConfirmSheet from '../components/RestoreConfirmSheet';
 import { backupFile } from '../services/backupFile';
 import { backupService, type BackupFile, type BackupError, type BackupSummary } from '../services/backupService';
-import { restoreService, type RestoreFail } from '../services/restoreService';
+import { restoreService, RESTORE_READY, type RestoreFail } from '../services/restoreService';
+import { syncService, EMPTY_STATE } from '../services/syncService';
+import { commonServer } from '../services/commonServer/client';
+import ConfirmSheet from '../components/ConfirmSheet';
 import type { SyncCounts } from '../services/commonServer/types';
 import * as Updates from 'expo-updates';
 import { formatTime, type TimeOfDay } from '../utils/notificationSchedule';
@@ -78,6 +81,8 @@ export default function SettingsScreen({ onBack, onSupport, onNotices }: Setting
   const [serverCounts, setServerCounts] = useState<SyncCounts | 'off' | null>(null);
   const [serverCandidate, setServerCandidate] = useState<BackupFile | null>(null);
   const [serverBusy, setServerBusy] = useState(false);
+  const [confirmErase, setConfirmErase] = useState(false);
+  const [eraseBusy, setEraseBusy] = useState(false);
 
   /*
    * 서버가 들고 있는 개수를 한 번 묻는다 — 줄의 부제가 그 값이다(설계서 §7).
@@ -193,6 +198,20 @@ export default function SettingsScreen({ onBack, onSupport, onNotices }: Setting
       setServerCounts(got.counts);
 
       const current = backupService.summarize(await backupService.create());
+
+      /*
+       * 🔴 **서버에 없는 종류가 기기에는 있으면 물러난다.** 그대로 덮으면 복구가 아니라
+       *    삭제다 — 2026-10-13 에 실물에서 그 상태를 봤다(서버에 단어만 10줄).
+       *    `RESTORE_READY` 가 평소에 막지만, 한 종류의 밀기가 실패해 있어도 같은 일이
+       *    벌어진다. **줄을 가리는 것과 별개로 누르는 순간 다시 센다.**
+       */
+      if (
+        (current.categories > 0 && got.counts.categories === 0) ||
+        (current.quizResults > 0 && got.counts.results === 0)
+      ) {
+        showToast(t('서버에 아직 일부만 올라가 있어서 지금 복구하면 기록이 사라져요'), 'error');
+        return;
+      }
       // 🔴 잃을 것이 없으면 묻지 않는다 — 백업 복원과 같은 규칙이다(설계서 §7)
       if (current.words === 0 && current.categories === 0 && current.quizResults === 0) {
         await runRestore(got.backup);
@@ -203,6 +222,43 @@ export default function SettingsScreen({ onBack, onSupport, onNotices }: Setting
     } finally {
       dataBusyRef.current = false;
       setServerBusy(false);
+    }
+  };
+
+  /**
+   * 서버에 보관된 사본을 지운다 — **기기는 건드리지 않는다.**
+   *
+   * 🔴 **게시된 처리방침이 약속한 길이다.** 제5-3항이 *"기기 식별자를 삭제하시면 서버에
+   *    보관된 학습 데이터도 함께 삭제됩니다"* 라고 적는데, 앱을 지우는 것만으로는 **기기
+   *    안의 식별자만** 사라지고 서버의 줄은 남는다. 그 약속을 실제로 지키는 자리가 여기다.
+   *    (Google Play 가 로그인 앱에 요구하는 「앱 안의 계정 삭제」와 같은 경로이기도 하다)
+   *
+   * 🔴 **장부를 반드시 함께 비운다.** 안 비우면 다음 밀기가 *"이미 다 올렸다"* 로 믿고
+   *    아무것도 안 보내, 새 식별자의 서버가 **영원히 비어 있게 된다.** 되감기가 저절로
+   *    잡아 주기는 하지만 저절로 되는 것에 기대지 않는다.
+   */
+  const handleEraseServer = async () => {
+    if (eraseBusy) return;
+    setEraseBusy(true);
+    try {
+      const res = await commonServer.deleteAccount();
+      if (!res.ok) {
+        showToast(
+          res.reason === 'offline'
+            ? t('인터넷에 연결한 뒤 다시 시도해 주세요')
+            : t('지우지 못했어요. 잠시 후 다시 시도해 주세요'),
+          'error',
+        );
+        return;
+      }
+      await syncService.saveState(EMPTY_STATE);
+      setServerCounts({ words: 0, categories: 0, results: 0, exams: 0 });
+      showToast(t('서버에 보관된 내용을 지웠어요'), 'success');
+    } catch {
+      showToast(t('지우지 못했어요. 잠시 후 다시 시도해 주세요'), 'error');
+    } finally {
+      setEraseBusy(false);
+      setConfirmErase(false);
     }
   };
 
@@ -510,7 +566,7 @@ export default function SettingsScreen({ onBack, onSupport, onNotices }: Setting
                 * 서버에서 복구 — 서버가 아예 설정돼 있지 않으면 줄을 띄우지 않는다.
                 * 눌러도 영원히 같은 실패가 나는 줄을 두는 것은 알려 주는 일이 아니다.
                 */}
-              {serverCounts === 'off' ? null : (
+              {serverCounts === 'off' || !RESTORE_READY ? null : (
                 <TouchableOpacity
                   onPress={handleServerRestore}
                   disabled={serverBusy}
@@ -530,6 +586,30 @@ export default function SettingsScreen({ onBack, onSupport, onNotices }: Setting
                     <ActivityIndicator size="small" color={colors.primary} />
                   ) : (
                     <MaterialIcons name="cloud-download" size={22} color={colors.primary} />
+                  )}
+                </TouchableOpacity>
+              )}
+
+              {serverCounts === 'off' ? null : (
+                <TouchableOpacity
+                  onPress={() => setConfirmErase(true)}
+                  disabled={eraseBusy}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  style={[styles.notifyTimeRow, { borderTopColor: colors.borderLight }]}
+                >
+                  <View style={styles.notifyLabel}>
+                    <Text style={[styles.linkTitle, { color: colors.error }]}>
+                      {t('서버에 보관된 내용 지우기')}
+                    </Text>
+                    <Text style={[styles.linkSubtitle, { color: colors.textTertiary }]}>
+                      {t('서버의 사본만 지워요. 이 기기의 단어와 기록은 그대로 남아요')}
+                    </Text>
+                  </View>
+                  {eraseBusy ? (
+                    <ActivityIndicator size="small" color={colors.error} />
+                  ) : (
+                    <MaterialIcons name="delete-forever" size={22} color={colors.error} />
                   )}
                 </TouchableOpacity>
               )}
@@ -700,6 +780,23 @@ export default function SettingsScreen({ onBack, onSupport, onNotices }: Setting
           </View>
         </View>
       </ScrollView>
+
+      {/*
+        * 🔴 되돌릴 수 없다. `Alert.alert` 가 아니라 앱 화풍의 시트로 묻고, 무엇을
+        *   **잃는지**(지난 문의와의 연결)까지 적는다 — 그건 누른 뒤에는 되살릴 수 없다.
+        */}
+      <ConfirmSheet
+        visible={confirmErase}
+        title={t('서버에 보관된 내용을 지울까요?')}
+        message={t(
+          '단어 · 단어장 · 퀴즈 기록 · AI 시험 성적표의 서버 사본이 지워져요. 이 기기의 내용은 그대로 남지만, 폰을 잃으셨을 때 돌려받을 수 없게 됩니다. 지난 문의와의 연결도 끊겨서 그 문의에 대한 답변을 더는 확인하실 수 없어요. 계속 쓰시면 새 식별자로 처음부터 다시 보관됩니다',
+        )}
+        confirmLabel={t('지우기')}
+        tone="danger"
+        busy={eraseBusy}
+        onConfirm={() => void handleEraseServer()}
+        onCancel={() => setConfirmErase(false)}
+      />
 
       {/*
         * 🔴 서버 복구는 **예문·태그·메모를 못 되돌린다** — 밀기가 그 셋을 안 보낸다

@@ -41,12 +41,36 @@
  */
 import type { BackupFile } from './backupService';
 import { commonServer } from './commonServer/client';
+import { isEnabled } from './syncService';
 import type { SyncCounts, SyncKind } from './commonServer/types';
 import type { Category, Word } from '../types/word';
 import type { StoredQuizResult } from '../utils/storage';
 
 /** 한 종류를 몇 페이지까지 당기나. 🔴 무한 루프를 코드로 막는다 — 서버가 커서를 잘못 줘도 멈춘다 */
 const MAX_PAGES = 200;
+
+/** 복구가 다루는 전부. 하나라도 서버에 안 올라가면 복구가 **삭제**가 된다(아래) */
+export const RESTORE_KINDS: readonly SyncKind[] = ['words', 'categories', 'results', 'exams'];
+
+/**
+ * 🔴 **복구를 내놓아도 되는가.** 2026-10-13 에 실물에서 잡은 것이다.
+ *
+ * 그날 서버에는 `user_words` 만 10줄 있었고 나머지 셋은 **0줄**이었다 — `ENABLED_KINDS` 가
+ * 단어만 켜 둔 상태였기 때문이다(처리방침 시행 10-20). 그 상태에서 복구를 누르면:
+ *
+ * ```
+ * 받아오는 것   단어 9 · 카테고리 0 · 퀴즈 0 · 성적표 0
+ * 덮어쓰기      카테고리 전멸 · 퀴즈 기록 전멸 · 성적표 전멸
+ * 결과          단어가 **없는 카테고리**를 가리켜 단어장에서 사라진다. 오류는 안 난다
+ * ```
+ *
+ * ⚠ `fetchAll` 의 `'empty'` 방어는 **셋이 전부 0일 때만** 막는다. 단어가 9개라 통과했다.
+ *   화면도 타입도 테스트도 멀쩡했고, **서버 행을 직접 세어 보고서야** 보였다.
+ *
+ * → 그래서 판정을 밀기 쪽과 **같은 한 줄**에 묶는다. 10-20 에 `ENABLED_KINDS` 를 넷으로
+ *   고치면 이 값이 함께 참이 되고 줄이 저절로 나타난다. **따로 기억할 것을 만들지 않는다.**
+ */
+export const RESTORE_READY: boolean = RESTORE_KINDS.every(isEnabled);
 
 export type RestoreFail =
   | 'not-configured'

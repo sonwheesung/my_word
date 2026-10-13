@@ -599,5 +599,12 @@
   "서버에 {{what}} 보관 중": "{{what}} stored on the server",
   "서버에 복구할 내용이 아직 없어요": "There's nothing on the server to restore yet",
   "지금은 서버 복구를 쓸 수 없어요": "Server restore isn't available right now",
-  "복구하지 못했어요. 잠시 후 다시 시도해 주세요": "Couldn't restore. Please try again in a moment"
+  "복구하지 못했어요. 잠시 후 다시 시도해 주세요": "Couldn't restore. Please try again in a moment",
+  "서버에 보관된 내용 지우기": "Erase what the server keeps",
+  "서버의 사본만 지워요. 이 기기의 단어와 기록은 그대로 남아요": "Erases only the server's copy. The words and records on this device stay",
+  "서버에 보관된 내용을 지울까요?": "Erase what the server keeps?",
+  "단어 · 단어장 · 퀴즈 기록 · AI 시험 성적표의 서버 사본이 지워져요. 이 기기의 내용은 그대로 남지만, 폰을 잃으셨을 때 돌려받을 수 없게 됩니다. 지난 문의와의 연결도 끊겨서 그 문의에 대한 답변을 더는 확인하실 수 없어요. 계속 쓰시면 새 식별자로 처음부터 다시 보관됩니다": "The server copy of your words, word lists, quiz records and AI exam reports will be erased. What is on this device stays, but you will not be able to get it back if you lose your phone. The link to your past inquiries is also cut, so you can no longer see replies to them. If you keep using the app, a new identifier starts storing from scratch",
+  "서버에 보관된 내용을 지웠어요": "Erased what the server was keeping",
+  "지우지 못했어요. 잠시 후 다시 시도해 주세요": "Couldn't erase it. Please try again in a moment",
+  "서버에 아직 일부만 올라가 있어서 지금 복구하면 기록이 사라져요": "Only part of your data is on the server yet, so restoring now would erase your records"
 }
