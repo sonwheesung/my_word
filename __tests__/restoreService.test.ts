@@ -15,7 +15,11 @@
 declare const require: (id: string) => any;
 declare const __dirname: string;
 
-const fs = require('fs') as { readFileSync(p: string, enc: string): string };
+const fs = require('fs') as {
+  readFileSync(p: string, enc: string): string;
+  readdirSync(p: string): string[];
+  statSync(p: string): { isDirectory(): boolean };
+};
 const path = require('path') as { join(...parts: string[]): string };
 
 import {
@@ -182,6 +186,20 @@ describe('🔴 nextIdFor — 이 한 줄을 틀리면 조용히 망가진다', (
 // ── 🔴 소스를 훑어 규칙을 기계로 지킨다 ─────────────────────────────────────
 
 const read = (rel: string): string => fs.readFileSync(path.join(__dirname, '..', rel), 'utf8');
+
+/** `src/` 아래 모든 .ts · .tsx 를 레포 기준 경로로 돌려준다(가드가 파일을 놓치지 않게) */
+const listSources = (): string[] => {
+  const out: string[] = [];
+  const walk = (rel: string): void => {
+    for (const name of fs.readdirSync(path.join(__dirname, '..', rel))) {
+      const next = rel + '/' + name;
+      if (fs.statSync(path.join(__dirname, '..', next)).isDirectory()) walk(next);
+      else if (/\.tsx?$/.test(name)) out.push(next);
+    }
+  };
+  walk('src');
+  return out;
+};
 const stripComments = (src: string): string =>
   src
     .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
@@ -200,14 +218,20 @@ describe('🔴 복구는 자동으로 돌지 않는다 (소스 훑기)', () => {
     expect(src).not.toContain('syncCounts');
   });
 
-  it('🔴 복구가 저장을 베끼지 않는다 — backupService 에 맡긴다', () => {
+  it('🔴 복구는 받아서 조립만 한다 — 기기에 쓰지 않는다', () => {
     /*
-     * 한 트랜잭션으로 넣고 · `nextId` 를 마지막에 쓰고 · 복습 만기 캐시를 끊는 셋을
-     * 여기서 다시 구현하면 **그중 하나를 빠뜨린다.**
+     * 2026-10-13: 여기 있던 `apply()`(= `backupService.restore` 한 줄)를 지웠다.
+     * 부르는 곳이 0건이었고, 남아 있으면 다음 사람이 그걸 부르면서 **안전 사본과
+     * 재시작을 같이 건너뛴다.** 쓰는 자리는 설정 화면의 `runRestore` 하나다.
      */
     const src = stripComments(read('src/services/restoreService.ts'));
-    expect(src).toContain('backupService.restore');
-    for (const banned of ['backupRepo', 'writeRaw', 'wordStorage', 'categoryStorage']) {
+    for (const banned of [
+      'backupService.restore',
+      'backupRepo',
+      'writeRaw',
+      'wordStorage',
+      'categoryStorage',
+    ]) {
       expect(src).not.toContain(banned);
     }
   });
@@ -223,5 +247,73 @@ describe('🔴 복구는 자동으로 돌지 않는다 (소스 훑기)', () => {
     expect(src).toContain('page < MAX_PAGES');
     // 커서가 앞으로 가지 않으면 멈춘다
     expect(src).toContain('res.nextAfter <= after');
+  });
+});
+
+// ── 🔴 D 단계: 복구 화면이 안전 사본을 건너뛸 수 없게 한다 (2026-10-13) ───────────
+
+const SETTINGS = 'src/screens/SettingsScreen.tsx';
+
+describe('🔴 복구 화면 (소스 훑기)', () => {
+  it('⚠ 가드가 실제로 읽었다 — 빈 파일을 지키며 초록이 되지 않는다', () => {
+    const src = read(SETTINGS);
+    expect(src.length).toBeGreaterThan(5000);
+    expect(src).toContain('handleServerRestore');
+    expect(src).toContain('restoreService.fetchAll');
+  });
+
+  it('🔴 복구를 부르는 곳은 이 화면 하나다 — 자동으로 도는 길이 없다', () => {
+    /*
+     * 가장 무서운 사고는 **자동 경로가 언젠가 기기를 덮어쓰는 것**이고, 그 사고는 조용하다.
+     * 그래서 부르는 자리를 소스 전체에서 센다. 부팅·동기화·화면 복귀 어디에도 없어야 한다.
+     */
+    const found = listSources()
+      .filter((rel) => rel !== 'src/services/restoreService.ts')
+      .filter((rel) => stripComments(read(rel)).includes('restoreService'));
+    expect(found).toEqual([SETTINGS]);
+  });
+
+  it('🔴 덮어쓰기 직전에 안전 사본을 남긴다 — 자리로 잰다', () => {
+    /*
+     * ⚠ 「파일에 writeSafetyCopy 가 있다」로는 부족하다. 그 호출이 **쓰기보다 뒤에**
+     *   있어도 통과해 버린다. 그래서 위치로 본다(오늘 아침 await 가드와 같은 교훈).
+     */
+    const src = stripComments(read(SETTINGS)).replace(/\s+/g, '');
+    const safety = src.indexOf('backupFile.writeSafetyCopy()');
+    const write = src.indexOf('backupService.restore(');
+    expect(safety).toBeGreaterThanOrEqual(0);
+    expect(write).toBeGreaterThan(safety);
+  });
+
+  it('🔴 서버 복구와 백업 복원이 같은 쓰기 함수를 쓴다 — 두 벌이면 한쪽만 고쳐진다', () => {
+    const src = stripComments(read(SETTINGS));
+    // 쓰는 자리는 하나뿐이다
+    expect(src.split('backupService.restore(').length - 1).toBe(1);
+    // 서버 쪽도 그 자리로 들어간다
+    expect(src).toMatch(/serverCandidate\)\s*void runRestore\(serverCandidate\)/);
+  });
+
+  it('⚠ 받기에 실패하면 기기를 건드리지 않는다', () => {
+    const src = stripComments(read(SETTINGS)).replace(/\s+/g, '');
+    expect(src).toContain('if(!got.ok){showToast(describeRestoreFail(got.reason)');
+    // 실패 분기가 쓰기보다 앞이다
+    expect(src.indexOf('if(!got.ok)')).toBeLessThan(src.indexOf('runRestore(got.backup)'));
+  });
+
+  it('🔴 못 되돌리는 것을 버튼 위에서 말한다 — 누른 뒤에 알게 하지 않는다', () => {
+    const src = read(SETTINGS);
+    expect(src).toMatch(/note=\{t\('예문 · 태그 · 메모[^']*'\)\}/);
+  });
+
+  it('잃을 것이 없으면 묻지 않는다 — 백업 복원과 같은 규칙', () => {
+    const src = stripComments(read(SETTINGS)).replace(/\s+/g, '');
+    const rule = "current.words===0&&current.categories===0&&current.quizResults===0";
+    expect(src.split(rule).length - 1).toBe(2); // 백업 파일 · 서버 둘 다
+  });
+
+  it('서버가 설정돼 있지 않으면 줄을 띄우지 않는다 — 영원히 실패할 버튼을 두지 않는다', () => {
+    const src = stripComments(read(SETTINGS)).replace(/\s+/g, '');
+    expect(src).toContain("setServerCounts('off')");
+    expect(src).toContain("serverCounts==='off'?null:(");
   });
 });

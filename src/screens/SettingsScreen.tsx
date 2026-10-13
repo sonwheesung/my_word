@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -30,6 +30,8 @@ import TimePickerSheet from '../components/TimePickerSheet';
 import RestoreConfirmSheet from '../components/RestoreConfirmSheet';
 import { backupFile } from '../services/backupFile';
 import { backupService, type BackupFile, type BackupError, type BackupSummary } from '../services/backupService';
+import { restoreService, type RestoreFail } from '../services/restoreService';
+import type { SyncCounts } from '../services/commonServer/types';
 import * as Updates from 'expo-updates';
 import { formatTime, type TimeOfDay } from '../utils/notificationSchedule';
 import { changeAppLanguage } from '../i18n';
@@ -67,6 +69,33 @@ export default function SettingsScreen({ onBack, onSupport, onNotices }: Setting
   const [restoreCandidate, setRestoreCandidate] = useState<{ data: BackupFile; fileName: string } | null>(null);
   const [currentSummary, setCurrentSummary] = useState<BackupSummary | null>(null);
   const [restoreBusy, setRestoreBusy] = useState(false);
+  /*
+   * 서버 복구(2026-10-13 · `docs/SERVER_RESTORE_PLAN.md` D 단계).
+   *
+   * `null` 은 **아직 모른다**이고 `'off'` 는 **서버가 설정돼 있지 않다**이다. 둘을 같은 값으로
+   * 두면 모르는 동안 줄이 깜빡이거나, 영원히 실패할 줄을 띄워 두게 된다.
+   */
+  const [serverCounts, setServerCounts] = useState<SyncCounts | 'off' | null>(null);
+  const [serverCandidate, setServerCandidate] = useState<BackupFile | null>(null);
+  const [serverBusy, setServerBusy] = useState(false);
+
+  /*
+   * 서버가 들고 있는 개수를 한 번 묻는다 — 줄의 부제가 그 값이다(설계서 §7).
+   *
+   * ⚠ **실패를 화면에 띄우지 않는다.** 인터넷이 없을 때 설정 화면에 빨간 줄이 뜨면
+   *   사용자는 앱이 고장 난 줄 안다. 못 물어봤으면 부제가 일반 문구로 남는다.
+   */
+  useEffect(() => {
+    let alive = true;
+    void restoreService.serverCounts().then((res) => {
+      if (!alive) return;
+      if (res.ok) setServerCounts(res.counts);
+      else if (res.reason === 'not-configured') setServerCounts('off');
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const handleLanguageChange = async (next: AppLanguage) => {
     if (next === language) return;
@@ -113,6 +142,67 @@ export default function SettingsScreen({ onBack, onSupport, onNotices }: Setting
         return t('백업 파일이 손상됐어요');
       default:
         return t('My Word 백업 파일이 아니에요');
+    }
+  };
+
+  /** 복구가 걸린 이유를 사용자 말로 옮긴다. 이유마다 할 수 있는 일이 다르다 */
+  const describeRestoreFail = (reason: RestoreFail): string => {
+    switch (reason) {
+      case 'offline':
+        return t('인터넷에 연결한 뒤 다시 시도해 주세요');
+      case 'empty':
+        // 실패가 아니다 — 아직 아무것도 안 올라간 상태다
+        return t('서버에 복구할 내용이 아직 없어요');
+      case 'not-configured':
+        return t('지금은 서버 복구를 쓸 수 없어요');
+      default:
+        return t('복구하지 못했어요. 잠시 후 다시 시도해 주세요');
+    }
+  };
+
+  /** 줄의 부제. 🔴 0인 종류는 아예 안 적는다 — "퀴즈 기록 0개"는 알려 주는 말이 아니다 */
+  const serverSubtitle = (): string => {
+    if (serverCounts === null || serverCounts === 'off') {
+      return t('폰을 잃어도 서버에 남은 기록으로 되돌려요');
+    }
+    const parts: string[] = [];
+    if (serverCounts.words > 0) parts.push(t('단어 {{n}}개', { n: serverCounts.words }));
+    if (serverCounts.categories > 0) parts.push(t('카테고리 {{n}}개', { n: serverCounts.categories }));
+    if (serverCounts.results > 0) parts.push(t('퀴즈 기록 {{n}}개', { n: serverCounts.results }));
+    if (serverCounts.exams > 0) parts.push(t('AI 시험 {{n}}회', { n: serverCounts.exams }));
+    if (parts.length === 0) return t('서버에 아직 보관된 것이 없어요');
+    return t('서버에 {{what}} 보관 중', { what: parts.join(' · ') });
+  };
+
+  /**
+   * 서버에서 전부 받아 온 뒤 확인을 받는다.
+   *
+   * 🔴 **받기를 먼저 하고 묻는다.** 받는 중에 실패하면 기기를 아직 안 건드린 채 물러날 수
+   *    있고, 다 받은 뒤라야 "몇 개를 가져올지"를 정확한 숫자로 말할 수 있다.
+   */
+  const handleServerRestore = async () => {
+    if (dataBusyRef.current) return;
+    dataBusyRef.current = true;
+    setServerBusy(true);
+    try {
+      const got = await restoreService.fetchAll();
+      if (!got.ok) {
+        showToast(describeRestoreFail(got.reason), got.reason === 'empty' ? 'info' : 'error');
+        return;
+      }
+      setServerCounts(got.counts);
+
+      const current = backupService.summarize(await backupService.create());
+      // 🔴 잃을 것이 없으면 묻지 않는다 — 백업 복원과 같은 규칙이다(설계서 §7)
+      if (current.words === 0 && current.categories === 0 && current.quizResults === 0) {
+        await runRestore(got.backup);
+        return;
+      }
+      setCurrentSummary(current);
+      setServerCandidate(got.backup);
+    } finally {
+      dataBusyRef.current = false;
+      setServerBusy(false);
     }
   };
 
@@ -181,7 +271,9 @@ export default function SettingsScreen({ onBack, onSupport, onNotices }: Setting
       showToast(t('복원하지 못했어요'), 'error');
     } finally {
       setRestoreBusy(false);
+      // 🔴 두 통로(백업 파일 · 서버)가 같은 마무리를 쓴다. 한쪽만 지우면 시트가 남는다
       setRestoreCandidate(null);
+      setServerCandidate(null);
     }
   };
 
@@ -413,6 +505,34 @@ export default function SettingsScreen({ onBack, onSupport, onNotices }: Setting
                 </View>
                 <MaterialIcons name="settings-backup-restore" size={22} color={colors.primary} />
               </TouchableOpacity>
+
+              {/*
+                * 서버에서 복구 — 서버가 아예 설정돼 있지 않으면 줄을 띄우지 않는다.
+                * 눌러도 영원히 같은 실패가 나는 줄을 두는 것은 알려 주는 일이 아니다.
+                */}
+              {serverCounts === 'off' ? null : (
+                <TouchableOpacity
+                  onPress={handleServerRestore}
+                  disabled={serverBusy}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  style={[styles.notifyTimeRow, { borderTopColor: colors.borderLight }]}
+                >
+                  <View style={styles.notifyLabel}>
+                    <Text style={[styles.linkTitle, { color: colors.text }]}>
+                      {t('서버에서 복구')}
+                    </Text>
+                    <Text style={[styles.linkSubtitle, { color: colors.textTertiary }]}>
+                      {serverSubtitle()}
+                    </Text>
+                  </View>
+                  {serverBusy ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : (
+                    <MaterialIcons name="cloud-download" size={22} color={colors.primary} />
+                  )}
+                </TouchableOpacity>
+              )}
             </View>
           </View>
         )}
@@ -580,6 +700,28 @@ export default function SettingsScreen({ onBack, onSupport, onNotices }: Setting
           </View>
         </View>
       </ScrollView>
+
+      {/*
+        * 🔴 서버 복구는 **예문·태그·메모를 못 되돌린다** — 밀기가 그 셋을 안 보낸다
+        *   (처리방침이 "전송되지 않습니다"라고 적는다). 되돌릴 수 없는 버튼 바로 위에서
+        *   말해 주지 않으면, 사용자는 누른 뒤에야 안다.
+        */}
+      <RestoreConfirmSheet
+        visible={serverCandidate !== null}
+        current={currentSummary}
+        incoming={serverCandidate ? backupService.summarize(serverCandidate) : null}
+        fileName=""
+        busy={restoreBusy}
+        title={t('서버에서 복구')}
+        incomingLabel={t('서버')}
+        confirmLabel={t('복구')}
+        dateLabel={null}
+        note={t('예문 · 태그 · 메모는 서버에 올리지 않아서 돌아오지 않아요. 그 셋까지 되돌리려면 백업 파일을 쓰세요')}
+        onCancel={() => setServerCandidate(null)}
+        onConfirm={() => {
+          if (serverCandidate) void runRestore(serverCandidate);
+        }}
+      />
 
       <RestoreConfirmSheet
         visible={restoreCandidate !== null}

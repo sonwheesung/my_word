@@ -585,5 +585,19 @@
   "전체 {{count}}문제_one": "All {{count}} questions",
   "전체 {{count}}문제_other": "All {{count}} questions",
   "틀린 문제 {{now}} / {{total}}": "Wrong {{now}} / {{total}}",
-  "새 단어 보기": "See new words"
+  "새 단어 보기": "See new words",
+  "서버에서 복구": "Restore from server",
+  "서버": "Server",
+  "복구": "Restore",
+  "예문 · 태그 · 메모는 서버에 올리지 않아서 돌아오지 않아요. 그 셋까지 되돌리려면 백업 파일을 쓰세요": "Examples, tags and memos aren't sent to the server, so they won't come back. Use a backup file to bring those back too",
+  "폰을 잃어도 서버에 남은 기록으로 되돌려요": "Lose your phone and your records still come back from the server",
+  "단어 {{n}}개": "{{n}} words",
+  "카테고리 {{n}}개": "{{n}} categories",
+  "퀴즈 기록 {{n}}개": "{{n}} quiz records",
+  "AI 시험 {{n}}회": "{{n}} AI exams",
+  "서버에 아직 보관된 것이 없어요": "Nothing is stored on the server yet",
+  "서버에 {{what}} 보관 중": "{{what}} stored on the server",
+  "서버에 복구할 내용이 아직 없어요": "There's nothing on the server to restore yet",
+  "지금은 서버 복구를 쓸 수 없어요": "Server restore isn't available right now",
+  "복구하지 못했어요. 잠시 후 다시 시도해 주세요": "Couldn't restore. Please try again in a moment"
 }

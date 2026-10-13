@@ -311,9 +311,16 @@ SDK 에는 로그인 · 권한 · 내 문의 조회도 있지만 이 앱은 쓰�
 |------|------|------|
 | `restoreService.serverCounts()` | `{counts}` | 🔴 **아무것도 내려받기 전에** 「가져올 게 있나」를 말한다 |
 | `restoreService.fetchAll()` | `{backup, counts}` | 네 종류를 끝까지 당겨 **복원 파일 모양**으로 조립한다. 아직 안 쓴다 |
-| `restoreService.apply(backup)` | — | `backupService.restore` 에 맡긴다 |
 | `toWords` · `toCategories` · `toResults` · `toExams` | 기기 모양 | 순수 함수. 🔴 서버는 `meanings`·`questions`·`attempts`·`score` 를 **JSON 문자열**로 준다 |
 | `nextIdFor(words, categories, results)` | `number` | 🔴 카운터 하나를 셋이 함께 쓴다. 낮게 잡으면 **퀴즈 결과가 엉뚱한 단어에 붙는다** |
+
+🔴 **이 서비스는 아무것도 쓰지 않는다. 받아서 조립만 한다.** 기기에 쓰는 일은 설정 화면의
+`runRestore` 하나가 한다 — **덮어쓰기 직전에 안전 사본을 남기고 번들을 다시 올리는** 유일한 자리다.
+
+⚠ 2026-10-13 에 여기 있던 `apply()`(= `backupService.restore` 한 줄)를 **지웠다.** 부르는 곳이
+**0건**이었고, 남겨 두면 다음 사람이 그걸 부르면서 **안전 사본과 재시작을 같이 건너뛴다** —
+그쪽이 더 짧아 보이기 때문이다. 같은 날 아침 `pushRest()` 가 같은 모양으로 비어 있었다.
+🔴 **「함수가 있다」와 「그 함수가 불린다」는 다른 명제이고, 타입 체크는 앞쪽만 본다.**
 
 🔴 **덮어쓰기지 합치기가 아니다.** 같은 id 가 서로 다른 단어를 가리키는 경우를 다루려면 병합
 코드가 필요하고, 그 코드는 틀렸을 때 조용히 틀린다. 그래서 「이 기기 유지」와 「가져오기」 중

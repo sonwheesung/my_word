@@ -18,6 +18,16 @@
  * 덮어쓰기 직전의 기기 상태는 화면이 `myword-before-restore.json` 으로 남긴다 —
  * 백업 복원이 **이미 하는 일**이고 세 릴리스에서 검증된 통로다.
  *
+ * ## 🔴 이 파일은 **아무것도 쓰지 않는다. 받아서 조립만 한다**
+ *
+ * 기기에 쓰는 일은 설정 화면의 `runRestore` 하나가 한다 — 그 자리가 **덮어쓰기 직전에
+ * 안전 사본(`myword-before-restore.json`)을 남기고 번들을 다시 올리는** 유일한 자리다.
+ *
+ * ⚠ 2026-10-13 에 여기 있던 `apply()`(= `backupService.restore` 한 줄)를 **지웠다.**
+ *   부르는 곳이 **0건**이었고, 남겨 두면 다음 사람이 그걸 부르면서 **안전 사본과 재시작을
+ *   같이 건너뛴다.** 그쪽이 더 짧아 보이기 때문이다. 그날 아침 `pushRest()` 가 같은 모양으로
+ *   비어 있었다 — **「함수가 있다」와 「그 함수가 불린다」는 다른 명제다.**
+ *
  * ## ⚠ 서버 복구가 되돌려 주지 못하는 것
  *
  * **예문 · 태그 · 메모.** 밀기가 그 셋을 보내지 않는다 — 게시된 처리방침이
@@ -29,7 +39,7 @@
  * 서버 복구   단어 · 뜻 · 기록이 돌아온다   ✅ 폰을 잃어도 남아 있다
  * ```
  */
-import { backupService, type BackupFile } from './backupService';
+import type { BackupFile } from './backupService';
 import { commonServer } from './commonServer/client';
 import type { SyncCounts, SyncKind } from './commonServer/types';
 import type { Category, Word } from '../types/word';
@@ -291,13 +301,4 @@ export const restoreService = {
     }
   },
 
-  /**
-   * 기기에 쓴다. **`backupService.restore` 를 그대로 쓴다.**
-   *
-   * 🔴 베끼지 않는 이유가 셋이다 — 한 트랜잭션으로 넣고, `nextId` 를 마지막에 쓰고,
-   *    복습 만기 캐시를 끊는다. 그 셋을 여기서 다시 구현하면 **그중 하나를 빠뜨린다.**
-   */
-  async apply(backup: BackupFile): Promise<void> {
-    await backupService.restore(backup);
-  },
 };
