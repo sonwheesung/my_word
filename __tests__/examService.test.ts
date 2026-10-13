@@ -27,6 +27,7 @@ import {
   EXAM_LANGUAGES,
   SEED_QUOTA,
   countLanguages,
+  countWordsInLanguage,
   detectCategoryLanguage,
   detectLanguage,
   isExamLanguage,
@@ -40,7 +41,12 @@ import {
   type ExamAnswer,
   type ExamRecord,
 } from '../src/services/examService';
-import { EXAM_SEED_COUNT } from '../src/constants/appConfig';
+import {
+  EXAM_SEED_COUNT,
+  EXAM_SIZE,
+  QUESTIONS_PER_WORD,
+  WORDS_FOR_FULL_EXAM,
+} from '../src/constants/appConfig';
 import type { ExamQuestion } from '../src/services/commonServer/types';
 import type { Word } from '../src/types/word';
 
@@ -798,5 +804,75 @@ describe('🔴 점수가 쓸 만한지 따로 본다 (실기기가 Best NaN% 를
     const score = { correct: 1, wrong: 0, skipped: 0, total: 1, accuracy: 100 };
     const raw = JSON.stringify([{ ...base, attempts: [{ answers: [0], score }] }]);
     expect(parseRecords(raw)[0].attempts[0].score).toEqual(score);
+  });
+});
+
+/*
+ * ───────────────── 단어가 적을 때 몇 문제가 나오는가 (2026-10-13) ─────────────────
+ *
+ * 🔴 이 화면은 그때까지 *"문제 20개"* 를 **고정으로** 약속했다. 단어가 5개면 15문제가
+ *    나오는데도 그랬고, **무료 1회는 그대로 차감**됐다. 사장님이
+ *    *"단어 5개 정도로 적게 저장한 카테고리의 시험"* 을 물어서 드러났다.
+ *
+ * ⚠ 숫자를 박지 않는다. `EXAM_SIZE`·`QUESTIONS_PER_WORD` 로 계산해서 재므로,
+ *   서버 쪽 값이 바뀌어 앱 상수를 같이 고치면 이 테스트가 따라 움직인다.
+ */
+describe('🔴 고른 언어의 단어만 센다 — 전체 단어 수로 약속하면 또 부풀어 오른다', () => {
+  const w = (word: string, language?: string): Word =>
+    ({ wordId: 1, word, meaning: 'm', categoryId: 1, language } as unknown as Word);
+
+  it('저장된 언어가 있으면 그것을 센다', () => {
+    const words = [w('apple', 'en'), w('apple2', 'en'), w('りんご', 'ja')];
+    expect(countWordsInLanguage(words, 'en')).toBe(2);
+    expect(countWordsInLanguage(words, 'ja')).toBe(1);
+  });
+
+  it('저장된 언어가 없으면 글자로 추정한다', () => {
+    expect(countWordsInLanguage([w('apple'), w('りんご')], 'en')).toBe(1);
+  });
+
+  it('해당 언어가 하나도 없으면 0 이다', () => {
+    expect(countWordsInLanguage([w('apple', 'en')], 'ja')).toBe(0);
+  });
+
+  it('빈 목록은 0 이다', () => {
+    expect(countWordsInLanguage([], 'en')).toBe(0);
+  });
+
+  it('🔴 섞인 카테고리에서 전체 수보다 작다 — 이게 이 함수가 있는 이유다', () => {
+    const words = [w('apple', 'en'), w('りんご', 'ja'), w('みかん', 'ja')];
+    expect(countWordsInLanguage(words, 'en')).toBeLessThan(words.length);
+  });
+});
+
+describe('🔴 들어가기 전에 약속하는 문제 수', () => {
+  /** 화면이 쓰는 그 계산. 여기가 틀리면 화면이 거짓을 말한다 */
+  const expected = (usable: number) => Math.min(EXAM_SIZE, usable * QUESTIONS_PER_WORD);
+
+  it('단어가 넉넉하면 꽉 찬다', () => {
+    expect(expected(WORDS_FOR_FULL_EXAM)).toBe(EXAM_SIZE);
+    expect(expected(WORDS_FOR_FULL_EXAM + 50)).toBe(EXAM_SIZE);
+  });
+
+  it('🔴 단어가 적으면 줄어든다 — 사장님이 물은 그 경우', () => {
+    expect(expected(5)).toBe(5 * QUESTIONS_PER_WORD);
+    expect(expected(5)).toBeLessThan(EXAM_SIZE);
+  });
+
+  it('단어 1개로도 시험이 나온다 — 막지 않는 것이 결정이다', () => {
+    expect(expected(1)).toBe(QUESTIONS_PER_WORD);
+  });
+
+  it('⚠ 경계 — 20문제가 채워지는 최소 단어 수가 상수와 맞는다', () => {
+    expect(expected(WORDS_FOR_FULL_EXAM - 1)).toBeLessThan(EXAM_SIZE);
+    expect(expected(WORDS_FOR_FULL_EXAM)).toBe(EXAM_SIZE);
+  });
+
+  it('🔴 앱 상수가 서버와 같은 모양이어야 한다', () => {
+    // 서버: DEFAULT_EXAM_SIZE = 20 · QUESTIONS_PER_NEW_WORD = 3
+    expect(EXAM_SIZE).toBe(20);
+    expect(QUESTIONS_PER_WORD).toBe(3);
+    // 🔴 경계는 계산값이다. 숫자를 박아 두면 위 둘을 고쳐도 안 따라온다
+    expect(WORDS_FOR_FULL_EXAM).toBe(Math.ceil(EXAM_SIZE / QUESTIONS_PER_WORD));
   });
 });

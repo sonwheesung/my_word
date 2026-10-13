@@ -15,7 +15,12 @@ import BottomSheet from '../components/BottomSheet';
 import ScreenHeader from '../components/ScreenHeader';
 import Toast from '../components/Toast';
 import { FONT, RADIUS, SPACING } from '../constants/design';
-import { EXAM_EXPECTED_WAIT_SEC, EXAM_SIZE } from '../constants/appConfig';
+import {
+  EXAM_EXPECTED_WAIT_SEC,
+  EXAM_SIZE,
+  QUESTIONS_PER_WORD,
+  WORDS_FOR_FULL_EXAM,
+} from '../constants/appConfig';
 import { useTheme } from '../contexts/ThemeContext';
 import { useToast } from '../hooks/useToast';
 import { categoryService } from '../services/categoryService';
@@ -23,11 +28,12 @@ import { wordService } from '../services/wordService';
 import {
   EXAM_LANGUAGES,
   countLanguages,
+  countWordsInLanguage,
   detectCategoryLanguage,
   examService,
   type ExamLanguage,
 } from '../services/examService';
-import type { Category } from '../types/word';
+import type { Category, Word } from '../types/word';
 
 /**
  * AI 시험 시작 화면.
@@ -71,6 +77,12 @@ export default function ExamSetupScreen({ onBack, onStart, onHistory }: ExamSetu
   /** 사용자가 직접 고쳤나. 고쳤으면 카테고리를 바꿀 때까지 추정이 덮지 않는다 */
   const [languageTouched, setLanguageTouched] = useState(false);
   const [mixedCount, setMixedCount] = useState(0);
+  /**
+   * 그 카테고리의 단어들. 🔴 **들고 있어야 한다** — 몇 문제가 나올지는 **고른 언어**에
+   * 달려 있고, 언어는 단어를 불러온 뒤에도 바뀐다. 불러올 때 한 번 세고 버리면
+   * 언어를 바꿨을 때 화면의 숫자가 **옛 언어 기준으로 남는다.**
+   */
+  const [words, setWords] = useState<Word[]>([]);
   const [loading, setLoading] = useState(true);
   const [detecting, setDetecting] = useState(false);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
@@ -118,6 +130,7 @@ export default function ExamSetupScreen({ onBack, onStart, onHistory }: ExamSetu
           examService.loadPrefs(),
         ]);
         if (!alive) return;
+        setWords(words);
         setMixedCount(countLanguages(words));
         const saved = prefs.languageByCategory[String(selectedCategoryId)];
         setLanguage(saved ?? detectCategoryLanguage(words));
@@ -139,6 +152,29 @@ export default function ExamSetupScreen({ onBack, onStart, onHistory }: ExamSetu
     [categories, selectedCategoryId],
   );
   const wordCount = selectedCategory?.wordCount ?? 0;
+
+  /**
+   * 이 판에 **실제로 나올 문제 수**.
+   *
+   * 🔴 2026-10-13 까지 이 화면은 *"문제 20개"* 를 **고정으로** 약속했다. 단어가 5개인
+   *    카테고리에서는 15문제가 나오는데도 그랬다 — 들어가기 전에 거짓을 말하고 있었다.
+   *    (사장님이 *"단어 5개 정도로 적게 저장한 카테고리의 시험"* 을 물어 드러났다)
+   *
+   * ⚠ 언어를 아직 못 골랐으면 **아무 약속도 하지 않는다**(`null`). 전체 단어 수로 계산하면
+   *   언어가 섞인 카테고리에서 또 부풀어 오른다.
+   */
+  const expectedQuestions = useMemo(() => {
+    if (language === null || words.length === 0) return null;
+    const usable = countWordsInLanguage(words, language);
+    return Math.min(EXAM_SIZE, usable * QUESTIONS_PER_WORD);
+  }, [language, words]);
+
+  /** 20문제를 채우려면 단어가 몇 개 더 필요한가. 🚫 막지 않는다 — 알려만 준다(사장님 결정) */
+  const wordsShort = useMemo(() => {
+    if (language === null || words.length === 0) return 0;
+    const usable = countWordsInLanguage(words, language);
+    return Math.max(0, WORDS_FOR_FULL_EXAM - usable);
+  }, [language, words]);
 
   const handlePickLanguage = useCallback(
     (next: ExamLanguage) => {
@@ -302,12 +338,42 @@ export default function ExamSetupScreen({ onBack, onStart, onHistory }: ExamSetu
               </Text>
             </View>
           )}
+
+          {/*
+            🔴 단어가 적어 20문제가 안 채워지는 경우. **막지 않고 알려만 준다**(2026-10-13 사장님 결정:
+               단어 3개인 분에게 기능을 닫는 것은 과하다).
+
+            ⚠ 두 줄이 다 필요하다. 문제 수만 말하고 **무료 1회가 그대로 줄어든다**는 것을 빼면,
+              사장님이 물어서 드러난 그 문제가 그대로 남는다 — 단어 1개로 3문제를 치고도
+              평생 10판 중 1판이 날아간다. 서버는 문제가 **0개일 때만** 차감하지 않는다.
+          */}
+          {expectedQuestions !== null && wordsShort > 0 && (
+            <View
+              style={[
+                styles.notice,
+                { backgroundColor: colors.warningBg, borderColor: colors.warningBorder },
+              ]}
+            >
+              <MaterialIcons name="info-outline" size={16} color={colors.warningText} />
+              <Text style={[styles.noticeText, { color: colors.warningText }]}>
+                {t('{{count}}문제만 나와요. 무료 1회는 그대로 줄어들어요', {
+                  count: expectedQuestions,
+                })}
+                {'\n'}
+                {t('단어를 {{count}}개 더 넣으시면 {{full}}문제가 나와요', {
+                  count: wordsShort,
+                  full: EXAM_SIZE,
+                })}
+              </Text>
+            </View>
+          )}
         </View>
 
         <View style={[styles.infoBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.infoTitle, { color: colors.text }]}>{t('시험은 이렇게 나와요')}</Text>
           <Text style={[styles.infoLine, { color: colors.textSecondary }]}>
-            {t('• 4개 보기 중에 고르는 문제 {{count}}개', { count: EXAM_SIZE })}
+            {/* 🔴 고정값(EXAM_SIZE)을 쓰지 않는다. 그게 거짓을 말하던 자리다 */}
+            {t('• 4개 보기 중에 고르는 문제 {{count}}개', { count: expectedQuestions ?? EXAM_SIZE })}
           </Text>
           <Text style={[styles.infoLine, { color: colors.textSecondary }]}>
             {t('• 복습할 때가 된 단어와 많이 틀린 단어를 먼저 내요')}
@@ -336,7 +402,15 @@ export default function ExamSetupScreen({ onBack, onStart, onHistory }: ExamSetu
           {isStarting ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.startButtonText}>{t('시험 시작')}</Text>
+            /*
+             * ⚠ 20문제가 안 되는 경우에만 숫자를 버튼에 넣는다. 늘 넣으면 정상인 판에서도
+             *   숫자가 보여 「왜 20인지」를 설명해야 하고, 그건 이 화면이 할 일이 아니다.
+             */
+            <Text style={styles.startButtonText}>
+              {expectedQuestions !== null && wordsShort > 0
+                ? t('{{count}}문제로 시작', { count: expectedQuestions })
+                : t('시험 시작')}
+            </Text>
           )}
         </TouchableOpacity>
       </View>

@@ -113,6 +113,27 @@ export function detectCategoryLanguage(words: Word[]): ExamLanguage | null {
   return best;
 }
 
+/**
+ * 고른 언어에 해당하는 단어가 몇 개인가 — **한 판에 나올 문제 수를 미리 알려 주려고** 센다.
+ *
+ * 🔴 카테고리의 전체 단어 수로는 안 된다. 서버는 **고른 언어의 단어만** 태우므로,
+ *    언어가 섞인 카테고리에서는 전체 수로 계산한 값이 **실제보다 크다** —
+ *    그러면 "20문제 나와요" 라고 약속하고 15문제를 주는 지금의 거짓이 모양만 바뀐다.
+ *
+ * ⚠ `detectCategoryLanguage`·`countLanguages` 와 **같은 판정 순서**를 쓴다
+ *   (저장된 `language` 먼저, 없으면 글자 추정). 셋이 다른 기준을 쓰면 화면의 숫자와
+ *   실제로 태워지는 단어가 어긋난다.
+ */
+export function countWordsInLanguage(words: Word[], language: ExamLanguage): number {
+  let count = 0;
+  for (const word of words) {
+    const saved = isExamLanguage(word.language) ? word.language : null;
+    const guess = saved ?? detectLanguage(word.word);
+    if (guess === language) count += 1;
+  }
+  return count;
+}
+
 /** 그 카테고리에 언어가 몇 가지 섞여 있나 — 화면이 "섞여 있다" 안내를 띄울지 판단한다 */
 export function countLanguages(words: Word[]): number {
   const seen = new Set<ExamLanguage>();

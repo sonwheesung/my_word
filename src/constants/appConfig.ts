@@ -124,6 +124,24 @@ export const EXAM_PREFS_KEY = '@my_word_exam_prefs';
 export const EXAM_SIZE = 20;
 
 /**
+ * 단어 하나가 한 번에 내는 문제 수. 🔴 서버의 `QUESTIONS_PER_NEW_WORD` 와 같아야 한다.
+ *
+ * ⚠ **이 값을 쓰는 곳은 「몇 문제가 나올지 미리 알려 주는 화면」 하나뿐이다.** 실제 출제는
+ *   서버가 한다. 두 값이 어긋나면 화면이 거짓을 말하지만 시험 자체는 멀쩡하다 —
+ *   그래서 어긋난 것을 아무도 모른다. 서버 쪽을 바꿀 때 이 줄을 같이 본다.
+ *
+ * 🔴 **축이 셋(뜻·표기·쓰임)이라 3 이다.** 2026-09-23 사용자 지적으로 정해진 설계다 —
+ *    하나씩 만들면 두 번째 시험에 같은 문제가 나온다.
+ */
+export const QUESTIONS_PER_WORD = 3;
+
+/**
+ * 20문제가 채워지는 최소 단어 수. 🔴 **계산해서 쓰고 숫자를 박지 않는다** —
+ * 위 둘 중 하나가 바뀌면 이 경계도 따라 바뀌어야 한다.
+ */
+export const WORDS_FOR_FULL_EXAM = Math.ceil(EXAM_SIZE / QUESTIONS_PER_WORD);
+
+/**
  * 서버에 보낼 씨앗 단어 수. 문제 수보다 적다 — 단어 하나가 문제 여럿을 준다.
  * 만기 4 + 취약 3 + 무작위 3 = 10 (`examService.pickSeeds`).
  */
