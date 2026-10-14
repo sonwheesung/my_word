@@ -119,6 +119,13 @@ function AppContent() {
   const [examResultId, setExamResultId] = useState<string>('');
   /** 재시험으로 다시 풀 시험. 🔴 설정 화면을 거치지 않고 바로 문제로 간다(문제가 이미 있다) */
   const [retryExamId, setRetryExamId] = useState<string>('');
+  /**
+   * 풀다 만 시험을 이어서 푸는 중인가 (2026-10-14).
+   *
+   * 🔴 `exam`(새 시험) · `retryExamId`(재시험)와 **셋이 서로 배타적이다.** 하나를 켤 때
+   *    나머지를 비우지 않으면 `ExamScreen` 이 어느 길로 갈지 자기 안에서 또 고르게 된다.
+   */
+  const [resumeExam, setResumeExam] = useState(false);
 
   // 공지 화면에서 돌아갈 곳(홈 또는 설정) — 진입점이 두 개라 따로 기억한다
   const [noticeFrom, setNoticeFrom] = useState<Screen>('home');
@@ -205,13 +212,14 @@ function AppContent() {
       case 'exam':
         /*
          * 🔴 **여기서 아무것도 하지 않는다.** 시험 화면이 자기 `BackHandler` 로 먼저 잡는다
-         *    (풀던 중이면 막고, 아니면 스스로 `onBack` 을 부른다).
-         *    여기서 또 화면을 바꾸면 **문제를 만드는 데 돈이 든 시험이 말없이 버려진다.**
+         *    (풀던 중이면 확인 시트를 띄우고, 아니면 스스로 `onBack` 을 부른다).
+         *    여기서 또 화면을 바꾸면 **푼 데까지 저장하기 전에** 화면이 사라진다.
          */
         break;
       case 'examResult':
         setExamResultId('');
         setRetryExamId('');
+        setResumeExam(false);
         setCurrentScreen('home');
         break;
       default:
@@ -382,28 +390,43 @@ function AppContent() {
         onBack={() => setCurrentScreen('home')}
         onHistory={() => setCurrentScreen('examHistory')}
         onStart={(categoryId, language) => {
+          setResumeExam(false);
           setExam({ categoryId, language });
+          setCurrentScreen('exam');
+        }}
+        /*
+         * 풀다 만 시험을 이어서 (2026-10-14).
+         * 🔴 카테고리·언어를 **넘기지 않는다.** 그 값은 저장본이 들고 있다 — 지금 화면에 떠 있는
+         *    값을 넘기면 성적표의 「단어 담기」가 엉뚱한 단어장을 가리킨다.
+         */
+        onResume={() => {
+          setExam(null);
+          setRetryExamId('');
+          setResumeExam(true);
           setCurrentScreen('exam');
         }}
       />
     );
   }
 
-  if (currentScreen === 'exam' && (exam || retryExamId)) {
+  if (currentScreen === 'exam' && (exam || retryExamId || resumeExam)) {
     return (
       <ExamScreen
         {...(exam === null ? {} : { categoryId: exam.categoryId, language: exam.language })}
         {...(retryExamId ? { retryExamId } : {})}
+        {...(resumeExam ? { resume: true } : {})}
         // 해설을 어느 언어로 받을지. 🔴 앱 언어를 그대로 보낸다 — 단어의 언어와 다른 축이다
         uiLang={getCurrentLanguage()}
         onBack={() => {
           // 재시험이면 성적표로, 새 시험이면 설정으로 돌아간다
           const back = retryExamId ? 'examHistory' : 'examSetup';
           setRetryExamId('');
+          setResumeExam(false);
           setCurrentScreen(back);
         }}
         onFinish={(examId) => {
           setRetryExamId('');
+          setResumeExam(false);
           setExamResultId(examId);
           setCurrentScreen('examResult');
         }}

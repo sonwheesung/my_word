@@ -2,6 +2,7 @@ import {
   EXAM_HISTORY_MAX,
   EXAM_JOB_KEY,
   EXAM_PREFS_KEY,
+  EXAM_PROGRESS_KEY,
   EXAM_SEED_COUNT,
   EXAMS_KEY,
 } from '../constants/appConfig';
@@ -384,6 +385,74 @@ export function parseExamJob(raw: string | null): ExamJob | null {
   return { jobId, categoryId, language, uiLang, startedAt };
 }
 
+// ── 풀던 시험 ───────────────────────────────────────────────────────────────
+
+/**
+ * 풀다 만 시험 (2026-10-14).
+ *
+ * 🔴 **접수증(`ExamJob`)과 짝이다.** 접수증은 *만드는 중*을, 이것은 *푸는 중*을 살려 둔다.
+ *    둘은 **동시에 존재하지 않는다** — 문제가 도착하면 접수증을 비우고 여기가 시작된다.
+ *
+ * 🔴 **문제 본문을 그대로 담는다.** 서버에 다시 물으면 돈이 들고, 구독을 끊으면 물을 수도 없다
+ *    (`ExamRecord` 가 같은 이유로 그렇게 한다).
+ */
+export interface ExamProgress {
+  examId: string;
+  questions: ExamQuestion[];
+  /** 지금까지 고른 것. 아직 안 푼 자리는 `null` */
+  answers: ExamAnswer[];
+  /** 몇 번째 문제를 보고 있었나 */
+  index: number;
+  /** 재시험이면 `addAttempt` 로 끝내야 한다 — 이어서 풀어도 그 사실이 유지돼야 한다 */
+  isRetry: boolean;
+  categoryId?: number;
+  language?: string;
+  savedAt: string;
+}
+
+/**
+ * 저장된 값을 읽는다. 🔴 **어떤 입력에도 던지지 않는다.**
+ *
+ * ⚠ **문제가 0개면 `null` 이다.** 빈 시험을 「이어서 풀기」로 띄우면 눌렀을 때 아무 일도
+ *   안 일어나고, 사용자는 그걸 고장으로 읽는다. 없는 것이 낫다.
+ * ⚠ `index` 는 범위 밖이면 **끌어들인다**(음수 → 0, 초과 → 마지막). 저장본이 낡아
+ *   문제 수가 달라졌을 때 화면이 빈 문제를 그리는 것을 막는다.
+ */
+export function parseExamProgress(raw: string | null): ExamProgress | null {
+  if (!raw) return null;
+  let o: unknown;
+  try {
+    o = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (typeof o !== 'object' || o === null) return null;
+  const p = o as Record<string, unknown>;
+  if (typeof p.examId !== 'string' || !p.examId) return null;
+  if (!Array.isArray(p.questions) || p.questions.length === 0) return null;
+  const questions = p.questions as ExamQuestion[];
+  const rawAnswers = Array.isArray(p.answers) ? (p.answers as unknown[]) : [];
+  // 🔴 길이를 문제 수에 맞춘다. 짧으면 `null` 로 채우고 길면 자른다 — 채점이 길이를 믿는다
+  const answers: ExamAnswer[] = questions.map((_, i) => {
+    const a = rawAnswers[i];
+    return typeof a === 'number' && Number.isFinite(a) ? a : null;
+  });
+  const rawIndex = typeof p.index === 'number' && Number.isFinite(p.index) ? Math.floor(p.index) : 0;
+  const index = Math.min(Math.max(0, rawIndex), questions.length - 1);
+  return {
+    examId: p.examId,
+    questions,
+    answers,
+    index,
+    isRetry: p.isRetry === true,
+    ...(typeof p.categoryId === 'number' && Number.isFinite(p.categoryId)
+      ? { categoryId: p.categoryId }
+      : {}),
+    ...(typeof p.language === 'string' && p.language ? { language: p.language } : {}),
+    savedAt: typeof p.savedAt === 'string' ? p.savedAt : '',
+  };
+}
+
 // ── 기록 ────────────────────────────────────────────────────────────────────
 
 /**
@@ -559,6 +628,33 @@ export const examService = {
       await writeRaw(EXAM_JOB_KEY, '');
     } catch (error: any) {
       console.warn('접수증 비우기 실패:', error);
+    }
+  },
+
+  /** 풀던 시험. 없거나 깨졌으면 `null` */
+  async loadProgress(): Promise<ExamProgress | null> {
+    return parseExamProgress(await readRaw(EXAM_PROGRESS_KEY));
+  },
+
+  /**
+   * 🔴 **삼킨다.** 접수증(`saveJob`)과 반대다 — 접수증은 못 적으면 시험을 **영영** 잃지만,
+   *    이쪽은 못 적어도 **지금 풀고 있는 판은 멀쩡하다.** 여기서 던지면 문제를 고를 때마다
+   *    화면이 멈추거나 오류를 띄우게 되고, 그게 잃는 것보다 나쁘다.
+   */
+  async saveProgress(progress: ExamProgress): Promise<void> {
+    try {
+      await writeRaw(EXAM_PROGRESS_KEY, JSON.stringify(progress));
+    } catch (error: any) {
+      console.warn('풀던 시험 저장 실패:', error);
+    }
+  },
+
+  /** 끝냈거나 버렸을 때. ⚠ 실패해도 삼킨다 — 남아 있어도 다음에 읽을 때 걸러진다 */
+  async clearProgress(): Promise<void> {
+    try {
+      await writeRaw(EXAM_PROGRESS_KEY, '');
+    } catch (error: any) {
+      console.warn('풀던 시험 비우기 실패:', error);
     }
   },
 

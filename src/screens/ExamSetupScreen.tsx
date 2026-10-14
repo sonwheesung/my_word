@@ -12,6 +12,7 @@ import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import BottomSheet from '../components/BottomSheet';
+import ConfirmSheet from '../components/ConfirmSheet';
 import ScreenHeader from '../components/ScreenHeader';
 import Toast from '../components/Toast';
 import { FONT, RADIUS, SPACING } from '../constants/design';
@@ -27,6 +28,7 @@ import { categoryService } from '../services/categoryService';
 import { wordService } from '../services/wordService';
 import {
   EXAM_LANGUAGES,
+  type ExamProgress,
   countLanguages,
   countWordsInLanguage,
   detectCategoryLanguage,
@@ -57,6 +59,8 @@ interface ExamSetupScreenProps {
    * 홈에 또 하나를 두면 홈이 길어지고, 설정에 두면 아무도 못 찾는다.
    */
   onHistory: () => void;
+  /** 풀다 만 시험을 이어서 (2026-10-14). 서버를 부르지 않는다 */
+  onResume: () => void;
 }
 
 const LANGUAGE_LABEL: Record<ExamLanguage, string> = {
@@ -66,7 +70,12 @@ const LANGUAGE_LABEL: Record<ExamLanguage, string> = {
   zh: '중국어',
 };
 
-export default function ExamSetupScreen({ onBack, onStart, onHistory }: ExamSetupScreenProps) {
+export default function ExamSetupScreen({
+  onBack,
+  onStart,
+  onHistory,
+  onResume,
+}: ExamSetupScreenProps) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const { toast, showToast, hideToast } = useToast();
@@ -87,16 +96,27 @@ export default function ExamSetupScreen({ onBack, onStart, onHistory }: ExamSetu
   const [detecting, setDetecting] = useState(false);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
+  /**
+   * 풀다 만 시험 (2026-10-14). 없으면 `null`.
+   *
+   * 🔴 **이 화면이 「이어서 풀기」의 유일한 입구다.** 홈에 또 띠를 만들면 홈이 길어지고,
+   *    시험을 치러 온 사람은 어차피 여기로 온다(성적표 입구를 여기 둔 것과 같은 판단).
+   */
+  const [progress, setProgress] = useState<ExamProgress | null>(null);
+  /** 풀던 시험이 있는데 새로 시작하려 할 때 (2026-10-14) */
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
 
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
-        const [data, prefs] = await Promise.all([
+        const [data, prefs, saved] = await Promise.all([
           categoryService.getCategories(),
           examService.loadPrefs(),
+          examService.loadProgress(),
         ]);
         if (!alive) return;
+        setProgress(saved);
         setCategories(data);
         const remembered = data.find((c) => c.categoryId === prefs.lastCategoryId);
         setSelectedCategoryId(remembered?.categoryId ?? data[0]?.categoryId ?? null);
@@ -195,7 +215,13 @@ export default function ExamSetupScreen({ onBack, onStart, onHistory }: ExamSetu
     [selectedCategoryId],
   );
 
-  const handleStart = useCallback(() => {
+  /**
+   * 🔴 **새 시험을 시작하면 풀던 시험이 사라진다. 그래서 먼저 물어본다** (2026-10-14).
+   *
+   *    한 판만 들고 있는 설계라(접수증과 같다) 피할 수 없다. 조용히 덮어쓰면
+   *    **돈이 든 시험이 말없이 없어지고**, 사용자는 왜 사라졌는지 알 길이 없다.
+   */
+  const startFresh = useCallback(() => {
     if (isStarting) return;
     if (selectedCategoryId === null) {
       showToast(t('카테고리를 선택해주세요'), 'error');
@@ -214,8 +240,18 @@ export default function ExamSetupScreen({ onBack, onStart, onHistory }: ExamSetu
     void examService
       .loadPrefs()
       .then((prefs) => examService.savePrefs({ ...prefs, lastCategoryId: selectedCategoryId }));
+    // 🔴 버리기로 한 뒤에 비운다. 비우기 전에 화면이 바뀌면 다음 입장에서 또 물어본다
+    void examService.clearProgress();
     onStart(selectedCategoryId, language);
   }, [isStarting, language, onStart, selectedCategoryId, showToast, t, wordCount]);
+
+  const handleStart = useCallback(() => {
+    if (progress !== null) {
+      setConfirmDiscard(true);
+      return;
+    }
+    startFresh();
+  }, [progress, startFresh]);
 
   if (loading) {
     return (
@@ -259,6 +295,49 @@ export default function ExamSetupScreen({ onBack, onStart, onHistory }: ExamSetu
       />
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        {/*
+          * 풀던 시험 (2026-10-14).
+          *
+          * 🔴 **맨 위에 둔다.** 아래 설정을 다 고르고 「시험 시작」을 누른 뒤에야 *"풀던 게
+          *    있는데요"* 라고 하면, 사용자는 방금 한 선택을 버리게 된다.
+          * ⚠ 숫자는 **「어디까지 풀었나」**(index + 1)이지 「몇 개 맞혔나」가 아니다 —
+          *   채점은 끝까지 풀어야 한다.
+          */}
+        {progress !== null && (
+          <TouchableOpacity
+            style={[
+              styles.resumeBox,
+              { backgroundColor: colors.primaryLight, borderColor: colors.primary },
+            ]}
+            onPress={onResume}
+            accessibilityRole="button"
+          >
+            <MaterialIcons name="play-circle-outline" size={28} color={colors.primaryStrong} />
+            <View style={styles.resumeTexts}>
+              <Text style={[styles.resumeTitle, { color: colors.primaryStrong }]}>
+                {t('풀던 시험이 있어요')}
+              </Text>
+              {/*
+                * 🔴 **「풀었어요」가 아니라 「멈췄어요」다**(2026-10-14 에뮬레이터에서 잡았다).
+                *    `index` 는 *보고 있던 문제*이지 *다 푼 문제 수*가 아니다. 4번을 풀고 넘기면
+                *    `index` 는 4(5번째)가 되는데, 그때 *"5까지 풀었어요"* 라고 하면 **하나를 더
+                *    풀었다고 말하는 것**이 된다. 이 화면이 어제 고친 것이 정확히 그 종류의 거짓이다.
+                * ⚠ 숫자는 그대로 둔다 — 시험 화면이 마지막으로 보여 준 값(`5 / 15`)과 같아야
+                *   사용자가 "아, 거기" 하고 알아본다.
+                */}
+              <Text style={[styles.resumeSub, { color: colors.primaryStrong }]}>
+                {t('{{done}} / {{total}} 에서 멈췄어요', {
+                  done: progress.index + 1,
+                  total: progress.questions.length,
+                })}
+              </Text>
+            </View>
+            <Text style={[styles.resumeAction, { color: colors.primaryStrong }]}>
+              {t('이어서 풀기')}
+            </Text>
+          </TouchableOpacity>
+        )}
+
         <View style={styles.section}>
           <Text style={[styles.label, { color: colors.text }]}>{t('카테고리')}</Text>
           <TouchableOpacity
@@ -447,6 +526,30 @@ export default function ExamSetupScreen({ onBack, onStart, onHistory }: ExamSetu
         })}
       </BottomSheet>
 
+      {/*
+        * 🔴 **버리는 쪽이 `danger` 다.** 여기서는 진짜로 잃는다 — 돈이 든 문제들이 사라지고
+        *    무료 1회도 돌아오지 않는다. 시험 화면의 「나가기」와 반대인 이유가 그것이다
+        *    (거기서는 아무것도 안 잃으므로 겁주는 색을 쓰지 않는다).
+        * ⚠ 물러서는 자리(`onCancel`)에는 아무 일도 안 일어나는 쪽을 둔다 — 시트를 실수로
+        *   닫은 사람이 풀던 시험을 잃으면 안 된다.
+        */}
+      <ConfirmSheet
+        visible={confirmDiscard}
+        title={t('풀던 시험이 사라져요')}
+        // ⚠ 숫자를 넣지 않는다 — 「몇 문제까지」는 셀 방법이 애매하다(넘긴 문제도 안 푼 것으로
+        //   저장된다). 여기서 필요한 것은 개수가 아니라 **사라진다는 사실**이다
+        message={t('새로 시작하면 지금까지 푸신 게 없어지고, 무료 1회도 돌아오지 않아요')}
+        confirmLabel={t('새로 시작')}
+        cancelLabel={t('그만두기')}
+        tone="danger"
+        onConfirm={() => {
+          setConfirmDiscard(false);
+          setProgress(null);
+          startFresh();
+        }}
+        onCancel={() => setConfirmDiscard(false)}
+      />
+
       <Toast message={toast.message} type={toast.type} visible={toast.visible} onHide={hideToast} />
     </View>
   );
@@ -493,6 +596,20 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   noticeText: { flex: 1, fontSize: FONT.caption, lineHeight: 18 },
+  // 풀던 시험 띠 (2026-10-14). 맨 위에 서므로 아래 섹션과 같은 간격을 둔다
+  resumeBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+    padding: SPACING.md,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    marginBottom: SPACING.lg,
+  },
+  resumeTexts: { flex: 1 },
+  resumeTitle: { fontSize: FONT.body, fontWeight: '700' },
+  resumeSub: { fontSize: FONT.caption, marginTop: 2 },
+  resumeAction: { fontSize: FONT.caption, fontWeight: '700' },
   infoBox: { borderWidth: 1, borderRadius: RADIUS.md, padding: SPACING.md },
   infoTitle: { fontSize: FONT.label, fontWeight: '700', marginBottom: SPACING.sm },
   infoLine: { fontSize: FONT.caption, lineHeight: 20 },

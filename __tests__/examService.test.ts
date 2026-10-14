@@ -32,6 +32,7 @@ import {
   detectLanguage,
   isExamLanguage,
   parseExamPrefs,
+  parseExamProgress,
   parseRecords,
   collectNewWords,
   pickSeeds,
@@ -874,5 +875,141 @@ describe('🔴 들어가기 전에 약속하는 문제 수', () => {
     expect(QUESTIONS_PER_WORD).toBe(3);
     // 🔴 경계는 계산값이다. 숫자를 박아 두면 위 둘을 고쳐도 안 따라온다
     expect(WORDS_FOR_FULL_EXAM).toBe(Math.ceil(EXAM_SIZE / QUESTIONS_PER_WORD));
+  });
+});
+
+/**
+ * 🔴 **풀던 시험 — 나갈 수 있게 한 대가** (2026-10-14).
+ *
+ * 2026-10-14 까지 푸는 중에는 나갈 수가 없었다(띠 하나를 띄우고 그 자리에 세워 뒀다).
+ * 그 막기는 **지키지도 못했다** — 시험 내용은 마지막 문제를 풀어야 저장됐으므로 홈 버튼·앱
+ * 종료로 나가면 똑같이 사라졌다. 막힌 길은 뒤로가기 하나뿐이었고, 갇힌 사람은 앱을 강제로
+ * 끄므로 **막을수록 더 자주 잃는 구조**였다.
+ *
+ * 🔴 그래서 고친 방향은 「나가게 해 준다」가 아니라 **「나가도 안 사라지게 한다」**다.
+ *    문만 열고 저장을 안 붙이면 **정말로 잃기 시작한다.** 아래가 그 저장을 지킨다.
+ */
+describe('🔴 풀던 시험 — 저장본 읽기', () => {
+  const Q = [
+    { id: 'q1', prompt: 'a', choices: ['1', '2'], answer: 0, explanation: '' },
+    { id: 'q2', prompt: 'b', choices: ['1', '2'], answer: 1, explanation: '' },
+    { id: 'q3', prompt: 'c', choices: ['1', '2'], answer: 0, explanation: '' },
+  ];
+  const make = (over: Record<string, unknown> = {}): string =>
+    JSON.stringify({
+      examId: 'e1',
+      questions: Q,
+      answers: [0, null, null],
+      index: 1,
+      isRetry: false,
+      categoryId: 7,
+      language: 'en',
+      savedAt: '2026-10-14T01:00:00.000Z',
+      ...over,
+    });
+
+  it('⚠ 가드가 실제로 읽는다 — 멀쩡한 값은 그대로 돌아온다', () => {
+    const p = parseExamProgress(make());
+    expect(p?.examId).toBe('e1');
+    expect(p?.index).toBe(1);
+    expect(p?.answers).toEqual([0, null, null]);
+    expect(p?.categoryId).toBe(7);
+    expect(p?.language).toBe('en');
+  });
+
+  it('🔴 어떤 쓰레기에도 던지지 않는다', () => {
+    for (const raw of [null, '', 'null', '{', '[]', '{}', '"문자열"', '12', 'true']) {
+      expect(() => parseExamProgress(raw)).not.toThrow();
+    }
+    expect(parseExamProgress('{')).toBeNull();
+    expect(parseExamProgress('[]')).toBeNull();
+  });
+
+  it('🔴 문제가 0개면 없는 것으로 친다 — 눌러도 아무 일 없는 띠를 띄우지 않는다', () => {
+    expect(parseExamProgress(make({ questions: [] }))).toBeNull();
+    expect(parseExamProgress(make({ questions: '문제들' }))).toBeNull();
+  });
+
+  it('examId 가 없으면 없는 것으로 친다 — 어느 시험인지 모르면 저장할 수 없다', () => {
+    expect(parseExamProgress(make({ examId: '' }))).toBeNull();
+    expect(parseExamProgress(make({ examId: 3 }))).toBeNull();
+  });
+
+  it('🔴 index 가 범위 밖이면 끌어들인다 — 빈 문제를 그리지 않게', () => {
+    expect(parseExamProgress(make({ index: -5 }))?.index).toBe(0);
+    expect(parseExamProgress(make({ index: 99 }))?.index).toBe(Q.length - 1);
+    expect(parseExamProgress(make({ index: 1.7 }))?.index).toBe(1);
+    expect(parseExamProgress(make({ index: '둘' }))?.index).toBe(0);
+  });
+
+  it('🔴 답 길이를 문제 수에 맞춘다 — 채점이 길이를 믿는다', () => {
+    expect(parseExamProgress(make({ answers: [0] }))?.answers).toEqual([0, null, null]);
+    expect(parseExamProgress(make({ answers: [0, 1, 0, 1, 1] }))?.answers).toEqual([0, 1, 0]);
+    expect(parseExamProgress(make({ answers: 'ㅁ' }))?.answers).toEqual([null, null, null]);
+    expect(parseExamProgress(make({ answers: ['영', null, 1] }))?.answers).toEqual([null, null, 1]);
+  });
+
+  it('🔴 재시험이었다는 사실이 살아남는다 — 이어서 푼 뒤 회차로 끝나야 한다', () => {
+    expect(parseExamProgress(make({ isRetry: true }))?.isRetry).toBe(true);
+    // 값이 없거나 이상하면 **새 시험으로 친다**. 회차로 잘못 끝내면 성적표에 안 남는다
+    expect(parseExamProgress(make({ isRetry: 'yes' }))?.isRetry).toBe(false);
+    expect(parseExamProgress(make({ isRetry: undefined }))?.isRetry).toBe(false);
+  });
+
+  it('카테고리·언어가 없어도 읽힌다 — 옛 저장본이나 재시험이면 없을 수 있다', () => {
+    const p = parseExamProgress(make({ categoryId: undefined, language: undefined }));
+    expect(p).not.toBeNull();
+    expect(p?.categoryId).toBeUndefined();
+    expect(p?.language).toBeUndefined();
+  });
+});
+
+describe('🔴 풀던 시험 — 화면이 저장을 빠뜨리지 않았나 (소스 훑기)', () => {
+  const screen = (): string => stripComments(readSource('src/screens/ExamScreen.tsx'));
+
+  it('⚠ 가드가 실제로 읽었다', () => {
+    expect(screen()).toContain('ExamScreen');
+  });
+
+  it('🔴 세 자리에서 적는다 — 문제 도착 · 고를 때마다 · 나갈 때', () => {
+    /*
+     * 하나라도 빠지면 그 경로로 나간 사람이 시험을 잃는다:
+     *   도착 직후   90초를 기다린 뒤라 전화·알림으로 가장 많이 나가는 자리
+     *   고를 때마다 앱이 죽는 경로(홈 버튼·강제 종료)를 덮는다
+     *   나갈 때     확인 시트에서 「나가기」를 고른 경우
+     */
+    const hits = screen().split('saveProgress(').length - 1;
+    expect(hits).toBeGreaterThanOrEqual(3);
+  });
+
+  it('🔴 끝나면 비운다 — 안 비우면 끝난 시험이 「이어서 풀기」로 남는다', () => {
+    expect(screen()).toContain('clearProgress');
+  });
+
+  it('🔴 저장이 끝난 뒤에 나간다 — 먼저 나가면 저장이 취소될 수 있다', () => {
+    const s = screen();
+    const at = s.indexOf('const leaveNow');
+    expect(at).toBeGreaterThan(-1);
+    const body = s.slice(at, at + 700);
+    expect(body).toContain('saveProgress');
+    expect(body.indexOf('saveProgress')).toBeLessThan(body.indexOf('onBack()'));
+  });
+
+  it('🔴 시트를 실수로 닫아도 나가지지 않는다 — 물러서는 자리에 「나가기」를 걸지 않는다', () => {
+    /*
+     * `ConfirmSheet` 의 `onCancel` 은 **바깥 눌림·끌어 내리기와 같은 자리**다.
+     * 거기에 나가기를 걸면 시트를 실수로 닫은 사람이 시험에서 나가 버린다.
+     * (2026-10-14 에 처음 그렇게 쓸 뻔했다 — 그래서 가드로 박아 둔다)
+     */
+    const s = screen();
+    const at = s.indexOf('<ConfirmSheet');
+    expect(at).toBeGreaterThan(-1);
+    const block = s.slice(at, s.indexOf('/>', at));
+    expect(block).toContain('onConfirm={leaveNow}');
+    expect(block).not.toContain('onCancel={leaveNow}');
+  });
+
+  it('🔴 막던 문구가 되살아나지 않았다 — 되살아나면 다시 갇힌다', () => {
+    expect(screen()).not.toContain('끝까지 풀어 주세요');
   });
 });

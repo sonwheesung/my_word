@@ -29,6 +29,15 @@ interface ConfirmSheetProps {
   /** 지울 단어 미니 카드 · 이전 → 새 비교처럼 눈으로 확인할 것 */
   preview?: React.ReactNode;
   confirmLabel: string;
+  /**
+   * 왼쪽(물러서는) 버튼. 기본은 「취소」다.
+   *
+   * 🔴 **이 버튼의 글자는 바꿔도 「하는 일」은 못 바꾼다** — 바깥을 누르거나 끌어 내려 닫는
+   *    것도 같은 `onCancel` 로 떨어진다. 그래서 **아무것도 일어나지 않는 쪽**을 여기 둔다.
+   *    되돌릴 수 없는 동작을 여기에 걸면 **시트를 실수로 닫은 사람이 그 동작을 당한다.**
+   *    (2026-10-14 「시험에서 나가기」를 붙이며 넣었다. 그때 나가기를 이쪽에 걸 뻔했다)
+   */
+  cancelLabel?: string;
   /** `danger` 는 되돌릴 수 없는 것에만 쓴다 */
   tone?: 'danger' | 'primary';
   busy?: boolean;
@@ -44,6 +53,7 @@ export default function ConfirmSheet({
   message,
   preview,
   confirmLabel,
+  cancelLabel,
   tone = 'primary',
   busy = false,
   onConfirm,
@@ -72,7 +82,9 @@ export default function ConfirmSheet({
           disabled={busy}
           accessibilityRole="button"
         >
-          <Text style={[styles.cancelText, { color: colors.textSecondary }]}>{t('취소')}</Text>
+          <Text style={[styles.cancelText, { color: colors.textSecondary }]}>
+            {cancelLabel ?? t('취소')}
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.button, { backgroundColor: confirmBg, opacity: busy ? 0.7 : 1 }]}

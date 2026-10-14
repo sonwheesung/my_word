@@ -12,6 +12,7 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
 
+import ConfirmSheet from '../components/ConfirmSheet';
 import ScreenHeader from '../components/ScreenHeader';
 import Toast from '../components/Toast';
 import { FONT, RADIUS, SPACING } from '../constants/design';
@@ -55,6 +56,13 @@ interface ExamScreenProps {
   uiLang: AppLanguage;
   /** 있으면 재시험이다. 저장된 문제를 다시 낸다 */
   retryExamId?: string;
+  /**
+   * 풀다 만 시험을 이어서 푼다 (2026-10-14).
+   *
+   * 🔴 **서버를 부르지 않는다.** 문제가 이미 기기에 있다 — 다시 부르면 **원가가 또 나간다.**
+   *    `retryExamId` 와 같은 자리에 선다: 둘 다 "만들지 않고 푼다" 는 길이다.
+   */
+  resume?: boolean;
   onBack: () => void;
   onFinish: (examId: string) => void;
 }
@@ -98,6 +106,17 @@ function failMessage(reason: string): { title: string; body: string; retryable: 
         body: 'AI 시험은 문제를 만들 때만 인터넷이 필요해요. 연결한 뒤 다시 시도해 주세요',
         retryable: true,
       };
+    case 'no-progress':
+      /*
+       * 🔴 「이어서 풀기」를 눌렀는데 저장본이 없다 (2026-10-14).
+       *    저장이 실패했거나, 다른 경로로 지워졌거나, 저장본이 깨진 경우다.
+       * ⚠ **재시도 버튼을 주지 않는다** — 다시 눌러도 같은 자리다. 돌아가서 새로 시작해야 한다.
+       */
+      return {
+        title: '풀던 시험을 찾지 못했어요',
+        body: '시험 설정으로 돌아가 새로 시작해 주세요',
+        retryable: false,
+      };
     case 'quota-exhausted':
       // 기다려도 안 풀린다 — 재시도 버튼을 주지 않는다
       return {
@@ -140,6 +159,7 @@ export default function ExamScreen({
   language,
   uiLang,
   retryExamId,
+  resume = false,
   onBack,
   onFinish,
 }: ExamScreenProps) {
@@ -165,6 +185,21 @@ export default function ExamScreen({
   const [attempt, setAttempt] = useState(0);
   /** 🔴 연속 탭 방지. 다음 버튼을 빨리 두 번 누르면 문제가 하나 건너뛰어진다 */
   const advancing = useRef(false);
+  /** 나가기 확인 시트 (2026-10-14) */
+  const [leaving, setLeaving] = useState(false);
+
+  /**
+   * 저장할 때 쓰는 값들.
+   *
+   * 🔴 **이어서 풀기면 저장본이 정본이다.** props 로 들어온 카테고리·언어는 *지금 설정 화면에
+   *    떠 있던 값*이지 *그 시험을 만든 값*이 아니다. 그대로 쓰면 성적표의 「단어 담기」가
+   *    **엉뚱한 단어장**을 가리킨다.
+   */
+  const [meta, setMeta] = useState<{ isRetry: boolean; categoryId?: number; language?: string }>({
+    isRetry,
+    ...(categoryId === undefined ? {} : { categoryId }),
+    ...(language === undefined ? {} : { language }),
+  });
 
   // 경과 초. 🔴 가짜 진행 막대를 쓰지 않는 이유는 파일 머리 주석에 있다
   useEffect(() => {
@@ -180,6 +215,35 @@ export default function ExamScreen({
     setPhase('loading');
     (async () => {
       try {
+        /*
+         * ── 이어서 풀기 ── 기기에 있는 것을 그대로 펼친다. 서버를 부르지 않는다 (2026-10-14).
+         *
+         * 🔴 **저장본이 없으면 빈손으로 두지 않는다.** 「이어서 풀기」를 눌렀는데 아무 일도 안
+         *    일어나면 사용자는 고장으로 읽는다. 사유를 말하고 돌아갈 길을 준다.
+         */
+        if (resume) {
+          const saved = await examService.loadProgress();
+          if (!alive) return;
+          if (saved === null) {
+            setFailure('no-progress');
+            setPhase('failed');
+            return;
+          }
+          setQuestions(saved.questions);
+          setAnswers(saved.answers);
+          setExamId(saved.examId);
+          setIndex(saved.index);
+          // 🔴 그 문제를 이미 골랐었다면 고른 채로 보여 준다. 아니면 비운다
+          setPicked(saved.answers[saved.index] ?? null);
+          setMeta({
+            isRetry: saved.isRetry,
+            ...(saved.categoryId === undefined ? {} : { categoryId: saved.categoryId }),
+            ...(saved.language === undefined ? {} : { language: saved.language }),
+          });
+          setPhase('solving');
+          return;
+        }
+
         // ── 재시험 ── 저장된 문제를 그대로 낸다. 서버를 부르지 않는다
         if (isRetry) {
           const records = await examService.getRecords();
@@ -324,22 +388,81 @@ export default function ExamScreen({
     return () => {
       alive = false;
     };
-  }, [attempt, categoryId, isRetry, language, retryExamId, uiLang]);
+  }, [attempt, categoryId, isRetry, language, resume, retryExamId, uiLang]);
 
   /**
-   * 🔴 풀던 중에 뒤로가기를 막는다.
+   * 🔴 **문제가 손에 들어오는 순간 적는다** (2026-10-14).
    *
-   * 문제를 만드는 데 돈이 들었고, 그냥 나가면 그 시험이 사라진다.
-   * 안드로이드 하드웨어 뒤로가기도 같이 막아야 한다 — 헤더 버튼만 막으면 반쪽이다.
+   *    한 문제도 안 풀고 나가도 그 판은 살아 있어야 한다 — 돈은 이미 나갔다.
+   *    「고를 때마다 적기」(`handleNext`)만으로는 **첫 문제 전**이 비는데, 90초를 기다린
+   *    직후가 사람이 가장 많이 나가는 자리다(전화·알림·화면 꺼짐).
+   *
+   * ⚠ 이어서 풀기로 들어온 경우에는 **다시 적지 않는다.** 방금 읽은 것을 그대로 덮어쓰는
+   *   일이고, 실패하면 멀쩡한 저장본을 깨뜨릴 수 있다.
+   */
+  useEffect(() => {
+    if (phase !== 'solving' || resume || questions.length === 0) return;
+    void examService.saveProgress({
+      examId,
+      questions,
+      answers,
+      index,
+      isRetry: meta.isRetry,
+      ...(meta.categoryId === undefined ? {} : { categoryId: meta.categoryId }),
+      ...(meta.language === undefined ? {} : { language: meta.language }),
+      savedAt: new Date().toISOString(),
+    });
+    // 🔴 문제가 도착한 **그때 한 번**이다. answers·index 가 바뀔 때마다 돌면 안 된다
+    //    (그 저장은 `handleNext` 가 자기가 만든 값으로 직접 한다 — 상태 반영을 안 기다린다)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, examId]);
+
+  /**
+   * 풀던 중에 나가려 하면 **한 번 물어본다** (2026-10-14).
+   *
+   * 🔴 **2026-10-14 까지는 아예 못 나갔다.** 띠 하나를 띄우고 그 자리에 세워 뒀다.
+   *    이유는 *"문제를 만드는 데 돈이 들었고 그냥 나가면 사라진다"* 였는데,
+   *    **그 막기는 지키지도 못했다**:
+   *
+   * ```
+   * 시험 내용은 마지막 문제를 풀어야 저장됐다 — 중간 저장이 없었다
+   *   홈 버튼 · 앱 종료 · 오래 끊긴 전화  → 똑같이 사라진다   ✗ 못 막는다
+   *   뒤로가기                          → 막혀 있다          ← 이것 하나뿐
+   * ```
+   *
+   *    갇힌 사람은 앱을 강제로 끄므로 **막을수록 더 자주 잃는 구조**였다.
+   *    (사장님: *"그냥 나갈 수 있게 하면 안돼?"*)
+   *
+   * 🔴 그래서 고친 방향은 「나가게 해 준다」가 아니라 **「나가도 안 사라지게 한다」**이다.
+   *    문을 열기만 하면 정말로 잃기 시작한다 — 저장이 먼저다.
+   *
+   * ⚠ 안드로이드 하드웨어 뒤로가기도 같이 받는다 — 헤더 버튼만 막으면 반쪽이다.
    */
   const confirmLeave = useCallback(() => {
     if (phase !== 'solving') {
       onBack();
       return true;
     }
-    showToast(t('시험을 끝내면 성적이 남아요. 끝까지 풀어 주세요'), 'info');
+    setLeaving(true);
     return true;
-  }, [onBack, phase, showToast, t]);
+  }, [onBack, phase]);
+
+  /** 「나가기」를 고른 뒤. 🔴 **저장이 끝난 뒤에 나간다** — 먼저 나가면 저장이 취소될 수 있다 */
+  const leaveNow = useCallback(() => {
+    setLeaving(false);
+    void examService
+      .saveProgress({
+        examId,
+        questions,
+        answers,
+        index,
+        isRetry: meta.isRetry,
+        ...(meta.categoryId === undefined ? {} : { categoryId: meta.categoryId }),
+        ...(meta.language === undefined ? {} : { language: meta.language }),
+        savedAt: new Date().toISOString(),
+      })
+      .then(() => onBack());
+  }, [answers, examId, index, meta, onBack, questions]);
 
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', confirmLeave);
@@ -363,6 +486,21 @@ export default function ExamScreen({
     if (index + 1 < questions.length) {
       setIndex(index + 1);
       setPicked(null);
+      /*
+       * 🔴 **고르는 족족 적는다.** 나갈 때만 적으면 앱이 죽는 경로가 그대로 남아
+       *    "나갈 수 있게 했는데도 가끔 사라진다" 가 된다 — 그게 더 나쁘다.
+       * ⚠ 상태(`answers`·`index`)가 반영되기를 기다리지 않고 **방금 만든 값**을 적는다.
+       */
+      void examService.saveProgress({
+        examId,
+        questions,
+        answers: nextAnswers,
+        index: index + 1,
+        isRetry: meta.isRetry,
+        ...(meta.categoryId === undefined ? {} : { categoryId: meta.categoryId }),
+        ...(meta.language === undefined ? {} : { language: meta.language }),
+        savedAt: new Date().toISOString(),
+      });
       return;
     }
 
@@ -372,14 +510,14 @@ export default function ExamScreen({
      * 🔴 재시험이면 **회차만 더한다.** `addAttempt` 는 통계를 건드리지 않는다 —
      *    같은 문제를 다시 풀면 외워서 맞히므로 정답률이 부푼다(`examService` 머리 주석).
      */
-    const save = isRetry
+    const save = meta.isRetry
       ? examService.addAttempt(examId, nextAnswers).then(() => undefined)
       : (() => {
           const record = {
             examId,
-            ...(language === undefined ? {} : { language }),
+            ...(meta.language === undefined ? {} : { language: meta.language }),
             // 🔴 단어 담기가 이 값을 쓴다 — 담을 단어장이 어디인지
-            ...(categoryId === undefined ? {} : { categoryId }),
+            ...(meta.categoryId === undefined ? {} : { categoryId: meta.categoryId }),
             takenAt: now,
             questions,
             attempts: [
@@ -393,14 +531,21 @@ export default function ExamScreen({
         })();
 
     void save
+      /*
+       * 🔴 **끝났으면 「풀던 시험」을 비운다.** 안 비우면 성적표를 보고 나온 사람에게
+       *    설정 화면이 *"풀던 시험이 있어요"* 라고 말한다 — 눌러도 이미 끝난 판이다.
+       * ⚠ 저장이 **실패해도** 비운다. 그 판은 어떤 경로로도 다시 끝낼 수 없다
+       *   (아래에서 결과 화면으로 넘기므로 사용자는 이미 떠났다).
+       */
+      .then(() => examService.clearProgress())
       .then(() => onFinish(examId))
       .catch((error: any) => {
         // 🔴 저장 실패를 삼키지 않는다 — 성적표가 비면 사용자가 알아야 한다
         console.warn('시험 기록 저장 실패:', error);
         showToast(t('성적을 저장하지 못했어요'), 'error');
-        onFinish(examId);
+        void examService.clearProgress().then(() => onFinish(examId));
       });
-  }, [answers, categoryId, current, examId, index, isRetry, language, onFinish, picked, questions, showToast, t]);
+  }, [answers, current, examId, index, meta, onFinish, picked, questions, showToast, t]);
 
   // ── 기다리는 화면 ────────────────────────────────────────────────────────
   if (phase === 'loading') {
@@ -599,6 +744,30 @@ export default function ExamScreen({
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/*
+        * 나가기 확인 (2026-10-14 시안).
+        *
+        * 🔴 **「계속 풀기」를 `onCancel` 쪽에 둔다.** 시트를 바깥 눌러 닫거나 끌어 내리는 것도
+        *    같은 자리로 떨어지기 때문이다 — 「나가기」를 거기 걸면 **실수로 시트를 닫은 사람이
+        *    시험에서 나가 버린다.** 물러서는 자리에는 언제나 *아무 일도 안 일어나는 쪽*을 둔다.
+        *
+        * ⚠ 「나가기」를 빨간색(`danger`)으로 그리지 않는다. **아무것도 잃지 않기 때문이다** —
+        *   겁주는 색은 문구(*"그대로 남아요"*)와 어긋나고, 사용자는 글자보다 색을 먼저 믿는다.
+        *   그리고 나가는 길을 눈에 안 띄게 만드는 것은 전자상거래법이 말하는 「취소 방해」에
+        *   가깝다(`CHANGELOG` 다크패턴 절). 그래서 **나가기가 오른쪽 주 버튼**이다.
+        */}
+      <ConfirmSheet
+        visible={leaving}
+        title={t('나중에 이어서 푸실 수 있어요')}
+        // ⚠ 숫자를 넣지 않는다 — `index` 는 *보고 있던 문제*이지 *다 푼 개수*가 아니다.
+        //   「5문제까지 푸신 게」라고 하면 4개를 푼 사람에게 하나를 더 풀었다고 말하는 꼴이다
+        message={t('지금까지 푸신 게 그대로 남아요')}
+        confirmLabel={t('나가기')}
+        cancelLabel={t('계속 풀기')}
+        onConfirm={leaveNow}
+        onCancel={() => setLeaving(false)}
+      />
 
       <Toast message={toast.message} type={toast.type} visible={toast.visible} onHide={hideToast} />
     </View>

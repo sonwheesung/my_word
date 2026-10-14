@@ -70,10 +70,13 @@ Screen → Service → utils/storage.ts (AsyncStorage / localStorage)
 | `examService.getRecords()` · `saveRecord(record)` | `ExamRecord[]` | 🔴 **저장 실패는 삼키지 않는다** — 성적표가 비면 사용자가 알아야 한다 |
 | `examService.recordFirstAttempt(record)` | | 🔴 **이 파일에서 통계를 쓰는 유일한 함수.** `attempts.length !== 1` 이면 아무것도 안 한다 |
 | `examService.addAttempt(examId, answers)` | `ExamRecord` | 재시험 한 회차를 덧붙인다. **통계를 안 쓴다** |
+| `examService.loadJob()` · `saveJob(job)` · `clearJob()` | `ExamJob \| null` | 받아 둔 접수증(**만드는 중**). 🔴 `saveJob` 만 **삼키지 않는다** — 못 적으면 만들어진 시험을 영영 못 찾는다 |
+| `examService.loadProgress()` · `saveProgress(p)` · `clearProgress()` | `ExamProgress \| null` | 풀다 만 시험(**푸는 중** · 2026-10-14). ⚠ **전부 삼킨다** — 못 적어도 지금 풀고 있는 판은 멀쩡하고, 여기서 던지면 문제를 고를 때마다 화면이 멈춘다 |
+| `parseExamProgress(raw)` | `ExamProgress \| null` | 순수 함수. 문제 0개·`examId` 없음이면 `null`, `index` 는 범위로 끌어들이고 `answers` 길이를 문제 수에 맞춘다 |
 | `pickSeeds(words, dueIds, weakIds, limit?, rng?)` | `SeedPlan` | 순수 함수. 만기 4 · 취약 3 · 무작위 3. **앞이 비면 뒤가 채운다** |
 | `scoreExam(questions, answers)` | `ExamScore` | 순수 함수. 🔴 **넘긴 문제를 분모에서 빼지 않는다** |
 | `detectLanguage(text)` · `detectCategoryLanguage(words)` · `countLanguages(words)` | | 순수 함수. 판정 불가면 `null` — **추측으로 보내지 않는다** |
-| `parseRecords(raw)` · `parseExamPrefs(raw)` · `trimRecords(records, max?)` | | 순수 함수. 어떤 입력에도 throw 하지 않는다 |
+| `parseRecords(raw)` · `parseExamPrefs(raw)` · `parseExamJob(raw)` · `trimRecords(records, max?)` | | 순수 함수. 어떤 입력에도 throw 하지 않는다 |
 | `parseAttempts(obj, questions)` | `ExamAttempt[]` | 옛 모양(`answers`·`score` 가 기록에 직접 있는 것)을 1회차로 옮긴다. **저장본을 고치지 않고 읽을 때 고친다** |
 | `toSeedPayload(plan)` | `{word, meaning?}[]` | 뜻은 첫 번째만 보낸다 |
 
