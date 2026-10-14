@@ -470,7 +470,12 @@ Play 콘솔 → Play를 통한 수익 창출 → 수익 창출 설정 → 「실
 🟢 오픈소스 고지를 다시 구웠다(**220 → 221개** · `My Word 1.9.0 기준`). `check:licenses` 가
 먼저 빨개져서 알려 줬다 — 의존성이 늘면 **그 고지의 거짓은 라이선스 위반**이다.
 
-검증: `tsc` 0 · **682/682**(662 → +20) · `check:tests`·`check:docs`(서비스 19)·`check:licenses` ALL PASS.
+검증: `tsc` 0 · **718/718 · 스위트 32/32**(662 → +56) · `check:tests`·`check:docs`·`check:licenses` ALL PASS.
+「알려진 고장」 목록이 **비었다** — `App.test.tsx` 가 되살아났다.
+
+⚠ 이 줄은 2026-10-14 에 고쳤다. 그날 작업 순서 때문에 **682 에서 멈춘 채 커밋됐다**(구독 작업
+중간값이다). 하루 안에 세 번 올라간 숫자를 맨 처음 것으로 적어 두면, 다음 사람이 가드의
+바닥값(`scripts/check-tests.mjs` 의 `MIN_PASSING`)을 **내리는 쪽으로** 맞출 수 있다.
 
 ## [1.8.0] - **내부 테스트 배포** 2026-10-12 (versionCode 23 · runtimeVersion 1.8.0)
 
