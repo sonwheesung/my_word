@@ -189,6 +189,12 @@ export default function ExamSetupScreen({
     return Math.min(EXAM_SIZE, usable * QUESTIONS_PER_WORD);
   }, [language, words]);
 
+  /**
+   * 🔴 **고른 언어로 만들 문제가 한 개도 없는 상태.** 버튼을 끄는 유일한 근거다.
+   *    `wordCount`(카테고리 전체)로는 못 잡는다 — 단어는 18개인데 그 언어가 아닌 경우다.
+   */
+  const noQuestions = expectedQuestions === 0;
+
   /** 20문제를 채우려면 단어가 몇 개 더 필요한가. 🚫 막지 않는다 — 알려만 준다(사장님 결정) */
   const wordsShort = useMemo(() => {
     if (language === null || words.length === 0) return 0;
@@ -236,6 +242,22 @@ export default function ExamSetupScreen({
       showToast(t('어떤 언어의 단어인지 선택해주세요'), 'error');
       return;
     }
+    /*
+     * 🔴 **고른 언어의 단어가 하나도 없으면 막는다**(2026-10-15 사장님 결정).
+     *
+     * 바로 위 `wordCount === 0`(카테고리가 빈 경우)과 **사용자가 겪는 일이 똑같다** —
+     * 영어 단어 18개짜리 카테고리에 한국어를 고르면 쓸 단어가 0개다. 한쪽만 막고 있었다.
+     *
+     * ⚠ **「적게 나오는 경우」는 여전히 막지 않는다**(2026-10-13 결정). 15문제는 덜 좋은
+     *   시험이지 시험이긴 하다. 0문제는 시험이 아니다 — 지켜서 얻는 것이 없다.
+     *
+     * ⚠ 서버도 0문제면 503 으로 돌려보내고 **무료 횟수를 소모하지 않는다**(`ai-exam.ts`).
+     *   그래서 이 빗장이 막는 것은 판수가 아니라 **90초를 기다렸다 오류를 받는 길**이다.
+     */
+    if (expectedQuestions === 0) {
+      showToast(t('고른 언어의 단어가 없어 문제를 만들 수 없습니다'), 'error');
+      return;
+    }
     setIsStarting(true);
     void examService
       .loadPrefs()
@@ -243,7 +265,7 @@ export default function ExamSetupScreen({
     // 🔴 버리기로 한 뒤에 비운다. 비우기 전에 화면이 바뀌면 다음 입장에서 또 물어본다
     void examService.clearProgress();
     onStart(selectedCategoryId, language);
-  }, [isStarting, language, onStart, selectedCategoryId, showToast, t, wordCount]);
+  }, [expectedQuestions, isStarting, language, onStart, selectedCategoryId, showToast, t, wordCount]);
 
   const handleStart = useCallback(() => {
     if (progress !== null) {
@@ -435,14 +457,24 @@ export default function ExamSetupScreen({
             >
               <MaterialIcons name="info-outline" size={16} color={colors.warningText} />
               <Text style={[styles.noticeText, { color: colors.warningText }]}>
-                {t('{{count}}문제만 나와요. 무료 1회는 그대로 줄어들어요', {
-                  count: expectedQuestions,
-                })}
+                {/*
+                  🔴 **0 일 때는 「무료 1회가 줄어든다」고 말하지 않는다**(2026-10-15).
+                     서버가 0문제면 503 으로 돌려보내고 **차감 전에 멈춘다**(`ai-exam.ts`).
+                     그 줄을 그대로 두면 이번엔 **반대 방향의 거짓**이 된다 —
+                     안 나가는 것을 나간다고 겁주는 것도 같은 잘못이다.
+                */}
+                {noQuestions
+                  ? t('고른 언어로 된 단어가 없어서 문제를 만들 수 없어요')
+                  : t('{{count}}문제만 나와요. 무료 1회는 그대로 줄어들어요', {
+                      count: expectedQuestions,
+                    })}
                 {'\n'}
-                {t('단어를 {{count}}개 더 넣으시면 {{full}}문제가 나와요', {
-                  count: wordsShort,
-                  full: EXAM_SIZE,
-                })}
+                {noQuestions
+                  ? t('언어를 바꾸시거나, 그 언어의 단어를 넣어 주세요')
+                  : t('단어를 {{count}}개 더 넣으시면 {{full}}문제가 나와요', {
+                      count: wordsShort,
+                      full: EXAM_SIZE,
+                    })}
               </Text>
             </View>
           )}
@@ -472,10 +504,10 @@ export default function ExamSetupScreen({
           style={[
             styles.startButton,
             { backgroundColor: colors.primaryStrong },
-            (isStarting || wordCount === 0) && styles.startButtonDisabled,
+            (isStarting || wordCount === 0 || noQuestions) && styles.startButtonDisabled,
           ]}
           onPress={handleStart}
-          disabled={isStarting || wordCount === 0}
+          disabled={isStarting || wordCount === 0 || noQuestions}
           accessibilityRole="button"
         >
           {isStarting ? (
@@ -484,9 +516,12 @@ export default function ExamSetupScreen({
             /*
              * ⚠ 20문제가 안 되는 경우에만 숫자를 버튼에 넣는다. 늘 넣으면 정상인 판에서도
              *   숫자가 보여 「왜 20인지」를 설명해야 하고, 그건 이 화면이 할 일이 아니다.
+             *
+             * 🚫 **0 은 숫자로 넣지 않는다**(2026-10-15). 꺼진 버튼에 「0문제로 시작」이라고
+             *    적으면 *"0문제로 시작할 수 있다"* 로 읽힌다. 왜 꺼졌는지는 위 안내가 말한다.
              */
             <Text style={styles.startButtonText}>
-              {expectedQuestions !== null && wordsShort > 0
+              {expectedQuestions !== null && expectedQuestions > 0 && wordsShort > 0
                 ? t('{{count}}문제로 시작', { count: expectedQuestions })
                 : t('시험 시작')}
             </Text>
