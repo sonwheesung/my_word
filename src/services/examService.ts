@@ -526,8 +526,17 @@ function parseAttempts(obj: Record<string, unknown>, questions: ExamQuestion[]):
       });
     }
   }
-  // 옛 모양: 기록이 answers·score 를 직접 들고 있다
-  if (out.length === 0 && Array.isArray(obj.answers)) {
+  /*
+   * 옛 모양: 기록이 answers·score 를 직접 들고 있다.
+   *
+   * 🔴 **빈 배열은 「회차」가 아니다**(2026-10-15 에뮬레이터에서 잡았다).
+   *    `length > 0` 을 안 보면, 2026-10-15 에 생긴 **아직 안 푼 기록**(`attempts: []`)이
+   *    여기로 떨어진다 — SQLite 는 옛 칸 `answers` 를 **언제나 `'[]'` 로** 적기 때문이다
+   *    (`db/repo.ts` 의 저장 주석). 그러면 성적표가 **「최고 0%」**로 그리는데,
+   *    그건 *다 틀렸다*로 읽힌다 — 아직 안 푼 것과 **정반대**다.
+   * ⚠ 옛 진짜 회차는 답이 문제 수만큼 있으므로 이 조건에 걸리지 않는다.
+   */
+  if (out.length === 0 && Array.isArray(obj.answers) && obj.answers.length > 0) {
     const answers = obj.answers as ExamAnswer[];
     out.push({
       answers,

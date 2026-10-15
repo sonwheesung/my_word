@@ -581,6 +581,21 @@ describe('🔴 회차 — 옛 기록을 1회차로 옮긴다', () => {
     expect(parseRecords(raw)[0].attempts).toHaveLength(1);
   });
 
+  it('🔴 빈 answers 를 회차로 만들지 않는다 — 아직 안 푼 기록이 「최고 0%」가 된다', () => {
+    /*
+     * SQLite 는 옛 칸 `answers` 를 **언제나 `'[]'`** 로 적는다(`db/repo.ts`). 그래서
+     * 「문제만 받아 둔 판」(`attempts: []`)이 여기로 떨어지면 0점짜리 1회차가 생기고,
+     * 성적표가 *다 틀렸다*로 읽히는 「최고 0%」를 그린다. 2026-10-15 에뮬레이터에서 실제로 봤다.
+     */
+    const raw = JSON.stringify([
+      {
+        examId: 'unplayed', takenAt: '2026-10-15T00:00:00.000Z', language: 'ja',
+        questions: [makeQuestion(0), makeQuestion(1)], attempts: [], answers: [], score: {},
+      },
+    ]);
+    expect(parseRecords(raw)[0].attempts).toEqual([]);
+  });
+
   it('회차도 answers 도 없으면 그 기록을 버린다', () => {
     const raw = JSON.stringify([
       { examId: 'x', takenAt: '2026-10-01T00:00:00.000Z', language: 'ja', questions: [makeQuestion(0)] },
