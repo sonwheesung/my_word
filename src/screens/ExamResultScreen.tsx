@@ -277,31 +277,22 @@ export default function ExamResultScreen({ examId, onBack, onHome }: ExamResultS
     [reported, reporting, showToast, t],
   );
 
-  if (loading) {
-    return (
-      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
-        <StatusBar style={colors.isDark ? 'light' : 'dark'} />
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
-  }
-
-  if (record === null) {
-    return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <StatusBar style={colors.isDark ? 'light' : 'dark'} />
-        <ScreenHeader title={t('시험 결과')} onBack={onBack} />
-        <View style={styles.emptyBox}>
-          <Text style={[styles.emptyTitle, { color: colors.text }]}>
-            {t('성적을 찾지 못했어요')}
-          </Text>
-        </View>
-      </View>
-    );
-  }
-
+  /*
+   * 🔴 **여기부터 아래 훅들은 반드시 「일찍 반환」보다 위에 있어야 한다** (2026-10-15).
+   *
+   * 2026-10-12 에 이 셋(`wrongIndexes` · 점수 자동 넘김 · `questionCard`)이 `if (loading)`
+   * **아래**에 들어갔다. 첫 렌더는 `loading=true` 라 일찍 반환해서 훅을 11개만 돌고,
+   * 조회가 끝나 다시 그릴 때 14개를 돌았다. React 는 그 차이를 보고 던진다 —
+   * **시험을 끝낼 때마다 「앱 에러 발생」으로 떨어졌다**(2026-10-15 사장님 폰에서 실측).
+   *
+   * 잃는 것이 컸다: 기록 자체는 이미 저장된 뒤라 살아남지만, **오답노트와 「새 단어 담기」가
+   * 통째로 못 열린다.** 돈이 드는 기능의 결말 화면이 통째로 날아가 있었다.
+   *
+   * ⚠ 그래서 `record` 가 `null` 일 수 있는 자리에서 돌아간다 — 셋 다 null 을 견디게 해 뒀다.
+   *   훅은 **언제나 같은 수만큼** 돌고, 화면을 그릴지 말지는 아래 반환문이 정한다.
+   */
   // 🔴 최신 회차를 보여준다. 성적표(회차별)는 아래 "회차" 줄이 담당한다
-  const latest = record.attempts[record.attempts.length - 1];
+  const latest = record === null ? undefined : record.attempts[record.attempts.length - 1];
   const score = latest?.score ?? { correct: 0, wrong: 0, skipped: 0, total: 0, accuracy: 0 };
   const answers = latest?.answers ?? [];
 
@@ -426,6 +417,30 @@ export default function ExamResultScreen({ examId, onBack, onHome }: ExamResultS
     },
     [answers, colors, handleReport, reported, reporting, t],
   );
+
+  if (loading) {
+    return (
+      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+        <StatusBar style={colors.isDark ? 'light' : 'dark'} />
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
+  if (record === null) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <StatusBar style={colors.isDark ? 'light' : 'dark'} />
+        <ScreenHeader title={t('시험 결과')} onBack={onBack} />
+        <View style={styles.emptyBox}>
+          <Text style={[styles.emptyTitle, { color: colors.text }]}>
+            {t('성적을 찾지 못했어요')}
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
 
 
   return (
