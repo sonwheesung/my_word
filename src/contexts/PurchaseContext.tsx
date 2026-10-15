@@ -56,6 +56,14 @@ interface PurchaseContextValue {
   adFree: boolean;
   /** 구독(`pro`)이 활성인가. 🔴 **시험 권한은 이것만 본다** */
   proActive: boolean;
+  /**
+   * 🔴 **`proActive === false` 는 「아니다」와 「아직 못 물어봤다」 둘 다다.**
+   *
+   *    서버에 한 번이라도 **성공적으로** 물어본 뒤에만 참이다. 이 깃발 없이 false 를
+   *    「구독이 끝났다」로 읽으면, 네트워크가 잠깐 끊긴 구독자에게 *"구독이 끝나서…"* 가 뜬다.
+   *    (시험 진입 카드가 이 구분을 쓴다 — `examQuotaService.seeSubscription`)
+   */
+  proKnown: boolean;
   /** 결제 실패 유예 중. 활성이지만 곧 끊길 수 있어 안내를 띄울 수 있다 */
   inGracePeriod: boolean;
   /** Play 조회가 끝났는가. false 면 아직 캐시 값을 보고 있다 */
@@ -71,6 +79,7 @@ interface PurchaseContextValue {
 const PurchaseContext = createContext<PurchaseContextValue>({
   adFree: false,
   proActive: false,
+  proKnown: false,
   inGracePeriod: false,
   ready: false,
   price: null,
@@ -103,6 +112,7 @@ export function PurchaseProvider({ children }: { children: React.ReactNode }) {
    *   반대로 구독자에게 광고가 잠깐 보이는 것은 되돌릴 수 있다.
    */
   const [proActive, setProActive] = useState(false);
+  const [proKnown, setProKnown] = useState(false);
   const [inGracePeriod, setInGracePeriod] = useState(false);
   const [ready, setReady] = useState(false);
   const [price, setPrice] = useState<string | null>(null);
@@ -142,7 +152,11 @@ export function PurchaseProvider({ children }: { children: React.ReactNode }) {
       if (!result.ok || !mounted.current) return;
       const pro = result.entitlements['pro'];
       await apply({ pro: pro?.active === true });
-      if (mounted.current) setInGracePeriod(pro?.inGracePeriod === true);
+      if (mounted.current) {
+        setInGracePeriod(pro?.inGracePeriod === true);
+        // 🔴 **성공했을 때만 켠다.** 위 early return 이 실패를 이미 걸렀다
+        setProKnown(true);
+      }
     } catch {
       // 못 물어봤다. 다음 기회에 다시 본다
     }
@@ -304,7 +318,7 @@ export function PurchaseProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <PurchaseContext.Provider value={{ adFree,
-        proActive,
+        proActive, proKnown,
         inGracePeriod, ready, price, busy, buy, restore }}>
       {children}
     </PurchaseContext.Provider>

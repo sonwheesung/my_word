@@ -21,6 +21,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useToast } from '../hooks/useToast';
 import { commonServer, ensureDeviceSession } from '../services/commonServer/client';
 import { examService, scoreExam, toSeedPayload, type ExamAnswer, type ExamLanguage } from '../services/examService';
+import { examQuotaService } from '../services/examQuotaService';
 import type { ExamQuestion } from '../services/commonServer/types';
 import type { AppLanguage } from '../i18n/language';
 
@@ -371,6 +372,12 @@ export default function ExamScreen({
           }
           if (!alive) return;
           if (!started.ok) {
+            /*
+             * 🔴 **다 썼다는 것을 기기에도 적는다**(2026-10-15 시안 #19).
+             *    적지 않으면 다음에 들어온 사람에게 카드가 **옛 숫자**를 보여 주고,
+             *    그 숫자를 믿고 또 눌러 90초를 기다리게 된다.
+             */
+            if (started.reason === 'quota-exhausted') await examQuotaService.saveFreeLeft(0);
             setFailure(started.reason);
             setDegraded(started.degraded ?? null);
             setPhase('failed');
@@ -431,6 +438,16 @@ export default function ExamScreen({
             return;
           }
           const exam = asked.job.exam;
+          /*
+           * 🔴 **남은 판수는 여기서만 들을 수 있다.** 서버는 `remaining` 을 시험을 받은
+           *    응답에만 싣는다(들어오기 전에 물어보는 길이 없다).
+           * 🔴 **구독자는 `null` 이다 — 0 으로 읽으면 구독자에게 "다 썼어요"가 뜬다.**
+           *    그래서 숫자일 때만 적는다.
+           * ⚠ 한 판을 만들었으니 「해지 후」 안내는 거둔다 — 한 번 알렸으면 됐다.
+           */
+          if (exam.remaining !== null) await examQuotaService.saveFreeLeft(exam.remaining);
+          await examQuotaService.dismissEndedNotice();
+          if (!alive) return;
           setQuestions(exam.questions);
           setAnswers(exam.questions.map(() => null));
           setExamId(exam.examId ?? `local-${Date.now()}`);

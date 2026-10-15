@@ -36,6 +36,8 @@
 | `@my_word_exam_prefs` | `EXAM_PREFS_KEY` · appConfig.ts | `ExamPrefs` JSON | 🚫 | 카테고리별로 고른 **단어의 언어** |
 | `@my_word_exam_job` | `EXAM_JOB_KEY` · appConfig.ts | `{ jobId, categoryId, language, uiLang, startedAt }` JSON | 🚫 | 🔴 **받아 둔 접수증 하나.** 앱을 나갔다 와도 시험을 **이어받는다**(만드는 중) |
 | `@my_word_exam_progress` | `EXAM_PROGRESS_KEY` · appConfig.ts | `{ examId, questions, answers, index, isRetry, categoryId?, language?, savedAt }` JSON | 🚫 | 🔴 **풀다 만 시험 한 판**(2026-10-14). 접수증과 짝이고 **동시에 있지 않다** — 문제가 도착하면 접수증을 비우고 이쪽이 시작된다. 끝내면 비운다 |
+| `@my_word_exam_free_left` | `EXAM_FREE_LEFT_KEY` · appConfig.ts | 남은 판수(숫자 문자열) | 🚫 | 🔴 **대략이다**(2026-10-15 시안 #19). 서버는 `remaining` 을 시험을 받은 응답에만 싣는다 — 들어오기 전에 물어보는 길이 없어 마지막으로 들은 값을 적어 둔다. 🚫 **이 값으로 시작을 막지 않는다**(정본은 서버의 403) |
+| `@my_word_sub_seen` | `SUB_SEEN_KEY` · appConfig.ts | `{ active, grace, notice }` JSON | 🚫 | 마지막으로 본 구독 상태. 🔴 **사라짐으로 알리는 설계는 되돌아올 때 할 말이 없다** — 해지·결제 실패로 무료가 되면 카드가 설명 없이 다시 뜨므로, 켜짐→꺼짐을 처음 볼 때 카드가 직접 말한다 |
 | `@my_word_quiz_prefs` | `QUIZ_PREFS_KEY` · appConfig.ts | `QuizPrefs` JSON | 🚫 | 지난 퀴즈 설정(카테고리 · 모드 · 방향 · 답변 · 문제 수) |
 | `@my_word_last_category` | `LAST_CATEGORY_KEY` · appConfig.ts | 카테고리 id (숫자 문자열) | 🚫 | 단어 추가 화면의 기본 카테고리. 🔴 지워진 id 면 첫 번째로 되돌린다(`pickDefaultCategory`) |
 | `@my_word_sync_state` | `SYNC_STATE_KEY` · appConfig.ts | `SyncState` JSON | 🚫 | 단어를 어디까지 밀었나(기기별 진행 상태) |

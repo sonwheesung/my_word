@@ -70,6 +70,10 @@ Screen → Service → utils/storage.ts (AsyncStorage / localStorage)
 | `examService.getRecords()` · `saveRecord(record)` | `ExamRecord[]` | 🔴 **저장 실패는 삼키지 않는다** — 성적표가 비면 사용자가 알아야 한다 |
 | `examService.recordFirstAttempt(record)` | | 🔴 **이 파일에서 통계를 쓰는 유일한 함수.** `attempts.length !== 1` 이면 아무것도 안 한다 |
 | `examService.addAttempt(examId, answers)` | `ExamRecord` | 한 회차를 덧붙인다. 🔴 **회차가 0 이던 판이면 그때 통계에 넣는다**(그게 1회차다 · 2026-10-15). 2회차부터는 안 쓴다 |
+| `examQuotaService.loadFreeLeft()` · `saveFreeLeft(n)` | `number` | 남은 무료 판수(시안 #19). 모르면 `EXAM_FREE_QUOTA`. 🚫 구독자(`remaining === null`)에게는 **안 부른다** — 0 으로 읽으면 *"다 썼어요"* 가 뜬다 |
+| `examQuotaService.seeSubscription({active, grace})` | `QuotaNotice \| null` | 구독이 끝났으면 사유를 돌려준다(`ended` · `billing`). 🔴 **`proKnown` 전에는 부르지 않는다** — 못 물어본 것을 「끝났다」로 읽으면 없는 사고를 알린다 |
+| `examQuotaService.dismissEndedNotice()` | | 「해지 후」 안내를 거둔다(첫 새 시험 뒤). 🚫 「결제 실패」는 안 거둔다 — 구독이 돌아올 때 `seeSubscription` 이 거둔다 |
+| `nextSeen(prev, now)` · `parseSubSeen(raw)` · `parseFreeLeft(raw)` | | 순수 함수. 구독을 살 수 있기 전에는 실기기에서 못 밟는 길이라 **여기만 테스트로 지킨다** |
 | `examService.saveUnplayed(record)` | | 문제만 받아 둔 판을 성적표에 만든다(`attempts: []` · 2026-10-15). 🚫 **재시험에는 쓰지 않는다** — 쌓인 회차를 지운다 |
 | `examService.hasCountedAttempt(examId)` | `boolean` | 통계가 이미 반영됐나. ⚠ **저장 전에** 물어야 한다 — 저장하면 회차가 생겨 구분이 사라진다 |
 | `examService.loadJob()` · `saveJob(job)` · `clearJob()` | `ExamJob \| null` | 받아 둔 접수증(**만드는 중**). 🔴 `saveJob` 만 **삼키지 않는다** — 못 적으면 만들어진 시험을 영영 못 찾는다 |
@@ -99,6 +103,39 @@ Screen → Service → utils/storage.ts (AsyncStorage / localStorage)
 🔴 서버 호출은 `examService` 가 아니라 **SDK**(`commonServer.generateExam` · `reportQuestion`)가 한다.
 `generateExam` 만 타임아웃이 **120초**다 — 기본 10초로는 서버가 멀쩡히 문제를 만드는 동안 앱이 abort 하고
 `offline` 이라고 말한다(그 호출의 원가는 이미 나갔으므로 가장 나쁜 실패다).
+
+## examQuotaService.ts (남은 무료 판수 · 구독이 끝난 사실)
+
+시험 진입 카드(`FreeExamCard` · 시안 단어앱#19)가 쓰는 **기기 쪽 기억**이다. 둘 다 화면을
+그리기 위한 것이고 **정본이 아니다.**
+
+```
+@my_word_exam_free_left   남은 무료 판수. 서버는 remaining 을 **시험을 받은 응답에만** 싣는다
+@my_word_sub_seen         마지막으로 본 구독 상태. 끝난 것을 카드가 직접 말하기 위해서다
+```
+
+🔴 **남은 판수는 대략이다.** 「지우기」 · 구독 전환 · 로그인 뒤에는 틀려질 수 있어
+**시작을 막는 데 쓰지 않는다** — 틀린 값이 사람을 가두면 안 된다. 서버가 403 을 주면
+그때 실패 화면이 안내한다(그쪽이 정본이다).
+
+🔴 **구독자는 `remaining` 이 `null`(판수 제한 없음)이다. 0 과 반드시 구별한다** —
+`null` 을 0 으로 읽으면 구독자에게 *"다 썼어요"* 가 뜬다.
+
+🔴 **`proActive === false` 는 「아니다」와 「아직 못 물어봤다」 둘 다다.** 그래서 화면은
+`proKnown`(서버에 **성공적으로** 물어본 뒤에만 참)이 켜진 뒤에만 `seeSubscription` 을 부른다.
+안 그러면 네트워크가 잠깐 끊긴 구독자가 다음에 들어왔을 때 *"구독이 끝나서…"* 를 본다 —
+**없는 사고를 알리는 것**이 가장 나쁘다.
+
+| 본 것 | 적는 것 |
+|---|---|
+| 처음 본다 | 지금 상태만. 알릴 것 없음(과거를 모른다) |
+| 지금 구독 중 | 알릴 것 없음 — 돌아왔으면 하던 안내도 거둔다 |
+| 켜짐 → 꺼짐 | 유예 중이었으면 **결제 실패**, 아니면 **해지** |
+| 계속 꺼짐 | 들고 있던 안내를 그대로 유지 |
+
+⚠ 사유를 모르면 **해지**로 읽는다. 권한 정보는 `active · expiresAt · willRenew ·
+inGracePeriod` 넷뿐이라 환불과 해지를 구분하지 못한다 — *"구독이 끝나서"* 는 환불에도
+틀린 말이 아니고, **나무라지 않는 쪽으로 틀리는 것**이 안전하다.
 
 ## syncService.ts (학습 데이터 밀기)
 

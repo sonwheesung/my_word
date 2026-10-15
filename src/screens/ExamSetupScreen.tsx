@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Linking,
   ScrollView,
   StyleSheet,
   Text,
@@ -12,6 +13,7 @@ import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import BottomSheet from '../components/BottomSheet';
+import FreeExamCard from '../components/FreeExamCard';
 import ConfirmSheet from '../components/ConfirmSheet';
 import ScreenHeader from '../components/ScreenHeader';
 import Toast from '../components/Toast';
@@ -22,7 +24,9 @@ import {
   QUESTIONS_PER_WORD,
   WORDS_FOR_FULL_EXAM,
 } from '../constants/appConfig';
+import { usePurchase } from '../contexts/PurchaseContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { examQuotaService, type QuotaNotice } from '../services/examQuotaService';
 import { useToast } from '../hooks/useToast';
 import { categoryService } from '../services/categoryService';
 import { wordService } from '../services/wordService';
@@ -79,6 +83,7 @@ export default function ExamSetupScreen({
   const { t } = useTranslation();
   const { colors } = useTheme();
   const { toast, showToast, hideToast } = useToast();
+  const { proActive, proKnown, inGracePeriod } = usePurchase();
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
@@ -114,18 +119,31 @@ export default function ExamSetupScreen({
    *   그 전에 시작한 판에는 줄이 없다. 있다고 적으면 그 한 판에 거짓이 선다.
    */
   const [progressInHistory, setProgressInHistory] = useState(false);
+  /**
+   * 남은 무료 판수 (시안 단어앱#19 · 2026-10-15).
+   *
+   * 🔴 **대략이다.** 서버는 `remaining` 을 시험을 받은 응답에만 싣는다 — 들어오기 전에
+   *    물어보는 길이 없어 **마지막으로 들은 값**을 보여 준다. 한 번도 못 들었으면 10 이다.
+   * 🚫 **이 값으로 시작을 막지 않는다.** 틀린 값이 사람을 가두면 안 된다. 정본은 서버의 403 이고,
+   *    그때는 지금처럼 실패 화면이 안내한다.
+   */
+  const [freeLeft, setFreeLeft] = useState<number | null>(null);
+  /** 구독이 끝났다는 것을 아직 안 알렸으면 그 사유 */
+  const [quotaNotice, setQuotaNotice] = useState<QuotaNotice | null>(null);
 
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
-        const [data, prefs, saved, records] = await Promise.all([
+        const [data, prefs, saved, records, left] = await Promise.all([
           categoryService.getCategories(),
           examService.loadPrefs(),
           examService.loadProgress(),
           examService.getRecords(),
+          examQuotaService.loadFreeLeft(),
         ]);
         if (!alive) return;
+        setFreeLeft(left);
         setProgress(saved);
         setProgressInHistory(saved !== null && records.some((r) => r.examId === saved.examId));
         setCategories(data);
@@ -142,6 +160,26 @@ export default function ExamSetupScreen({
       alive = false;
     };
   }, [showToast, t]);
+
+  /**
+   * 구독이 끝난 것을 **카드가 직접 말하게 한다** (2026-10-15 시안 단어앱#19).
+   *
+   * 🔴 **`proKnown` 전에는 아무것도 적지 않는다.** `proActive === false` 는 「아니다」와
+   *    「아직 못 물어봤다」 둘 다라, 그대로 적으면 네트워크가 잠깐 끊긴 구독자가 다음에
+   *    들어왔을 때 *"구독이 끝나서…"* 를 본다. **없는 사고를 알리는 것**이 가장 나쁘다.
+   */
+  useEffect(() => {
+    if (!proKnown) return;
+    let alive = true;
+    void examQuotaService
+      .seeSubscription({ active: proActive, grace: inGracePeriod })
+      .then((notice) => {
+        if (alive) setQuotaNotice(notice);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [inGracePeriod, proActive, proKnown]);
 
   /**
    * 카테고리가 바뀌면 언어를 다시 정한다.
@@ -339,6 +377,27 @@ export default function ExamSetupScreen({
       />
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        {/*
+          * 무료 판수 카드 (2026-10-15 시안 단어앱#19).
+          *
+          * 🔴 **구독자에게는 그리지 않는다.** 구독자에게 남은 무료 판수는 아무 뜻이 없다.
+          * 🔴 **맨 위다.** 다 쓴 사람이 90초를 기다릴 각오를 하고 누른 뒤 실패 화면에서
+          *    처음 아는 일을 없애는 것이 이 카드의 전부다.
+          * ⚠ `freeLeft` 가 `null` 이면 **아직 안 읽었다**(0 과 다르다). 그릴 때까지 자리를
+          *   비우지 않고 아무것도 안 그린다 — 0 으로 그렸다가 바뀌면 글자가 번쩍인다.
+          */}
+        {!proActive && freeLeft !== null && (
+          <FreeExamCard
+            remaining={freeLeft}
+            notice={quotaNotice}
+            onHistory={onHistory}
+            onBilling={() => {
+              // Play 의 구독 관리 화면. 🔴 결제 수단은 **Play 안에서만** 바꿀 수 있다
+              void Linking.openURL('https://play.google.com/store/account/subscriptions');
+            }}
+          />
+        )}
+
         {/*
           * 풀던 시험 (2026-10-14).
           *
