@@ -628,11 +628,47 @@ describe('🔴 통계 쓰기는 한 곳에서만 일어난다', () => {
     expect(guard).toMatch(/attempts\.length\s*!==\s*1/);
   });
 
-  it('🔴 addAttempt 가 recordFirstAttempt 를 부르지 않는다', () => {
+  /*
+   * 🔴 **이 가드는 2026-10-15 에 좁아졌다. 전에는 「addAttempt 는 통계를 아예 안 부른다」였다.**
+   *
+   *    그날 「문제만 받아 두고 아직 안 푼 판」이 성적표에 들어오기 시작했다(`saveUnplayed`).
+   *    그 판을 성적표에서 처음 푸는 길이 `addAttempt` 를 지나는데, 그것은 **재시험이 아니라
+   *    1회차**다. 안 세면 정답률이 그 판만큼 빈다.
+   *
+   * 🚫 **그래서 가드를 지우지 않고 조건을 검사하게 바꿨다.** 지키려는 약속은 그대로다 —
+   *    *2회차부터는 통계에 안 들어간다.* 조건이 빠지면 재시험이 정답률을 부풀리고,
+   *    **크래시도 경고도 없이 숫자만 틀린다.**
+   */
+  it('🔴 addAttempt 의 통계 쓰기는 회차가 0 일 때뿐이다 (재시험은 못 건드린다)', () => {
     const s = src();
     const start = s.indexOf('async addAttempt');
     const end = s.indexOf('async saveRecord');
-    expect(s.slice(start, end)).not.toContain('recordFirstAttempt');
+    const body = s.slice(start, end);
+    expect(body).toMatch(/attempts\.length === 0/);
+    expect(body).toMatch(/if \(firstPlay\) await this\.recordFirstAttempt\(/);
+    // 🔴 조건 밖에서 한 번 더 부르면 두 번 세어진다
+    expect(body.match(/recordFirstAttempt/g)).toHaveLength(1);
+  });
+
+  it('🔴 끝내는 화면은 저장 **전에** 「이미 셌나」를 묻는다', () => {
+    /*
+     * 저장한 뒤에 물으면 방금 넣은 회차가 보여서 구분이 사라진다. 그러면
+     * 성적표에서 푼 판을 「풀던 시험」으로 또 끝내는 길에서 같은 판이 두 번 세어진다.
+     */
+    const s = stripComments(readSource('src/screens/ExamScreen.tsx'));
+    const ask = s.indexOf('hasCountedAttempt');
+    const save = s.indexOf('examService.saveRecord(record)');
+    expect(ask).toBeGreaterThan(-1);
+    expect(save).toBeGreaterThan(ask);
+    expect(s).toMatch(/if \(!counted\) await examService\.recordFirstAttempt\(/);
+  });
+
+  it('🔴 재시험에는 빈 회차를 덮어쓰지 않는다 (지난 성적이 지워진다)', () => {
+    const s = stripComments(readSource('src/screens/ExamScreen.tsx'));
+    const at = s.indexOf('saveUnplayed');
+    expect(at).toBeGreaterThan(-1);
+    // 바로 앞에 재시험을 걸러내는 조건이 있어야 한다
+    expect(s.slice(Math.max(0, at - 200), at)).toContain('!meta.isRetry');
   });
 
   it('🔴 가짜 wordId 를 쓰지 않는다 (없는 단어를 가리키는 통계를 안 만든다)', () => {

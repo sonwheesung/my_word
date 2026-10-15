@@ -1,8 +1,7 @@
 // 공통 서버 클라이언트 SDK.
-// ⚠️ 원본: common_server/client/index.ts 에서 복사 (2026-10-12, SDK_VERSION 2026-10-12.2).
+// ⚠️ 원본: common_server/client/index.ts 에서 복사 (2026-10-15, SDK_VERSION 2026-10-15).
 //    이 파일은 손으로 고치지 말 것 — 서버 계약이 바뀌면 원본을 갱신하고 다시 복사한다.
 //    (앱 4~5개 규모엔 monorepo·npm 패키지 오버헤드가 이득보다 크다는 판단)
-//
 //
 //    이 파일은 손으로 고치지 말 것 — 서버 계약이 바뀌면 원본을 갱신하고 다시 복사한다.
 //
@@ -29,7 +28,7 @@ import type {
 export type * from './types';
 
 /** 앱에 복사할 때 이 값을 복사본 주석에 남긴다 — 서버 계약이 바뀌었는지 판단하는 유일한 단서다. */
-export const SDK_VERSION = '2026-10-12.2'; // 동기화 네 종류(syncPush · syncPull · syncCounts) 추가. 앞판은 시험 접수증. 🔴 새 이름만 더하므로 추가만이다 — 쓰는 앱만 재복사한다(지금은 My Word)
+export const SDK_VERSION = '2026-10-15'; // 시험 실패에 `degraded`(왜 못 만들었나)를 실어 올린다. 앞판은 동기화 네 종류. 🔴 칸을 더하기만 하므로 추가만이다 — 쓰는 앱만 재복사한다(지금은 My Word)
 
 const DEFAULT_TIMEOUT_MS = 10000;
 
@@ -147,6 +146,22 @@ export function createCommonServer(cfg: CommonServerConfig) {
           : status === 503
             ? ('not-configured' as const) // 서버에 세션 시크릿이 없다 — 앱 잘못이 아니고 재시도 가능
             : ('error' as const);
+
+  /**
+   * 실패 본문에서 `degraded`(왜 못 만들었나)만 꺼낸다 (SDK 2026-10-15).
+   *
+   * 🔴 **던지지 않는다.** 사유를 못 읽은 것이 실패 자체를 못 알리는 이유가 되면 안 된다.
+   *    본문이 없거나 JSON 이 아니면 `null` 이고, 부르는 쪽은 사유 없이 안내한다.
+   * ⚠ 본문은 **한 번만** 읽을 수 있다. 이 함수를 부른 뒤에 `res.json()` 을 또 부르면 던진다.
+   */
+  async function degradedOf(res: Response): Promise<string | null> {
+    try {
+      const j = (await res.json()) as { degraded?: unknown };
+      return typeof j.degraded === 'string' ? j.degraded : null;
+    } catch {
+      return null;
+    }
+  }
 
   /** 메모리와 저장소의 토큰을 함께 옮긴다. 저장 실패로 로그인 자체를 실패시키지는 않는다. */
   async function setSession(next: string | null, who: Subject | null) {
@@ -536,7 +551,10 @@ export function createCommonServer(cfg: CommonServerConfig) {
       // 403 = 무료 횟수를 다 썼다. `rate-limited` 로 접으면 "기다리면 된다"로 읽히므로 따로 둔다.
       if (res.status === 403) return { ok: false, reason: 'quota-exhausted' };
       // 503 = 창고도 비고 모델도 못 불렀다. 재시도가 의미 있다.
-      if (res.status === 503) return { ok: false, reason: 'unavailable' };
+      // 🔴 본문의 `degraded` 를 함께 올린다 — 「오늘 한도」와 「잠시 식힘」은 할 일이 다르다
+      if (res.status === 503) {
+        return { ok: false, reason: 'unavailable', degraded: await degradedOf(res) };
+      }
       if (!res.ok) return { ok: false, reason: mapFail(res.status) };
       try {
         const j = (await res.json()) as ExamResponse;
@@ -607,12 +625,19 @@ export function createCommonServer(cfg: CommonServerConfig) {
       if (res.status === 404) return { ok: false, reason: 'not-found' };
       if (!res.ok) return { ok: false, reason: mapFail(res.status) };
       try {
-        const j = (await res.json()) as { status?: unknown; exam?: unknown; reason?: unknown };
+        const j = (await res.json()) as { status?: unknown; exam?: unknown; reason?: unknown; degraded?: unknown };
         if (j.status === 'done' && j.exam) {
           return { ok: true, job: { status: 'done', exam: j.exam as ExamResponse } };
         }
         if (j.status === 'failed') {
-          return { ok: true, job: { status: 'failed', reason: String(j.reason ?? 'error') } };
+          return {
+            ok: true,
+            job: {
+              status: 'failed',
+              reason: String(j.reason ?? 'error'),
+              degraded: typeof j.degraded === 'string' ? j.degraded : null,
+            },
+          };
         }
         return { ok: true, job: { status: 'pending' } };
       } catch {

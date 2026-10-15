@@ -69,7 +69,9 @@ Screen → Service → utils/storage.ts (AsyncStorage / localStorage)
 | `examService.buildSeeds(categoryId, limit?)` | `SeedPlan` | 만기·취약 조회가 실패하면 무작위로 내려앉는다 |
 | `examService.getRecords()` · `saveRecord(record)` | `ExamRecord[]` | 🔴 **저장 실패는 삼키지 않는다** — 성적표가 비면 사용자가 알아야 한다 |
 | `examService.recordFirstAttempt(record)` | | 🔴 **이 파일에서 통계를 쓰는 유일한 함수.** `attempts.length !== 1` 이면 아무것도 안 한다 |
-| `examService.addAttempt(examId, answers)` | `ExamRecord` | 재시험 한 회차를 덧붙인다. **통계를 안 쓴다** |
+| `examService.addAttempt(examId, answers)` | `ExamRecord` | 한 회차를 덧붙인다. 🔴 **회차가 0 이던 판이면 그때 통계에 넣는다**(그게 1회차다 · 2026-10-15). 2회차부터는 안 쓴다 |
+| `examService.saveUnplayed(record)` | | 문제만 받아 둔 판을 성적표에 만든다(`attempts: []` · 2026-10-15). 🚫 **재시험에는 쓰지 않는다** — 쌓인 회차를 지운다 |
+| `examService.hasCountedAttempt(examId)` | `boolean` | 통계가 이미 반영됐나. ⚠ **저장 전에** 물어야 한다 — 저장하면 회차가 생겨 구분이 사라진다 |
 | `examService.loadJob()` · `saveJob(job)` · `clearJob()` | `ExamJob \| null` | 받아 둔 접수증(**만드는 중**). 🔴 `saveJob` 만 **삼키지 않는다** — 못 적으면 만들어진 시험을 영영 못 찾는다 |
 | `examService.loadProgress()` · `saveProgress(p)` · `clearProgress()` | `ExamProgress \| null` | 풀다 만 시험(**푸는 중** · 2026-10-14). ⚠ **전부 삼킨다** — 못 적어도 지금 풀고 있는 판은 멀쩡하고, 여기서 던지면 문제를 고를 때마다 화면이 멈춘다 |
 | `parseExamProgress(raw)` | `ExamProgress \| null` | 순수 함수. 문제 0개·`examId` 없음이면 `null`, `index` 는 범위로 끌어들이고 `answers` 길이를 문제 수에 맞춘다 |

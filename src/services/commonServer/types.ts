@@ -1,8 +1,7 @@
 // 공통 서버 클라이언트 SDK — 타입.
-// ⚠️ 원본: common_server/client/types.ts 에서 복사 (2026-10-12, SDK_VERSION 2026-10-12.2).
+// ⚠️ 원본: common_server/client/types.ts 에서 복사 (2026-10-15, SDK_VERSION 2026-10-15).
 //    이 파일은 손으로 고치지 말 것 — 서버 계약이 바뀌면 원본을 갱신하고 다시 복사한다.
 //    (앱 4~5개 규모엔 monorepo·npm 패키지 오버헤드가 이득보다 크다는 판단)
-//
 //
 //    이 파일은 손으로 고치지 말 것 — 서버 계약이 바뀌면 원본을 갱신하고 다시 복사한다.
 //
@@ -28,7 +27,17 @@ export type FailReason =
   | 'unavailable' // 창고도 비고 모델도 못 불렀다 (503). **무료 횟수는 소모되지 않았다**
   | 'error'; // 서버 오류
 
-export type Result<T> = ({ ok: true } & T) | { ok: false; reason: FailReason };
+/**
+ * 🔴 실패에도 **사유 한 칸**이 붙을 수 있다(SDK 2026-10-15).
+ *
+ * `degraded` 는 AI 시험이 못 나온 **더 자세한 까닭**이다 — `daily`(오늘 한도) ·
+ * `budget`(이달 예산) · `cooldown`(실패 뒤 식히는 중) · `word-cap` · 모델 실패 코드.
+ * ⚠ **`reason` 을 대신하지 않는다.** 화면을 고르는 것은 `reason` 이고, 이것은 그 안에서
+ *   문장을 가르는 데만 쓴다. 안 오는 경우가 정상이라 옵셔널이다(옛 서버 · 옛 접수증).
+ */
+export type Result<T> =
+  | ({ ok: true } & T)
+  | { ok: false; reason: FailReason; degraded?: string | null };
 
 export interface AnnouncementItem {
   id: string;
@@ -160,7 +169,11 @@ export interface ExamQuestion {
 export type ExamJobStatus =
   | { status: 'pending' }
   | { status: 'done'; exam: ExamResponse }
-  | { status: 'failed'; reason: string };
+  /**
+   * ⚠ `degraded` 는 **안 올 수 있다**(SDK 2026-10-15). 실패 본문을 적기 시작한 날보다
+   *   먼저 만들어진 접수증에는 없다. 없으면 사유 없이 안내하던 그대로 두면 된다.
+   */
+  | { status: 'failed'; reason: string; degraded: string | null };
 
 export interface ExamResponse {
   ok: true;

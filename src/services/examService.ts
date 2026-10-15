@@ -736,6 +736,35 @@ export const examService = {
   },
 
   /**
+   * **문제만 받아 둔 판**을 성적표에 만든다 (2026-10-15).
+   *
+   * 🔴 **문제가 도착하면 그 판은 이미 돈이 나간 판이다.** 그런데 2026-10-15 까지는 성적표에
+   *    **마지막 문제를 풀어야** 들어갔다. 그래서 90초를 기다려 문제를 받은 직후에 나가면
+   *    (전화 · 알림 · 화면 꺼짐) 그 판은 「풀던 시험」 하나에만 남았고, 그것까지 잃으면
+   *    **무료 1번이 통째로 사라졌다.** 다시 만들려면 또 1번을 써야 했다.
+   *
+   * ⚠ **회차가 빈 기록(`attempts: []`)이 생긴다.** 성적표가 그것을 「아직 안 푼 시험」으로
+   *   그리고(`ExamHistoryScreen`), 통계는 회차가 없으므로 아무것도 세지 않는다.
+   *   → 그 판을 처음 푸는 날 `addAttempt` 가 **그때 비로소** 통계에 넣는다.
+   */
+  async saveUnplayed(record: Omit<ExamRecord, 'attempts'>): Promise<void> {
+    await this.saveRecord({ ...record, attempts: [] });
+  },
+
+  /**
+   * 이 시험의 **통계가 이미 반영됐나** (2026-10-15).
+   *
+   * 🔴 저장된 기록에 회차가 하나라도 있으면 그 판은 이미 셌다는 뜻이다.
+   * ⚠ **저장하기 전에** 물어야 한다 — 저장하면 회차가 생겨 구분이 사라진다.
+   *   (끝낸 판을 성적표에서 다시 풀고, 그 뒤에 남아 있던 「풀던 시험」으로 또 끝내는 길이 있다.
+   *    그 길을 막지 않으면 같은 판이 정답률에 두 번 들어간다.)
+   */
+  async hasCountedAttempt(examId: string): Promise<boolean> {
+    const found = (await this.getRecords()).find((r) => r.examId === examId);
+    return found !== undefined && found.attempts.length > 0;
+  },
+
+  /**
    * 재시험 한 회차를 더한다.
    *
    * 🔴 **통계를 건드리지 않는다.** 같은 문제를 다시 풀면 외워서 맞히므로, 넣으면 정답률이 부푼다.
@@ -747,6 +776,14 @@ export const examService = {
     const records = await this.getRecords();
     const target = records.find((r) => r.examId === examId);
     if (target === undefined) return null;
+    /*
+     * 🔴 **회차가 없던 판이면 이것이 1회차다 — 통계에 넣는다**(2026-10-15).
+     *
+     *    「문제만 받아 둔 판」(`saveUnplayed`)을 성적표에서 처음 푸는 길이 이 자리다.
+     *    같은 문제를 다시 푼 것이 아니라 **처음 푼 것**이므로, 안 세면 정답률이 그 판만큼 빈다.
+     * ⚠ 규칙은 그대로다 — *2회차부터는 통계에 안 들어간다.* 여기서 세는 것은 회차가 0 일 때뿐이다.
+     */
+    const firstPlay = target.attempts.length === 0;
     const next: ExamRecord = {
       ...target,
       attempts: [
@@ -755,6 +792,7 @@ export const examService = {
       ],
     };
     await this.saveRecord(next);
+    if (firstPlay) await this.recordFirstAttempt(next);
     return next;
   },
 

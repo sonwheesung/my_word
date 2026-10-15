@@ -95,8 +95,25 @@ const WAIT_STEPS: Array<{ title: string; sub: string }> = [
   { title: '해설 붙이기', sub: '왜 정답인지 한 줄씩' },
 ];
 
-/** 실패를 사용자가 읽을 문장으로 옮긴다. 🔴 사유마다 **사용자가 할 일이 다르다** */
-function failMessage(reason: string): { title: string; body: string; retryable: boolean } {
+/**
+ * 실패를 사용자가 읽을 문장으로 옮긴다. 🔴 사유마다 **사용자가 할 일이 다르다**
+ *
+ * 🔴 **`degraded` 는 503 안을 다시 가른다**(2026-10-15 · 서버가 사유를 올려 주기 시작했다).
+ *
+ * ```
+ * unavailable + daily      오늘 몫을 다 만들었다  → 기다려도 오늘은 안 된다. 내일이다
+ * unavailable + cooldown   방금 실패해 식히는 중  → 10분쯤 뒤에 된다
+ * unavailable + word-cap   이 단어들로는 더 못 만든다 → 단어를 더 넣어야 한다
+ * unavailable + 그 외       알 수 없다            → 지금까지처럼 "잠시 뒤에"
+ * ```
+ *
+ * ⚠ **예산(`budget`)은 따로 가르지 않는다.** 언제 풀리는지 우리가 약속할 수 없어서다 —
+ *   *"내일 다시"* 라고 적으면 달이 바뀔 때까지 매일 거짓말이 된다. 기본 문구가 맞다.
+ */
+function failMessage(
+  reason: string,
+  degraded?: string | null,
+): { title: string; body: string; retryable: boolean } {
   switch (reason) {
     case 'offline':
       // 🔴 미리 막지 않고 여기서 안내한다. 이 앱의 다른 기능은 오프라인에서 다 되므로
@@ -114,7 +131,13 @@ function failMessage(reason: string): { title: string; body: string; retryable: 
        */
       return {
         title: '풀던 시험을 찾지 못했어요',
-        body: '시험 설정으로 돌아가 새로 시작해 주세요',
+        /*
+         * 🔴 **먼저 성적표를 보게 한다**(2026-10-15). 같은 날부터 문제가 도착하는 순간
+         *    성적표에도 한 줄이 생기므로, 「풀던 시험」을 잃어도 그 판이 거기 남아 있다.
+         *    새로 만들면 무료 1번을 쓰지만, 성적표에서 푸는 것은 공짜다.
+         * ⚠ *"있어요"* 가 아니라 *"있으면"* 이다 — 저장이 양쪽 다 실패한 경우가 있다.
+         */
+        body: '성적표에 그 시험이 남아 있으면 무료 횟수를 쓰지 않고 그대로 풀 수 있어요',
         retryable: false,
       };
     case 'quota-exhausted':
@@ -125,6 +148,29 @@ function failMessage(reason: string): { title: string; body: string; retryable: 
         retryable: false,
       };
     case 'unavailable':
+      // 🔴 **무료 횟수는 줄지 않았다**(서버가 문제를 한 개도 못 낸 경우다). 그 말을 적지 않는 것은
+      //    안 줄었다는 것이 당연해서다 — 줄었다고 의심할 이유를 화면이 먼저 만들지 않는다.
+      if (degraded === 'daily') {
+        return {
+          title: '오늘은 새 문제를 다 만들었어요',
+          body: '내일 다시 만들 수 있어요',
+          retryable: false,
+        };
+      }
+      if (degraded === 'cooldown') {
+        return {
+          title: '잠깐 쉬고 있어요',
+          body: '10분쯤 뒤에 다시 시도해 주세요',
+          retryable: true,
+        };
+      }
+      if (degraded === 'word-cap') {
+        return {
+          title: '이 단어들로는 더 만들 수 없어요',
+          body: '단어를 더 넣으시면 새 문제를 만들 수 있어요',
+          retryable: false,
+        };
+      }
       return {
         title: '지금은 문제를 만들 수 없어요',
         body: '잠시 뒤에 다시 시도해 주세요',
@@ -175,6 +221,11 @@ export default function ExamScreen({
   const [picked, setPicked] = useState<number | null>(null);
   const [examId, setExamId] = useState<string>('');
   const [failure, setFailure] = useState<string>('');
+  /**
+   * 503 안의 **자세한 까닭**(`daily` · `cooldown` · `word-cap` …). 없으면 `null` (2026-10-15).
+   * ⚠ 옛 서버·옛 접수증에서는 안 온다. 그때는 지금까지와 같은 문구가 나간다.
+   */
+  const [degraded, setDegraded] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
   /*
    * 🔴 **기다리는 동안 보여 주던 「내 단어장에서」 카드를 뺐다**(2026-10-12 사장님 제보).
@@ -213,6 +264,8 @@ export default function ExamScreen({
   useEffect(() => {
     let alive = true;
     setPhase('loading');
+    // 🔴 지난 실패의 사유를 들고 가지 않는다 — 다음 실패가 **다른 이유**일 수 있다
+    setDegraded(null);
     (async () => {
       try {
         /*
@@ -254,6 +307,17 @@ export default function ExamScreen({
             setPhase('failed');
             return;
           }
+          /*
+           * 🔴 **같은 판의 「풀던 시험」이 남아 있으면 비운다** (2026-10-15).
+           *    성적표에서 처음으로 되돌아가 푸는 길이라, 그 판의 중간 저장은 이미 지난 것이다.
+           *    안 비우면 설정 화면이 *"풀던 시험이 있어요"* 라며 **같은 판의 옛 자리**를 가리킨다.
+           * ⚠ **다른 판의 저장본은 건드리지 않는다** — examId 가 같을 때만이다.
+           */
+          const inProgress = await examService.loadProgress();
+          if (inProgress !== null && inProgress.examId === found.examId) {
+            await examService.clearProgress();
+          }
+          if (!alive) return;
           setQuestions(found.questions);
           setAnswers(found.questions.map(() => null));
           setExamId(found.examId);
@@ -308,6 +372,7 @@ export default function ExamScreen({
           if (!alive) return;
           if (!started.ok) {
             setFailure(started.reason);
+            setDegraded(started.degraded ?? null);
             setPhase('failed');
             return;
           }
@@ -349,6 +414,7 @@ export default function ExamScreen({
               continue;
             }
             setFailure(asked.reason);
+            setDegraded(asked.degraded ?? null);
             setPhase('failed');
             return;
           }
@@ -360,6 +426,7 @@ export default function ExamScreen({
           if (!alive) return;
           if (asked.job.status === 'failed') {
             setFailure(asked.job.reason);
+            setDegraded(asked.job.degraded);
             setPhase('failed');
             return;
           }
@@ -412,6 +479,26 @@ export default function ExamScreen({
       ...(meta.language === undefined ? {} : { language: meta.language }),
       savedAt: new Date().toISOString(),
     });
+    /*
+     * 🔴 **성적표에도 같이 적는다 — 「풀던 시험」 하나에만 맡기지 않는다** (2026-10-15).
+     *
+     *    「풀던 시험」은 **한 판만** 담는 자리다. 새 시험을 시작하면 덮이고, 저장이 실패하면
+     *    통째로 없다. 그 하나를 잃으면 **돈이 나간 판이 흔적도 없이 사라졌다** —
+     *    다시 하려면 무료 1번을 또 써야 했다.
+     *    성적표는 20판을 들고 있으므로, 여기에 한 줄 있으면 공짜로 다시 풀 수 있다.
+     *
+     * 🚫 **재시험에는 하지 않는다.** 그 기록에는 이미 회차가 쌓여 있어서, 빈 회차로 덮으면
+     *    지난 성적을 지운다. 되돌릴 수 없는 종류의 사고다.
+     */
+    if (!meta.isRetry) {
+      void examService.saveUnplayed({
+        examId,
+        language: meta.language ?? '',
+        ...(meta.categoryId === undefined ? {} : { categoryId: meta.categoryId }),
+        takenAt: new Date().toISOString(),
+        questions,
+      });
+    }
     // 🔴 문제가 도착한 **그때 한 번**이다. answers·index 가 바뀔 때마다 돌면 안 된다
     //    (그 저장은 `handleNext` 가 자기가 만든 값으로 직접 한다 — 상태 반영을 안 기다린다)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -512,7 +599,7 @@ export default function ExamScreen({
      */
     const save = meta.isRetry
       ? examService.addAttempt(examId, nextAnswers).then(() => undefined)
-      : (() => {
+      : (async () => {
           const record = {
             examId,
             ...(meta.language === undefined ? {} : { language: meta.language }),
@@ -524,10 +611,17 @@ export default function ExamScreen({
               { answers: nextAnswers, score: scoreExam(questions, nextAnswers), takenAt: now },
             ],
           } as Parameters<typeof examService.saveRecord>[0];
-          return examService
-            .saveRecord(record)
-            // 🔴 1회차만 통계에 쓴다. 저장이 끝난 뒤에 부른다
-            .then(() => examService.recordFirstAttempt(record));
+          /*
+           * 🔴 **통계는 한 판에 한 번만 센다. 저장하기 전에 물어본다** (2026-10-15).
+           *
+           *    성적표에서 이미 푼 판을, 남아 있던 「풀던 시험」으로 또 끝내는 길이 있다.
+           *    저장한 뒤에 물으면 방금 넣은 회차가 보여서 구분이 사라진다 — 그래서 먼저다.
+           * ⚠ 회차가 **빈** 기록(문제만 받아 둔 판)은 아직 안 센 것이므로 `false` 가 온다.
+           */
+          const counted = await examService.hasCountedAttempt(examId);
+          await examService.saveRecord(record);
+          // 🔴 1회차만 통계에 쓴다. 저장이 끝난 뒤에 부른다
+          if (!counted) await examService.recordFirstAttempt(record);
         })();
 
     void save
@@ -620,7 +714,7 @@ export default function ExamScreen({
             body: '이 카테고리에 단어를 먼저 추가해 주세요',
             retryable: false,
           }
-        : failMessage(failure);
+        : failMessage(failure, degraded);
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <StatusBar style={colors.isDark ? 'light' : 'dark'} />

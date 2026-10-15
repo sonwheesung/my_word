@@ -119,7 +119,10 @@ const RULES: Record<string, { forbids: readonly string[]; requires: readonly str
 /** 🔴 **밀기 범위를 정하는 개정.** 이 날이 오기 전에는 `words` 밖에 켤 수 없다 */
 const SCOPE_REVISION = { label: '2026년 10월 20일', at: new Date(2026, 9, 20) };
 /** 문서의 **최신** 개정. 본문과 대조해 「몰래 바뀜」을 잡는 용도이고 켜는 조건이 아니다 */
-const NEWEST_REVISION = { label: '2026년 11월 12일' };
+// ⚠ 2026-10-15 에 구독 개정 시행일을 11-12 → **10-22** 로 앞당겼다(커밋 419e88f).
+//   그날 HTML 두 장만 고치고 **이 상수를 같이 안 옮겨서** 전체 테스트가 빨간 채로 있었다.
+//   → 시행일을 옮기는 날은 `docs/*.html` 과 이 줄을 **같이** 본다. 가드의 값이 곧 문서의 사본이다.
+const NEWEST_REVISION = { label: '2026년 10월 22일' };
 
 /** 본문의 **첫** 개정 시행일(목록이 최신순이다) */
 function newestEffectiveDate(squashed: string): string | null {

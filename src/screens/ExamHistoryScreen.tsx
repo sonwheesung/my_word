@@ -102,8 +102,15 @@ export default function ExamHistoryScreen({ onBack, onRetry }: ExamHistoryScreen
                 <Text style={[styles.cardDate, { color: colors.textSecondary }]}>
                   {formatDay(record.takenAt)}
                 </Text>
+                {/*
+                  🔴 **회차가 없는 판은 「최고 0%」가 아니다** (2026-10-15).
+                     문제만 받아 두고 아직 한 번도 안 푼 판이 성적표에 들어오기 시작했다.
+                     0% 로 적으면 **다 틀린 것처럼 보인다** — 아직 안 푼 것과 정반대다.
+                */}
                 <Text style={[styles.cardBest, { color: colors.primaryStrong }]}>
-                  {t('최고 {{n}}%', { n: best(record) })}
+                  {record.attempts.length === 0
+                    ? t('아직 안 푸셨어요')
+                    : t('최고 {{n}}%', { n: best(record) })}
                 </Text>
               </View>
               <Text style={[styles.cardSub, { color: colors.textSecondary }]}>
@@ -134,14 +141,25 @@ export default function ExamHistoryScreen({ onBack, onRetry }: ExamHistoryScreen
                 </Text>
               )}
 
+              {/* 🔴 **공짜라는 것을 적는다.** 그걸 모르면 새로 만들어 무료 1번을 또 쓴다 */}
+              {record.attempts.length === 0 && (
+                <Text style={[styles.note, { color: colors.textTertiary }]}>
+                  {t('문제는 다 만들어져 있어요. 무료 횟수를 쓰지 않고 푸실 수 있어요')}
+                </Text>
+              )}
+
               <TouchableOpacity
                 style={[styles.retryButton, { borderColor: colors.border }]}
                 onPress={() => onRetry(record.examId)}
                 accessibilityRole="button"
               >
-                <MaterialIcons name="replay" size={16} color={colors.primary} />
+                <MaterialIcons
+                  name={record.attempts.length === 0 ? 'play-arrow' : 'replay'}
+                  size={16}
+                  color={colors.primary}
+                />
                 <Text style={[styles.retryText, { color: colors.primaryStrong }]}>
-                  {t('같은 문제로 다시 풀기')}
+                  {record.attempts.length === 0 ? t('이 시험 풀기') : t('같은 문제로 다시 풀기')}
                 </Text>
               </TouchableOpacity>
             </View>

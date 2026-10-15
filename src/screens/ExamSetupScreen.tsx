@@ -105,18 +105,29 @@ export default function ExamSetupScreen({
   const [progress, setProgress] = useState<ExamProgress | null>(null);
   /** 풀던 시험이 있는데 새로 시작하려 할 때 (2026-10-14) */
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  /**
+   * 풀던 그 시험이 **성적표에도 남아 있나** (2026-10-15).
+   *
+   * 🔴 남아 있으면 버려도 **공짜로 다시 풀 수 있다.** 확인 문구가 그 사실을 말해야 한다 —
+   *    모르면 「새로 시작」을 눌러 무료 1회를 또 쓴다.
+   * ⚠ **있다고 가정하지 않고 본다.** 성적표에 미리 적는 것이 2026-10-15 부터라,
+   *   그 전에 시작한 판에는 줄이 없다. 있다고 적으면 그 한 판에 거짓이 선다.
+   */
+  const [progressInHistory, setProgressInHistory] = useState(false);
 
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
-        const [data, prefs, saved] = await Promise.all([
+        const [data, prefs, saved, records] = await Promise.all([
           categoryService.getCategories(),
           examService.loadPrefs(),
           examService.loadProgress(),
+          examService.getRecords(),
         ]);
         if (!alive) return;
         setProgress(saved);
+        setProgressInHistory(saved !== null && records.some((r) => r.examId === saved.examId));
         setCategories(data);
         const remembered = data.find((c) => c.categoryId === prefs.lastCategoryId);
         setSelectedCategoryId(remembered?.categoryId ?? data[0]?.categoryId ?? null);
@@ -598,13 +609,25 @@ export default function ExamSetupScreen({
       */}
       <ConfirmSheet
         visible={confirmDiscard}
-        title={progress?.isRetry === true ? t('풀던 재시험이 사라져요') : t('풀던 시험이 사라져요')}
+        title={
+          progress?.isRetry === true
+            ? t('풀던 재시험이 사라져요')
+            : progressInHistory
+              ? t('풀던 시험을 버릴까요?')
+              : t('풀던 시험이 사라져요')
+        }
         // ⚠ 숫자를 넣지 않는다 — 「몇 문제까지」는 셀 방법이 애매하다(넘긴 문제도 안 푼 것으로
         //   저장된다). 여기서 필요한 것은 개수가 아니라 **사라진다는 사실**이다
         message={
           progress?.isRetry === true
             ? t('지금까지 푸신 게 없어져요. 같은 문제는 성적표에서 다시 풀 수 있어요')
-            : t('새로 시작하면 지금까지 푸신 게 없어지고, 무료 1회도 돌아오지 않아요')
+            : progressInHistory
+              ? // 🔴 2026-10-15 부터 문제가 도착하는 순간 성적표에도 한 줄이 생긴다.
+                //    「없어진다」만 적으면 **공짜로 다시 풀 수 있다는 사실을 숨기는** 셈이다
+                t(
+                  '지금까지 푸신 게 없어져요. 무료 1회는 돌아오지 않지만, 그 문제들은 성적표에 남아 다시 푸실 수 있어요',
+                )
+              : t('새로 시작하면 지금까지 푸신 게 없어지고, 무료 1회도 돌아오지 않아요')
         }
         confirmLabel={t('새로 시작')}
         cancelLabel={t('그만두기')}
