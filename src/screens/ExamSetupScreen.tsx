@@ -195,6 +195,17 @@ export default function ExamSetupScreen({
    */
   const noQuestions = expectedQuestions === 0;
 
+  /**
+   * 고른 언어로 쓸 수 있는 단어 수. **안내가 「왜」를 말하려고 쓴다**(2026-10-15).
+   *
+   * ⚠ 화면 위의 `18개 단어` 와 다른 숫자다 — 저쪽은 카테고리 전체이고 이쪽은 고른 언어만이다.
+   *   그 둘이 갈리는 것이 이 안내가 필요한 이유이기도 하다(영어 18개에 한국어를 고르면 0).
+   */
+  const usableWords = useMemo(() => {
+    if (language === null || words.length === 0) return 0;
+    return countWordsInLanguage(words, language);
+  }, [language, words]);
+
   /** 20문제를 채우려면 단어가 몇 개 더 필요한가. 🚫 막지 않는다 — 알려만 준다(사장님 결정) */
   const wordsShort = useMemo(() => {
     if (language === null || words.length === 0) return 0;
@@ -463,15 +474,21 @@ export default function ExamSetupScreen({
                      그 줄을 그대로 두면 이번엔 **반대 방향의 거짓**이 된다 —
                      안 나가는 것을 나간다고 겁주는 것도 같은 잘못이다.
                 */}
+                {/*
+                  ⚠ **「왜 적게 나오는지」를 먼저 말한다**(시안 단어앱#22 안 A · 2026-10-15 반영).
+                    전에는 *"15문제만 나와요"* 로 결과만 말했다. 사용자가 고칠 수 있는 것은
+                    **단어 수**인데 그 연결이 문장에 없었다 — 숫자를 보여 주고도 할 일을 안 알려 준 셈이다.
+                */}
                 {noQuestions
                   ? t('고른 언어로 된 단어가 없어서 문제를 만들 수 없어요')
-                  : t('{{count}}문제만 나와요. 무료 1회는 그대로 줄어들어요', {
+                  : t('단어가 {{words}}개라 문제가 {{count}}개만 나와요', {
+                      words: usableWords,
                       count: expectedQuestions,
                     })}
                 {'\n'}
                 {noQuestions
                   ? t('언어를 바꾸시거나, 그 언어의 단어를 넣어 주세요')
-                  : t('단어를 {{count}}개 더 넣으시면 {{full}}문제가 나와요', {
+                  : t('그래도 무료 1회는 그대로 줄어들어요. 단어를 {{count}}개 더 넣으시면 {{full}}문제가 돼요', {
                       count: wordsShort,
                       full: EXAM_SIZE,
                     })}
