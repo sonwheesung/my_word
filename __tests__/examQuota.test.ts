@@ -12,6 +12,13 @@
  * ② 유예 중이었으면 「결제 실패」다          해지와 섞으면 손쓸 길을 안 주고 끝낸다
  * ```
  */
+// ⚠ `@types/node` 가 없다(`flashcardService.test.ts` 와 같은 이유). 🚫 선언은 **모듈 바깥**에 둔다 —
+//   describe 안에 두면 jest 는 돌지만 `tsc --noEmit` 이 「Modifiers cannot appear here」로 멈춘다
+declare const require: (id: string) => any;
+declare const __dirname: string;
+const fs = require('fs') as { readFileSync(p: string, enc: string): string };
+const path = require('path') as { join(...parts: string[]): string };
+
 import {
   nextSeen,
   parseFreeLeft,
@@ -101,11 +108,6 @@ describe('남은 무료 판수 읽기', () => {
 });
 
 describe('🔴 화면이 지키는 규칙 (소스 훑기)', () => {
-  // ⚠ `@types/node` 가 없다(다른 테스트와 같은 이유)
-  declare const require: (id: string) => any;
-  declare const __dirname: string;
-  const fs = require('fs') as { readFileSync(p: string, enc: string): string };
-  const path = require('path') as { join(...parts: string[]): string };
   const read = (rel: string) => fs.readFileSync(path.join(__dirname, '..', rel), 'utf8');
 
   it('🔴 구독자에게는 카드를 그리지 않는다', () => {

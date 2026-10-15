@@ -96,10 +96,16 @@ export default function FreeExamCard({
 
   return (
     <Animated.View
-      style={{
-        opacity: appear,
-        transform: [{ translateY: appear.interpolate({ inputRange: [0, 1], outputRange: [6, 0] }) }],
-      }}
+      style={[
+        // ⚠ 아래 「카테고리」 라벨과 **붙어 버린다**. 에뮬레이터에서 보고 넣었다 — 치수는 눈으로 본다
+        styles.wrap,
+        {
+          opacity: appear,
+          transform: [
+            { translateY: appear.interpolate({ inputRange: [0, 1], outputRange: [6, 0] }) },
+          ],
+        },
+      ]}
     >
       {/*
         🔴 **결제 실패는 카드 밖 노란 박스다.** 해지는 예정된 일이라 카드 안 한 줄이지만,
@@ -215,6 +221,7 @@ export default function FreeExamCard({
 }
 
 const styles = StyleSheet.create({
+  wrap: { marginBottom: SPACING.lg },
   card: {
     borderRadius: RADIUS.lg,
     padding: SPACING.lg,
