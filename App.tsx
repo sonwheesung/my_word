@@ -17,6 +17,7 @@ import ExamSetupScreen from './src/screens/ExamSetupScreen';
 import ExamScreen from './src/screens/ExamScreen';
 import ExamResultScreen from './src/screens/ExamResultScreen';
 import ExamHistoryScreen from './src/screens/ExamHistoryScreen';
+import PaywallScreen from './src/screens/PaywallScreen';
 import QuizScreen from './src/screens/QuizScreen';
 import QuizResultScreen from './src/screens/QuizResultScreen';
 import StatisticsScreen from './src/screens/StatisticsScreen';
@@ -73,7 +74,7 @@ class ErrorBoundary extends React.Component<
   }
 }
 
-type Screen = 'home' | 'manageWords' | 'addWord' | 'editWord' | 'manageCategories' | 'quizSetup' | 'quiz' | 'quizResult' | 'statistics' | 'myPage' | 'importWords' | 'settings' | 'support' | 'notice' | 'flashcardSetup' | 'flashcard' | 'examSetup' | 'exam' | 'examResult' | 'examHistory';
+type Screen = 'home' | 'manageWords' | 'addWord' | 'editWord' | 'manageCategories' | 'quizSetup' | 'quiz' | 'quizResult' | 'statistics' | 'myPage' | 'importWords' | 'settings' | 'support' | 'notice' | 'flashcardSetup' | 'flashcard' | 'examSetup' | 'exam' | 'examResult' | 'examHistory' | 'paywall';
 
 function AppContent() {
   const { t } = useTranslation();
@@ -207,6 +208,13 @@ function AppContent() {
         setCurrentScreen('home');
         break;
       case 'examHistory':
+        setCurrentScreen('examSetup');
+        break;
+      /*
+       * ⚠ 페이월은 **시험 설정에서만** 들어온다(2026-10-16 · 시안 #20).
+       *   설정·실패 화면에서도 들어오게 되면 「어디서 왔는지」를 들고 다녀야 한다.
+       */
+      case 'paywall':
         setCurrentScreen('examSetup');
         break;
       case 'exam':
@@ -389,6 +397,7 @@ function AppContent() {
       <ExamSetupScreen
         onBack={() => setCurrentScreen('home')}
         onHistory={() => setCurrentScreen('examHistory')}
+        onSubscribe={() => setCurrentScreen('paywall')}
         onStart={(categoryId, language) => {
           setResumeExam(false);
           setExam({ categoryId, language });
@@ -430,6 +439,15 @@ function AppContent() {
           setExamResultId(examId);
           setCurrentScreen('examResult');
         }}
+      />
+    );
+  }
+
+  if (currentScreen === 'paywall') {
+    return (
+      <PaywallScreen
+        onBack={() => setCurrentScreen('examSetup')}
+        onDone={() => setCurrentScreen('examSetup')}
       />
     );
   }

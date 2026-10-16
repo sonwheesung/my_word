@@ -65,6 +65,11 @@ interface ExamSetupScreenProps {
   onHistory: () => void;
   /** 풀다 만 시험을 이어서 (2026-10-14). 서버를 부르지 않는다 */
   onResume: () => void;
+  /**
+   * 구독 안내로 (2026-10-16 · 시안 #20).
+   * ⚠ **다 쓴 사람에게만 보인다.** 남아 있는 사람에게 파는 말을 먼저 걸지 않는다.
+   */
+  onSubscribe: () => void;
 }
 
 const LANGUAGE_LABEL: Record<ExamLanguage, string> = {
@@ -79,6 +84,7 @@ export default function ExamSetupScreen({
   onStart,
   onHistory,
   onResume,
+  onSubscribe,
 }: ExamSetupScreenProps) {
   const { t } = useTranslation();
   const { colors } = useTheme();
@@ -391,6 +397,7 @@ export default function ExamSetupScreen({
             remaining={freeLeft}
             notice={quotaNotice}
             onHistory={onHistory}
+            onSubscribe={onSubscribe}
             onBilling={() => {
               // Play 의 구독 관리 화면. 🔴 결제 수단은 **Play 안에서만** 바꿀 수 있다
               void Linking.openURL('https://play.google.com/store/account/subscriptions');

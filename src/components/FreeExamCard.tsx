@@ -46,6 +46,12 @@ interface FreeExamCardProps {
   notice: QuotaNotice | null;
   /** 지난 시험 다시 풀기 → 성적표. 재시험은 서버를 안 불러 **공짜다** */
   onHistory: () => void;
+  /**
+   * 구독 안내(페이월)로 (2026-10-16 · 시안 #20 이 들어오면서 붙었다).
+   * ⚠ **다 썼을 때만 보인다.** 남아 있는 사람에게 파는 말을 먼저 걸지 않는다 —
+   *   이 카드는 남은 수를 **사실대로 말하는 것**이 일이지 파는 자리가 아니다.
+   */
+  onSubscribe: () => void;
   /** 결제 수단 확인 → Play. `notice === 'billing'` 일 때만 보인다 */
   onBilling: () => void;
 }
@@ -59,6 +65,7 @@ export default function FreeExamCard({
   remaining,
   notice,
   onHistory,
+  onSubscribe,
   onBilling,
 }: FreeExamCardProps) {
   const { t } = useTranslation();
@@ -203,18 +210,26 @@ export default function FreeExamCard({
       </View>
 
       {/*
-        🔴 **다 썼어도 할 수 있는 일을 보여 준다.** 재시험은 서버를 안 불러 공짜이고,
+        🔴 **다 썼어도 할 수 있는 일을 둘 다 보여 준다**(시안 #20 이 들어온 2026-10-16).
+           구독만 내밀지 않는다 — 재시험은 서버를 안 불러 **공짜**이고,
            *"구독을 끊어도 객관식 재시험까지 된다"* 가 이 기능의 약속이다.
-        ⚠ 구독 구매 화면(시안 #20)이 아직 없다. 생기면 여기 [구독 알아보기]가 붙는다 —
-          **없는 화면으로 보내는 버튼을 먼저 만들지 않는다.**
       */}
       {spent && (
-        <TouchableOpacity onPress={onHistory} accessibilityRole="button" style={styles.historyLink}>
-          <MaterialIcons name="history" size={16} color={colors.primary} />
-          <Text style={[styles.historyText, { color: colors.primaryStrong }]}>
-            {t('지난 시험 다시 풀기 · 무료')}
-          </Text>
-        </TouchableOpacity>
+        <>
+          <TouchableOpacity
+            onPress={onSubscribe}
+            accessibilityRole="button"
+            style={[styles.subscribeButton, { backgroundColor: colors.primaryStrong }]}
+          >
+            <Text style={styles.subscribeText}>{t('구독 알아보기')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={onHistory} accessibilityRole="button" style={styles.historyLink}>
+            <MaterialIcons name="history" size={16} color={colors.primary} />
+            <Text style={[styles.historyText, { color: colors.primaryStrong }]}>
+              {t('지난 시험 다시 풀기 · 무료')}
+            </Text>
+          </TouchableOpacity>
+        </>
       )}
     </Animated.View>
   );
@@ -269,6 +284,14 @@ const styles = StyleSheet.create({
   billingBody: { fontSize: FONT.body, lineHeight: 20 },
   billingLink: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
   billingLinkText: { fontSize: FONT.body, fontWeight: '700' },
+  subscribeButton: {
+    height: 48,
+    borderRadius: RADIUS.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: SPACING.md,
+  },
+  subscribeText: { fontSize: FONT.body, fontWeight: '700', color: '#FFFFFF' },
   historyLink: {
     flexDirection: 'row',
     alignItems: 'center',

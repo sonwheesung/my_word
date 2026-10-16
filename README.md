@@ -125,7 +125,7 @@ src/
 **라우팅에 React Navigation 을 쓰지 않는다.** `App.tsx` 의 `useState<Screen>` 하나로 전환하고,
 각 화면은 `onBack` · `onNavigate*` 콜백을 props 로 받는다.
 
-### 화면 19개
+### 화면 20개
 
 | 묶음 | 화면 |
 |---|---|
@@ -134,6 +134,7 @@ src/
 | 플래시카드 | FlashcardSetup · Flashcard (채점하지 않는다) |
 | 기록 | Statistics · MyPage |
 | AI 시험 | ExamSetup · Exam · ExamResult · ExamHistory(성적표·재시험) |
+| 구독 | Paywall(구독을 파는 유일한 화면 · 가격은 Play 가 준 것만 쓴다) |
 | 기타 | Settings · Support(문의) · Notice(공지) |
 
 ---
