@@ -126,6 +126,17 @@ describe('🔴 화면이 지키는 규칙 (소스 훑기)', () => {
     expect(s).not.toMatch(/disabled=\{[^}]*freeLeft/);
   });
 
+  it('🔴 숫자가 든 문구는 숫자를 넘겨 받는다 — 안 넘기면 화면에 {{total}} 이 그대로 뜬다', () => {
+    /*
+     * 「다 씀」 제목만 `{{total}}` 을 들고 있다(2026-10-16 · #19 카드와 같은 말로 맞췄다).
+     * 그리는 쪽이 값을 안 넘기면 i18next 는 **빈칸을 글자 그대로** 내보낸다 —
+     * 크래시도 경고도 없고 테스트도 안 잡는다. 화면에만 보인다.
+     */
+    const s = read('src/screens/ExamScreen.tsx');
+    expect(s).toContain("title: '무료 시험 {{total}}번을 다 썼어요'");
+    expect(s).toMatch(/t\(message\.title, \{ total: EXAM_FREE_QUOTA \}\)/);
+  });
+
   it('🔴 구독자의 remaining(null)을 0 으로 적지 않는다', () => {
     expect(read('src/screens/ExamScreen.tsx')).toContain(
       'if (exam.remaining !== null) await examQuotaService.saveFreeLeft(exam.remaining);',
