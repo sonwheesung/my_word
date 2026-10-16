@@ -412,6 +412,7 @@ SDK 에는 로그인 · 권한 · 내 문의 조회도 있지만 이 앱은 쓰�
 | `subscriptionService.syncSubject(id)` | — | `app_user_id` 를 우리 주체 ID 에 맞춘다. 같은 ID 면 아무것도 안 한다 |
 | `subscriptionService.restore()` | `{ found: boolean }` | 스토어에 물어 **소유자를 지금 주체로 옮긴다**. ⚠ 반환값으로 판정하지 않는다 |
 | `subscriptionService.getPlans()` | `SubPlan[]` | 파는 요금제(연간·월간). 🔴 **못 가져오면 빈 배열 — 가격을 지어내지 않는다.** 화면이 가격을 비우고 [다시 시도]를 준다(시안 #20) |
+| `subscriptionService.activePlanKind()` | `'yearly' \| 'monthly' \| null` | 지금 쓰는 요금제가 무엇인가(시안 #21). 🔴 **서버는 모른다** — 상품 종류는 기기의 스토어 SDK 에만 있다. 🚫 금액은 여기서도 안 가져온다. 모르면 화면이 **안 적는다** |
 | `subscriptionService.purchase(kind)` | `SubPurchaseResult` | 🚫 **던지지 않는다.** 결과는 `ok` · `cancelled` · `already-owned` · `not-allowed` · `unavailable` · `error`. ⚠ `getPlans()` 를 먼저 불러야 한다(SDK 에 **그때 받은 묶음**을 돌려줘야 한다) |
 | `usePurchase().recheckPro(fresh?)` | `boolean \| null` | **서버에 구독을 다시 묻는다.** 결제 직후 「확인 중」이 이 함수로 몇 번 묻는다(#20·#23·#26 이 같은 길을 쓴다). 🔴 **`null` 은 「못 물어봤다」** — `false` 로 읽으면 네트워크가 잠깐 끊긴 사람에게 「구독이 아니다」가 된다 |
 

@@ -21,6 +21,7 @@ import Toast from '../components/Toast';
 import { THEMES } from '../constants/themes';
 import {
   APP_VERSION,
+  PLAY_SUBSCRIPTIONS_URL,
   PRIVACY_POLICY_URL,
   TERMS_OF_SERVICE_URL,
   OPEN_SOURCE_LICENSES_URL,
@@ -45,6 +46,11 @@ interface SettingsScreenProps {
   onBack: () => void;
   onSupport: () => void;
   onNotices: () => void;
+  /**
+   * 구독 관리로 (2026-10-16 · 시안 #21).
+   * ⚠ 구독 중이 아니면 그 화면이 **구독 안내**로 보낸다 — 여기서 갈라 보내지 않는다.
+   */
+  onSubscription: () => void;
 }
 
 /**
@@ -59,13 +65,8 @@ const LEGAL_LINKS = [
   { key: 'licenses', title: '오픈소스 라이선스', icon: 'code', url: OPEN_SOURCE_LICENSES_URL },
 ] as const;
 
-/**
- * Play 의 구독 관리 화면. 🔴 **앱은 구독을 직접 해지할 수 없다** — Play 가 주인이다.
- * ⚠ 설정의 지우기 시트와 시험 진입 카드가 같은 곳을 가리킨다. 주소가 갈리면 한쪽이 낡는다.
- */
-const PLAY_SUBSCRIPTIONS_URL = 'https://play.google.com/store/account/subscriptions';
-
-export default function SettingsScreen({ onBack, onSupport, onNotices }: SettingsScreenProps) {
+export default function SettingsScreen({ onBack, onSupport, onNotices,
+  onSubscription }: SettingsScreenProps) {
   const { colors, themeId, setThemeId } = useTheme();
   const { unreadCount } = useBootstrap();
   const { t } = useTranslation();
@@ -832,6 +833,36 @@ export default function SettingsScreen({ onBack, onSupport, onNotices }: Setting
                 <Text style={[styles.linkTitle, { color: colors.text }]}>{t('문의하기')}</Text>
                 <Text style={[styles.linkSubtitle, { color: colors.textTertiary }]}>
                   {t('앱 개선 의견을 보낼 수 있어요')}
+                </Text>
+              </View>
+            </View>
+            <MaterialIcons name="chevron-right" size={22} color={colors.textTertiary} />
+          </TouchableOpacity>
+        </View>
+
+        {/*
+          구독 (2026-10-16 · 시안 #21).
+          🔴 **구독을 파는 앱은 앱 안에 관리·해지 경로가 있어야 한다**(Play 구독 정책).
+          ⚠ 구독 중이 아니면 줄이 **구독 안내**로 바뀐다 — 없는 화면으로 보내지 않는다.
+        */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('구독')}</Text>
+          <TouchableOpacity
+            onPress={onSubscription}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            style={[styles.linkRow, { backgroundColor: colors.card, borderColor: colors.border }]}
+          >
+            <View style={styles.linkLeft}>
+              <MaterialIcons name="workspace-premium" size={22} color={colors.primary} />
+              <View>
+                <Text style={[styles.linkTitle, { color: colors.text }]}>
+                  {proActive ? t('구독 관리') : t('구독 알아보기')}
+                </Text>
+                <Text style={[styles.linkSubtitle, { color: colors.textSecondary }]}>
+                  {proActive
+                    ? t('상태를 보고 해지할 수 있어요')
+                    : t('AI 시험을 판수 제한 없이 볼 수 있어요')}
                 </Text>
               </View>
             </View>

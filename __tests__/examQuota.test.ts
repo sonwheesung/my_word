@@ -210,3 +210,59 @@ describe('🔴 구독 결제 화면이 법에서 온 셋을 지킨다', () => {
   });
 });
 
+// ── 구독 관리 · 해지 (2026-10-16 · 시안 #21) ────────────────────────────────
+
+describe('🔴 구독 관리 화면이 지키는 것', () => {
+  const src = (rel: string) => fs.readFileSync(path.join(__dirname, '..', rel), 'utf8');
+  const strip = (t: string) =>
+    t.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
+  const sub = () => src('src/screens/SubscriptionScreen.tsx');
+
+  it('⚠ 가드가 실제로 읽었다', () => {
+    expect(sub()).toContain('구독을 해지할까요?');
+  });
+
+  it('🔴 판정 순서 — 유예가 먼저다', () => {
+    /*
+     * 결제가 실패한 뒤 해지까지 누른 사람은 둘 다 참이다. 「해지 예약」을 보여 주면
+     * *"11월 13일까지 쓸 수 있어요"* 라고 말하는데 실제로는 **유예가 끝나는 날 끊긴다.**
+     * 마음을 바꿔도 그때는 늦다.
+     */
+    const s = strip(sub());
+    const grace = s.indexOf("return 'grace'");
+    const canceled = s.indexOf("return 'canceled'");
+    expect(grace).toBeGreaterThan(-1);
+    expect(canceled).toBeGreaterThan(grace);
+  });
+
+  it('🚫 해지를 붙잡지 않는다 — 확인은 한 번이고 할인을 내밀지 않는다', () => {
+    const s = strip(sub());
+    // 확인 시트는 하나뿐이다
+    expect((s.match(/<ConfirmSheet/g) ?? []).length).toBe(1);
+    for (const banned of ['할인', '정말', '잠깐만', '설문']) {
+      expect(s).not.toContain(banned);
+    }
+  });
+
+  it('🔴 금액을 적지 않는다 — 서버가 주지 않고, 지금 파는 가격은 그 사람 가격이 아니다', () => {
+    const s = strip(sub());
+    expect(s).not.toMatch(/39[,.]?000/);
+    expect(s).not.toMatch(/4[,.]?900/);
+    expect(s).not.toContain('priceString');
+  });
+
+  it('🔴 날짜를 지어내지 않는다 — 못 읽으면 그 줄을 통째로 뺀다', () => {
+    const s = strip(sub());
+    expect(s).toContain("if (iso === null) return '';");
+    expect(s).toContain('Number.isNaN(d.getTime())');
+    expect(s).toContain("until !== '' &&");
+  });
+
+  it('🚫 해지 버튼을 빨강으로 겁주지 않는다 — 되돌릴 수 있는 일이다', () => {
+    const s = strip(sub());
+    const at = s.indexOf("t('구독 해지')");
+    expect(at).toBeGreaterThan(-1);
+    expect(s.slice(Math.max(0, at - 400), at)).not.toContain('danger');
+  });
+});
+

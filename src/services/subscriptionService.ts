@@ -59,7 +59,7 @@ const PUBLIC_SDK_KEY = process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY || PROD_PU
 const isExpoGo = Constants.executionEnvironment === 'storeClient';
 
 interface CustomerInfo {
-  entitlements?: { active?: Record<string, unknown> };
+  entitlements?: { active?: Record<string, { productIdentifier?: string } | undefined> };
   originalAppUserId?: string;
 }
 
@@ -81,6 +81,7 @@ interface PurchasesModule {
     isConfigured: () => Promise<boolean>;
     getOfferings: () => Promise<{ current?: { availablePackages?: RcPackage[] } | null }>;
     purchasePackage: (pkg: RcPackage) => Promise<unknown>;
+    getCustomerInfo: () => Promise<CustomerInfo>;
   };
   LOG_LEVEL?: { DEBUG?: unknown; ERROR?: unknown };
 }
@@ -298,10 +299,38 @@ export async function purchase(kind: SubPlanKind): Promise<SubPurchaseResult> {
   }
 }
 
+/**
+ * 지금 쓰고 있는 요금제가 월간인가 연간인가 (2026-10-16 · 시안 #21).
+ *
+ * 🔴 **서버는 이걸 모른다.** 앱이 받는 권한 정보는 `active · expiresAt · willRenew ·
+ *    inGracePeriod` 넷뿐이다. 상품 종류는 **기기의 스토어 SDK** 에만 있다.
+ * 🚫 **금액은 여기서도 안 가져온다.** 「지금 파는 가격」과 「이 사람이 내는 가격」은 다르다 —
+ *    가격을 올리면 옛 구독자는 옛 가격을 내는데 화면이 새 가격을 말하게 된다.
+ * ⚠ 모르면 `null` 이다. 화면은 그때 종류를 적지 않고 날짜만 보여 준다.
+ */
+export async function activePlanKind(): Promise<SubPlanKind | null> {
+  if (!isAvailable()) return null;
+  const mod = loadModule();
+  if (!mod) return null;
+  try {
+    const info = await mod.default.getCustomerInfo();
+    const id = info?.entitlements?.active?.['pro']?.productIdentifier ?? '';
+    // Play 의 기본 요금제 id 가 뒤에 붙는다(`myword_pro:yearly`)
+    if (id.endsWith('yearly')) return 'yearly';
+    if (id.endsWith('monthly')) return 'monthly';
+    return null;
+  } catch (error: any) {
+    if (__DEV__) {
+      console.warn('[subscription] activePlanKind 실패:', error?.message ?? error);
+    }
+    return null;
+  }
+}
+
 /** 테스트용 — 모듈 수준 상태를 비운다. 🚫 앱 코드에서 부르지 않는다. */
 export function __resetForTest(): void {
   boundSubjectId = null;
   cachedPackages = [];
 }
 
-export const subscriptionService = { isAvailable, syncSubject, restore, getPlans, purchase };
+export const subscriptionService = { isAvailable, syncSubject, restore, getPlans, purchase, activePlanKind };

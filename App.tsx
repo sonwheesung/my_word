@@ -18,6 +18,7 @@ import ExamScreen from './src/screens/ExamScreen';
 import ExamResultScreen from './src/screens/ExamResultScreen';
 import ExamHistoryScreen from './src/screens/ExamHistoryScreen';
 import PaywallScreen from './src/screens/PaywallScreen';
+import SubscriptionScreen from './src/screens/SubscriptionScreen';
 import QuizScreen from './src/screens/QuizScreen';
 import QuizResultScreen from './src/screens/QuizResultScreen';
 import StatisticsScreen from './src/screens/StatisticsScreen';
@@ -74,7 +75,7 @@ class ErrorBoundary extends React.Component<
   }
 }
 
-type Screen = 'home' | 'manageWords' | 'addWord' | 'editWord' | 'manageCategories' | 'quizSetup' | 'quiz' | 'quizResult' | 'statistics' | 'myPage' | 'importWords' | 'settings' | 'support' | 'notice' | 'flashcardSetup' | 'flashcard' | 'examSetup' | 'exam' | 'examResult' | 'examHistory' | 'paywall';
+type Screen = 'home' | 'manageWords' | 'addWord' | 'editWord' | 'manageCategories' | 'quizSetup' | 'quiz' | 'quizResult' | 'statistics' | 'myPage' | 'importWords' | 'settings' | 'support' | 'notice' | 'flashcardSetup' | 'flashcard' | 'examSetup' | 'exam' | 'examResult' | 'examHistory' | 'paywall' | 'subscription';
 
 function AppContent() {
   const { t } = useTranslation();
@@ -216,6 +217,9 @@ function AppContent() {
        */
       case 'paywall':
         setCurrentScreen('examSetup');
+        break;
+      case 'subscription':
+        setCurrentScreen('settings');
         break;
       case 'exam':
         /*
@@ -443,6 +447,15 @@ function AppContent() {
     );
   }
 
+  if (currentScreen === 'subscription') {
+    return (
+      <SubscriptionScreen
+        onBack={() => setCurrentScreen('settings')}
+        onSubscribe={() => setCurrentScreen('paywall')}
+      />
+    );
+  }
+
   if (currentScreen === 'paywall') {
     return (
       <PaywallScreen
@@ -519,6 +532,7 @@ function AppContent() {
       <SettingsScreen
         onBack={() => setCurrentScreen('home')}
         onSupport={() => setCurrentScreen('support')}
+        onSubscription={() => setCurrentScreen('subscription')}
         onNotices={() => {
           setNoticeFrom('settings');
           setCurrentScreen('notice');

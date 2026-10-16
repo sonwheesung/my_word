@@ -133,6 +133,15 @@ export const EXAM_SIZE = 20;
 export const EXAM_FREE_QUOTA = 10;
 
 /**
+ * Play 의 구독 관리 화면.
+ *
+ * 🔴 **앱은 구독을 직접 해지할 수 없다 — Play 가 주인이다.** 해지·결제 수단 변경은 전부 여기로 보낸다.
+ * ⚠ 이 주소를 **화면마다 따로 적지 않는다.** 설정 시트 · 구독 관리 · 시험 진입 카드 셋이
+ *   같은 곳을 가리키는데, 갈라 두면 한쪽만 낡는다.
+ */
+export const PLAY_SUBSCRIPTIONS_URL = 'https://play.google.com/store/account/subscriptions';
+
+/**
  * 단어 하나가 한 번에 내는 문제 수. 🔴 서버의 `QUESTIONS_PER_NEW_WORD` 와 같아야 한다.
  *
  * ⚠ **이 값을 쓰는 곳은 「몇 문제가 나올지 미리 알려 주는 화면」 하나뿐이다.** 실제 출제는

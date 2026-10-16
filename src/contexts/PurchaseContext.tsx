@@ -65,6 +65,13 @@ interface PurchaseContextValue {
    */
   proKnown: boolean;
   /**
+   * 구독이 언제까지인가(ISO). 🔴 **서버가 계산한 값이다** — 앱이 만료를 다시 판정하지 않는다.
+   * ⚠ 유예 중이면 **유예가 끝나는 시각**이 온다(`EntitlementView` 주석).
+   */
+  proExpiresAt: string | null;
+  /** 다음에도 자동으로 갱신되나. `false` 면 **해지 예약**이다(기간 끝까지는 그대로 쓴다) */
+  proWillRenew: boolean;
+  /**
    * 서버에 **구독을 다시 물어본다** (2026-10-16 · 시안 #20·#23·#26 의 밑바탕).
    *
    * 🔴 **결제가 끝나도 곧바로 구독자가 아니다.** Play 가 받은 뒤 RevenueCat 웹훅이 우리 서버에
@@ -96,6 +103,8 @@ const PurchaseContext = createContext<PurchaseContextValue>({
   adFree: false,
   proActive: false,
   proKnown: false,
+  proExpiresAt: null,
+  proWillRenew: false,
   recheckPro: async () => null,
   inGracePeriod: false,
   ready: false,
@@ -130,6 +139,8 @@ export function PurchaseProvider({ children }: { children: React.ReactNode }) {
    */
   const [proActive, setProActive] = useState(false);
   const [proKnown, setProKnown] = useState(false);
+  const [proExpiresAt, setProExpiresAt] = useState<string | null>(null);
+  const [proWillRenew, setProWillRenew] = useState(false);
   const [inGracePeriod, setInGracePeriod] = useState(false);
   const [ready, setReady] = useState(false);
   const [price, setPrice] = useState<string | null>(null);
@@ -172,6 +183,8 @@ export function PurchaseProvider({ children }: { children: React.ReactNode }) {
       await apply({ pro: active });
       if (mounted.current) {
         setInGracePeriod(pro?.inGracePeriod === true);
+        setProExpiresAt(pro?.expiresAt ?? null);
+        setProWillRenew(pro?.willRenew === true);
         // 🔴 **성공했을 때만 켠다.** 위 early return 이 실패를 이미 걸렀다
         setProKnown(true);
       }
@@ -339,6 +352,7 @@ export function PurchaseProvider({ children }: { children: React.ReactNode }) {
   return (
     <PurchaseContext.Provider value={{ adFree,
         proActive, proKnown, recheckPro: refreshPro,
+        proExpiresAt, proWillRenew,
         inGracePeriod, ready, price, busy, buy, restore }}>
       {children}
     </PurchaseContext.Provider>
