@@ -91,7 +91,7 @@ const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 const WAIT_STEPS: Array<{ title: string; sub: string }> = [
   { title: '씨앗 단어 고르기', sub: '복습할 때 · 자주 틀림 · 무작위' },
-  { title: '헷갈리는 단어 찾기', sub: '비슷한 뜻으로 보기를 만든다' },
+  { title: '헷갈리는 단어 찾기', sub: '비슷한 뜻으로 보기를 만들어요' },
   { title: '문제 만들기', sub: '객관식 20문제' },
   { title: '해설 붙이기', sub: '왜 정답인지 한 줄씩' },
 ];

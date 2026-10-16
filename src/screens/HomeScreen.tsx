@@ -446,7 +446,16 @@ export default function HomeScreen({
               {t('AI 시험')}
             </Text>
             <Text style={[styles.examSubtitle, { color: colors.textSecondary }]} numberOfLines={2}>
-              {t('내 단어로 문제를 만들어요 · 인터넷 필요')}
+              {/*
+                🔴 **「인터넷 필요」를 뺐다**(2026-10-16 사장님 결정).
+                   *"대부분이 인터넷 연결이라서 소수를 위해 필요없는 정보까지 주고 싶지 않아"*
+                   끊긴 사람에게는 **그때** 시험 화면이 말해 준다(`ExamScreen` 의 `offline` 문구).
+                ⚠ 「· 인터넷 필요」는 가운뎃점으로 문장을 잇고 명사로 끝나기도 했다
+                  (`common/KOREAN_WRITING.md` §1 · §4.1). 그 둘도 같이 사라진다.
+                🚫 **문제 수를 적지 않는다** — 단어가 적으면 20문제가 안 나온다.
+                   들어가기 전에 숫자를 말하면 #22 에서 고친 그 거짓이 여기서 되살아난다.
+              */}
+              {t('내 단어로 문제를 만들어요')}
             </Text>
           </View>
           <MaterialIcons name="chevron-right" size={20} color={colors.textTertiary} />
