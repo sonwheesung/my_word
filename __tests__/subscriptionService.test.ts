@@ -340,5 +340,19 @@ describe('🔴 「확인 중」을 만들 길이 화면에 열려 있다', () =>
     const code = stripComments(SRC('contexts/PurchaseContext.tsx'));
     expect(code).toContain('recheckPro: refreshPro');
   });
+
+  it('🔴 「못 물어봤다」를 「아니다」로 돌려주지 않는다', () => {
+    /*
+     * 「확인 중」 화면은 몇 초 간격으로 몇 번 다시 묻는다. 실패를 `false` 로 주면
+     * **네트워크가 잠깐 끊긴 사람에게 「구독이 아니다」**가 된다. 그래서 `null` 이다.
+     * (`proKnown` 을 둔 것과 같은 이유 — 모르는 것과 아닌 것을 섞지 않는다)
+     */
+    const code = stripComments(SRC('contexts/PurchaseContext.tsx'));
+    expect(code).toContain('Promise<boolean | null>');
+    const body = code.slice(code.indexOf('const refreshPro'), code.indexOf('const buy'));
+    // 실패 자리 둘(못 물어봄 · 예외)이 모두 null 을 돌려준다
+    expect((body.match(/return null;/g) ?? []).length).toBe(2);
+    expect(body).toContain('return active;');
+  });
 });
 

@@ -71,9 +71,15 @@ interface PurchaseContextValue {
    *    닿기까지 몇 초가 걸린다. 그 사이를 실패로 보여 주면 **이미 돈을 낸 사람이 놀란다** —
    *    화면은 「확인 중」을 띄우고 이 함수로 몇 번 다시 묻는다.
    * ⚠ `fresh` 는 **서버의 캐시를 건너뛴다.** 결제 직후처럼 **방금 바뀐 것을 봐야 할 때만** 켠다.
-   * ⚠ 못 물어보면 상태를 **바꾸지 않는다**(`refreshPro` 주석) — 끊긴 것과 아닌 것은 다르다.
+   * ⚠ 못 물어보면 상태를 **바꾸지 않는다**(`refreshPro` 주석). 끊긴 것과 아닌 것은 다르다.
+   *
+   * 🔴 **돌려주는 값이 셋이다**(2026-10-16). `true` 구독자다 · `false` 아니다 ·
+   *    **`null` 못 물어봤다.** 「확인 중」 화면은 몇 초 간격으로 몇 번 다시 묻는데,
+   *    `null` 을 `false` 로 읽으면 **네트워크가 잠깐 끊긴 사람에게 「구독이 아니다」**가 된다.
+   *    `proKnown` 을 둔 것과 같은 이유다 — 모르는 것과 아닌 것을 섞지 않는다.
+   * ⚠ 상태(`proActive`)도 함께 갱신되므로 화면은 **둘 중 편한 쪽**을 쓰면 된다.
    */
-  recheckPro: (fresh?: boolean) => Promise<void>;
+  recheckPro: (fresh?: boolean) => Promise<boolean | null>;
   /** 결제 실패 유예 중. 활성이지만 곧 끊길 수 있어 안내를 띄울 수 있다 */
   inGracePeriod: boolean;
   /** Play 조회가 끝났는가. false 면 아직 캐시 값을 보고 있다 */
@@ -90,7 +96,7 @@ const PurchaseContext = createContext<PurchaseContextValue>({
   adFree: false,
   proActive: false,
   proKnown: false,
-  recheckPro: async () => {},
+  recheckPro: async () => null,
   inGracePeriod: false,
   ready: false,
   price: null,
@@ -157,19 +163,22 @@ export function PurchaseProvider({ children }: { children: React.ReactNode }) {
    * ⚠ 실패하면 상태를 **바꾸지 않는다.** false 로 덮으면 네트워크가 잠깐 끊긴 구독자에게
    *   광고가 튀어나온다. 못 물어본 것과 "아니다"는 다르다.
    */
-  const refreshPro = useCallback(async (fresh = false) => {
+  const refreshPro = useCallback(async (fresh = false): Promise<boolean | null> => {
     try {
       const result = await commonServer.fetchEntitlements(fresh ? { fresh: true } : {});
-      if (!result.ok || !mounted.current) return;
+      if (!result.ok || !mounted.current) return null;
       const pro = result.entitlements['pro'];
-      await apply({ pro: pro?.active === true });
+      const active = pro?.active === true;
+      await apply({ pro: active });
       if (mounted.current) {
         setInGracePeriod(pro?.inGracePeriod === true);
         // 🔴 **성공했을 때만 켠다.** 위 early return 이 실패를 이미 걸렀다
         setProKnown(true);
       }
+      return active;
     } catch {
       // 못 물어봤다. 다음 기회에 다시 본다
+      return null;
     }
   }, [apply]);
 

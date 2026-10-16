@@ -413,7 +413,7 @@ SDK 에는 로그인 · 권한 · 내 문의 조회도 있지만 이 앱은 쓰�
 | `subscriptionService.restore()` | `{ found: boolean }` | 스토어에 물어 **소유자를 지금 주체로 옮긴다**. ⚠ 반환값으로 판정하지 않는다 |
 | `subscriptionService.getPlans()` | `SubPlan[]` | 파는 요금제(연간·월간). 🔴 **못 가져오면 빈 배열 — 가격을 지어내지 않는다.** 화면이 가격을 비우고 [다시 시도]를 준다(시안 #20) |
 | `subscriptionService.purchase(kind)` | `SubPurchaseResult` | 🚫 **던지지 않는다.** 결과는 `ok` · `cancelled` · `already-owned` · `not-allowed` · `unavailable` · `error`. ⚠ `getPlans()` 를 먼저 불러야 한다(SDK 에 **그때 받은 묶음**을 돌려줘야 한다) |
-| `usePurchase().recheckPro(fresh?)` | — | **서버에 구독을 다시 묻는다.** 결제 직후 「확인 중」이 이 함수로 몇 번 묻는다(#20·#23·#26 이 같은 길을 쓴다) |
+| `usePurchase().recheckPro(fresh?)` | `boolean \| null` | **서버에 구독을 다시 묻는다.** 결제 직후 「확인 중」이 이 함수로 몇 번 묻는다(#20·#23·#26 이 같은 길을 쓴다). 🔴 **`null` 은 「못 물어봤다」** — `false` 로 읽으면 네트워크가 잠깐 끊긴 사람에게 「구독이 아니다」가 된다 |
 
 🔴 **결제가 끝나도 곧바로 구독자가 아니다.** Play → RevenueCat 웹훅 → 우리 서버까지 몇 초가 걸린다.
 그 사이를 **실패로 보여 주면 이미 돈을 낸 사람이 놀란다** — 「확인 중」을 띄우고 `recheckPro(true)` 로 다시 묻는다.
