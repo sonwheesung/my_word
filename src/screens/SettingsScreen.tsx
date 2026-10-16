@@ -59,12 +59,18 @@ const LEGAL_LINKS = [
   { key: 'licenses', title: '오픈소스 라이선스', icon: 'code', url: OPEN_SOURCE_LICENSES_URL },
 ] as const;
 
+/**
+ * Play 의 구독 관리 화면. 🔴 **앱은 구독을 직접 해지할 수 없다** — Play 가 주인이다.
+ * ⚠ 설정의 지우기 시트와 시험 진입 카드가 같은 곳을 가리킨다. 주소가 갈리면 한쪽이 낡는다.
+ */
+const PLAY_SUBSCRIPTIONS_URL = 'https://play.google.com/store/account/subscriptions';
+
 export default function SettingsScreen({ onBack, onSupport, onNotices }: SettingsScreenProps) {
   const { colors, themeId, setThemeId } = useTheme();
   const { unreadCount } = useBootstrap();
   const { t } = useTranslation();
   const [language, setLanguage] = useState<AppLanguage>(() => getCurrentLanguage());
-  const { adFree, ready, price, busy, buy, restore } = usePurchase();
+  const { adFree, proActive, ready, price, busy, buy, restore } = usePurchase();
   const { toast, showToast, hideToast } = useToast();
   const notify = useNotification();
   const [showTimePicker, setShowTimePicker] = useState(false);
@@ -955,10 +961,83 @@ export default function SettingsScreen({ onBack, onSupport, onNotices }: Setting
       <ConfirmSheet
         visible={confirmErase}
         title={t('서버에 보관된 내용을 지울까요?')}
-        message={t(
-          '단어 · 단어장 · 퀴즈 기록 · AI 시험 성적표의 서버 사본이 지워져요. 이 기기의 내용은 그대로 남지만, 폰을 잃으셨을 때 돌려받을 수 없게 됩니다. 지난 문의와의 연결도 끊겨서 그 문의에 대한 답변을 더는 확인하실 수 없어요. 광고 제거를 구매하셨다면 그건 그대로예요 — 구글 계정에 묶여 있어 지워지지 않습니다. 계속 쓰시면 새 식별자로 처음부터 다시 보관됩니다',
-        )}
-        confirmLabel={t('지우기')}
+        message={t('계속 쓰시면 새 식별자로 처음부터 다시 보관됩니다')}
+        preview={
+          <View style={styles.erasePreview}>
+            {/*
+              🔴 **구독 중일 때만 그린다**(시안 단어앱#24 · 2026-10-16 사장님 승인).
+                 사용자는 이 버튼을 **탈퇴**로 읽는다. *"다 지웠으니 끝났겠지"* 하고 나가면
+                 **Play 에서 돈은 계속 나간다.** 구독을 멈추는 것은 Play 해지뿐이고 앱이 대신 못 한다.
+              🔴 **빨강이 아니라 노랑이다.** 지우기 자체의 위험은 빨간 버튼이 이미 말한다.
+                 이 박스는 겁을 주는 것이 아니라 **따로 해야 할 일**을 알려 주는 자리다.
+              🚫 **무료 시험 횟수 이야기를 적지 않는다** — 지우면 새 주체가 되어 횟수가 돌아오는 것은
+                 알고 둔 구멍이고, 시트에 적으면 *"지우면 무료 10회가 다시 생겨요"* 라는 광고가 된다.
+            */}
+            {proActive && (
+              <View
+                style={[
+                  styles.eraseSubBox,
+                  { backgroundColor: colors.warningBg, borderColor: colors.warningBorder },
+                ]}
+              >
+                <View style={styles.eraseSubHead}>
+                  <MaterialIcons name="info-outline" size={16} color={colors.warningText} />
+                  <Text style={[styles.eraseSubTitle, { color: colors.warningText }]}>
+                    {t('구독 결제는 멈추지 않아요')}
+                  </Text>
+                </View>
+                <Text style={[styles.eraseSubBody, { color: colors.textSecondary }]}>
+                  {t('결제를 멈추시려면 Play 스토어에서 해지해 주세요. 지운 뒤 드물게 구독이 안 보이면 설정의 구매 복원을 한 번 눌러 주세요')}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => void Linking.openURL(PLAY_SUBSCRIPTIONS_URL)}
+                  accessibilityRole="button"
+                  style={styles.eraseSubLink}
+                >
+                  <Text style={[styles.eraseSubLinkText, { color: colors.primaryStrong }]}>
+                    {t('Play 구독 관리 열기')}
+                  </Text>
+                  <MaterialIcons name="chevron-right" size={16} color={colors.primaryStrong} />
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/*
+              🔴 **한 문단을 두 칸으로 갈랐다.** 지워지는 것과 남는 것을 섞어 쓰면
+                 *"그래서 내 단어가 지워지나?"* 가 안 읽힌다. 이 버튼이 가장 많이 오해받는 자리다.
+              ⚠ 옛 문단은 해요체와 합쇼체가 섞여 있었다(`KOREAN_WRITING.md` §4.1).
+            */}
+            <View style={[styles.eraseCols, { backgroundColor: colors.surface }]}>
+              <View style={styles.eraseCol}>
+                <Text style={[styles.eraseColHead, { color: colors.dangerText }]}>
+                  {t('서버에서 지워져요')}
+                </Text>
+                {[t('단어와 단어장'), t('퀴즈 기록'), t('AI 시험 성적표'), t('지난 문의와의 연결')].map(
+                  (line) => (
+                    <Text key={line} style={[styles.eraseColItem, { color: colors.text }]}>
+                      {line}
+                    </Text>
+                  ),
+                )}
+              </View>
+              <View style={[styles.eraseColLine, { backgroundColor: colors.border }]} />
+              <View style={styles.eraseCol}>
+                <Text style={[styles.eraseColHead, { color: colors.successText }]}>
+                  {t('그대로예요')}
+                </Text>
+                {[t('이 기기의 단어와 기록'), t('광고 제거 구매')].map((line) => (
+                  <Text key={line} style={[styles.eraseColItem, { color: colors.text }]}>
+                    {line}
+                  </Text>
+                ))}
+              </View>
+            </View>
+            <Text style={[styles.eraseNote, { color: colors.textSecondary }]}>
+              {t('폰을 잃으셨을 때 서버에서 돌려받을 수 없게 됩니다')}
+            </Text>
+          </View>
+        }
+        confirmLabel={t('서버 내용 지우기')}
         tone="danger"
         busy={eraseBusy}
         onConfirm={() => void handleEraseServer()}
@@ -1017,6 +1096,20 @@ export default function SettingsScreen({ onBack, onSupport, onNotices }: Setting
 }
 
 const styles = StyleSheet.create({
+  // ⚠ 이 파일은 디자인 토큰을 안 들여온다. 주변 스타일과 같게 숫자로 적는다
+  erasePreview: { gap: 8, marginTop: 4 },
+  eraseSubBox: { borderWidth: 1, borderRadius: 8, padding: 12, gap: 4 },
+  eraseSubHead: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  eraseSubTitle: { fontSize: 15, fontWeight: '700' },
+  eraseSubBody: { fontSize: 13, lineHeight: 19 },
+  eraseSubLink: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
+  eraseSubLinkText: { fontSize: 13, fontWeight: '700' },
+  eraseCols: { flexDirection: 'row', borderRadius: 8, padding: 12 },
+  eraseCol: { flex: 1, gap: 3 },
+  eraseColLine: { width: 1, marginHorizontal: 12 },
+  eraseColHead: { fontSize: 11, fontWeight: '700', marginBottom: 2 },
+  eraseColItem: { fontSize: 13, lineHeight: 18 },
+  eraseNote: { fontSize: 12, lineHeight: 17 },
   container: {
     flex: 1,
   },

@@ -423,40 +423,59 @@ describe('🔴 구독을 살 수 있게 되면 지우기 시트가 구독을 말
     for (const file of fs.readdirSync(screens)) {
       if (/paywall|subscri|구독/i.test(file)) signals.push(`화면 ${file}`);
     }
-    const purchase = stripComments(read('src/contexts/PurchaseContext.tsx'));
-    for (const call of ['requestSubscription', 'purchasePackage', 'getSubscriptions', "'subs'"]) {
-      if (purchase.includes(call)) signals.push(`결제 호출 ${call}`);
+    /*
+     * 🔴 **보는 파일을 늘렸다**(2026-10-16). 전에는 `PurchaseContext.tsx` 한 곳만 봤는데,
+     *    그날 구독 결제를 **`subscriptionService.ts` 에** 깔았더니 **가드가 안 울렸다.**
+     *    지켜야 할 일이 실제로 일어났는데 초록이었다. 이 종류 가드의 유일한 고장 방식이다.
+     */
+    for (const rel of ['src/contexts/PurchaseContext.tsx', 'src/services/subscriptionService.ts']) {
+      const src = stripComments(read(rel));
+      for (const call of ['requestSubscription', 'purchasePackage', 'getSubscriptions', "'subs'"]) {
+        if (src.includes(call)) signals.push(`결제 호출 ${call}`);
+      }
     }
     return signals;
   };
 
   it('⚠ 가드가 실제로 읽었다 — 시트 문구를 찾을 수 있다', () => {
-    expect(stripComments(read(SETTINGS))).toContain('서버 사본이 지워져요');
+    expect(stripComments(read(SETTINGS))).toContain('서버에서 지워져요');
   });
 
-  it('🔴 구독을 살 길이 생겼는데 시트가 구독을 말하지 않으면 FAIL', () => {
+  /*
+   * 🔴 **2026-10-16 에 이 가드의 모양이 바뀌었다.**
+   *    전에는 「살 길이 생기면 **무조건** 던진다」였다. 그때는 그게 맞았다 — 시트에 무엇을
+   *    적을지 정해지지 않았으니 **사람을 불러 세우는 것**이 일이었다.
+   *    이제 시안 #24 가 승인돼 시트가 구독을 말한다. 그래서 **판정하는 가드**로 바꾼다.
+   */
+  it('🔴 구독을 살 길이 생겼으면 지우기 시트가 구독을 말한다', () => {
+    const sheet = stripComments(read(SETTINGS));
     const signals = subscriptionSellable();
-    const sheetMentionsSubscription = stripComments(read(SETTINGS)).includes(
-      '구독',
-    );
     if (signals.length === 0) {
       // 아직 팔 길이 없다. 시트가 구독을 말하지 않는 것이 맞다.
-      expect(sheetMentionsSubscription).toBe(false);
+      expect(sheet.includes('구독')).toBe(false);
       return;
     }
-    throw new Error(
-      [
-        '구독을 살 길이 생겼다: ' + signals.join(' · '),
-        sheetMentionsSubscription
-          ? '🟢 시트가 구독을 말한다 — 이 테스트를 지우고 위 describe 를 정리하라.'
-          : [
-              '🔴 그런데 「서버에 보관된 내용 지우기」 확인 시트가 구독을 말하지 않는다.',
-              '   GLOBAL_DATA_COMPLIANCE §6.1: 구독이 있으면 「계정 삭제 ≠ 구독 해지」 별도 안내.',
-              '   시트 문구에 아래 둘을 넣어라(연출 사전 #24 시안):',
-              '     · 구독 결제는 멈추지 않아요 — Play 스토어에서 해지해야 멈춰요',
-              '     · 지운 뒤 구독이 안 보이면 설정 > 구매 복원을 한 번 눌러 주세요',
-            ].join('\n'),
-      ].join('\n'),
-    );
+    // 🔴 「말한다」로는 모자라다. **무엇을 말하는가**를 본다
+    const need: Array<[string, string]> = [
+      ['결제가 멈추지 않는다는 사실', '구독 결제는 멈추지 않아요'],
+      ['어디서 멈추는지', 'Play 스토어에서 해지'],
+      ['거기로 가는 길', 'Play 구독 관리 열기'],
+    ];
+    const missing = need.filter((x) => !sheet.includes(x[1])).map((x) => x[0]);
+    expect(missing.length === 0 ? '' : '시트에 빠진 것: ' + missing.join(' / ')).toBe('');
+  });
+
+  it('🚫 구독 안내를 구독자가 아닌 사람에게 보여 주지 않는다', () => {
+    // 구독이 없는 사람에게 해지 이야기를 하면 헷갈린다(시안 #24)
+    const sheet = stripComments(read(SETTINGS));
+    const at = sheet.indexOf('구독 결제는 멈추지 않아요');
+    expect(at).toBeGreaterThan(-1);
+    expect(sheet.slice(Math.max(0, at - 700), at)).toContain('proActive &&');
+  });
+
+  it('🚫 무료 시험 횟수가 돌아온다는 말을 시트에 적지 않는다', () => {
+    // 적으면 「지우면 무료 10회가 다시 생겨요」라는 광고가 된다(시안 #24)
+    const sheet = stripComments(read(SETTINGS));
+    expect(/무료[\s\S]{0,12}(횟수|시험)[\s\S]{0,14}(돌아|다시)/.test(sheet)).toBe(false);
   });
 });
