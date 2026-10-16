@@ -46,11 +46,16 @@ interface SettingsScreenProps {
   onBack: () => void;
   onSupport: () => void;
   onNotices: () => void;
-  /**
-   * 구독 관리로 (2026-10-16 · 시안 #21).
-   * ⚠ 구독 중이 아니면 그 화면이 **구독 안내**로 보낸다 — 여기서 갈라 보내지 않는다.
-   */
+  /** 구독 관리로 (2026-10-16 · 시안 #21). 구독 중일 때만 쓴다. */
   onSubscription: () => void;
+  /**
+   * 구독 안내(페이월)로.
+   * 🔴 **줄에 적은 말과 가는 곳이 같아야 한다**(2026-10-16 폰에서 잡았다).
+   * 「구독 알아보기」를 눌렀는데 「구독 관리 · 지금은 구독 중이 아니에요」가 뜨면
+   * 안 산 사람에게 **헛걸음 한 칸**을 더 밟게 한다. 관리 화면의 빈 상태는 그대로 남겨 둔다 —
+   * 보는 동안 구독이 끝나는 경우가 있다.
+   */
+  onSubscribe: () => void;
 }
 
 /**
@@ -66,7 +71,7 @@ const LEGAL_LINKS = [
 ] as const;
 
 export default function SettingsScreen({ onBack, onSupport, onNotices,
-  onSubscription }: SettingsScreenProps) {
+  onSubscription, onSubscribe }: SettingsScreenProps) {
   const { colors, themeId, setThemeId } = useTheme();
   const { unreadCount } = useBootstrap();
   const { t } = useTranslation();
@@ -843,12 +848,12 @@ export default function SettingsScreen({ onBack, onSupport, onNotices,
         {/*
           구독 (2026-10-16 · 시안 #21).
           🔴 **구독을 파는 앱은 앱 안에 관리·해지 경로가 있어야 한다**(Play 구독 정책).
-          ⚠ 구독 중이 아니면 줄이 **구독 안내**로 바뀐다 — 없는 화면으로 보내지 않는다.
+          ⚠ 구독 중이 아니면 줄도 가는 곳도 **구독 안내**로 바뀐다 — 말과 도착지를 맞춘다.
         */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('구독')}</Text>
           <TouchableOpacity
-            onPress={onSubscription}
+            onPress={proActive ? onSubscription : onSubscribe}
             activeOpacity={0.7}
             accessibilityRole="button"
             style={[styles.linkRow, { backgroundColor: colors.card, borderColor: colors.border }]}

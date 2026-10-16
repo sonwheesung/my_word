@@ -533,6 +533,7 @@ function AppContent() {
         onBack={() => setCurrentScreen('home')}
         onSupport={() => setCurrentScreen('support')}
         onSubscription={() => setCurrentScreen('subscription')}
+        onSubscribe={() => setCurrentScreen('paywall')}
         onNotices={() => {
           setNoticeFrom('settings');
           setCurrentScreen('notice');

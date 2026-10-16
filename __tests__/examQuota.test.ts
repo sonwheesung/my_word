@@ -266,3 +266,36 @@ describe('🔴 구독 관리 화면이 지키는 것', () => {
   });
 });
 
+// ── 설정의 구독 줄 — 적은 말과 가는 곳 (2026-10-16 폰에서 잡았다) ─────────────
+
+describe('🔴 설정의 구독 줄은 적은 말과 같은 곳으로 보낸다', () => {
+  const src = (rel: string) => fs.readFileSync(path.join(__dirname, '..', rel), 'utf8');
+  const strip = (t: string) =>
+    t.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
+
+  it('⚠ 가드가 실제로 읽었다', () => {
+    expect(src('src/screens/SettingsScreen.tsx')).toContain("t('구독 알아보기')");
+  });
+
+  it('🔴 안 산 사람은 페이월로 바로 간다 — 헛걸음 한 칸을 끼우지 않는다', () => {
+    /*
+     * 처음에는 줄의 **말만** 갈라 놓고 가는 곳은 늘 구독 관리였다.
+     * 그래서 「구독 알아보기」를 누르면 「구독 관리 · 지금은 구독 중이 아니에요」가 떴다 —
+     * 사려던 사람이 한 번 더 눌러야 했다. 타입도 테스트도 전부 초록인 채였고
+     * **폰에서 눌러 봐서** 잡혔다.
+     */
+    const s = strip(src('src/screens/SettingsScreen.tsx'));
+    expect(s).toContain('onPress={proActive ? onSubscription : onSubscribe}');
+  });
+
+  it('🔴 그 두 길이 서로 다른 화면으로 꽂혀 있다', () => {
+    const s = strip(src('App.tsx'));
+    expect(s).toContain("onSubscription={() => setCurrentScreen('subscription')}");
+    expect(s).toContain("onSubscribe={() => setCurrentScreen('paywall')}");
+  });
+
+  it('🟢 관리 화면의 빈 상태는 남겨 둔다 — 보는 동안 구독이 끝나는 경우가 있다', () => {
+    const s = strip(src('src/screens/SubscriptionScreen.tsx'));
+    expect(s).toContain("t('지금은 구독 중이 아니에요')");
+  });
+});
