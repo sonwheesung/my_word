@@ -54,6 +54,14 @@ interface PurchaseContextValue {
    *    붙였으면 평생 광고제거 구매자가 AI 시험까지 공짜로 쓰게 된다.
    */
   adFree: boolean;
+  /**
+   * **평생 광고제거(`remove_ads`)를 샀는가.** `adFree` 와 **따로** 봐야 하는 자리가 있다.
+   *
+   * 🔴 둘을 합쳐 놓으면 **구독만 한 사람에게 「구매해 주셔서 고맙습니다」가 뜬다** —
+   *    그 사람은 광고제거를 산 적이 없고, 구독을 끊으면 광고가 돌아온다.
+   *    앱이 한 말이 나중에 거짓이 되는 종류다(2026-10-16 폰에서 잡았다).
+   */
+  ownsLifetime: boolean;
   /** 구독(`pro`)이 활성인가. 🔴 **시험 권한은 이것만 본다** */
   proActive: boolean;
   /**
@@ -101,6 +109,7 @@ interface PurchaseContextValue {
 
 const PurchaseContext = createContext<PurchaseContextValue>({
   adFree: false,
+  ownsLifetime: false,
   proActive: false,
   proKnown: false,
   proExpiresAt: null,
@@ -147,8 +156,15 @@ export function PurchaseProvider({ children }: { children: React.ReactNode }) {
   const [busy, setBusy] = useState(false);
   const mounted = useRef(true);
 
-  /** 평생 광고제거를 샀는가. 구독과 **따로** 들고 있어야 판정을 두 갈래로 할 수 있다 */
+  /**
+   * 평생 광고제거를 샀는가. 구독과 **따로** 들고 있어야 판정을 두 갈래로 할 수 있다.
+   *
+   * ⚠ ref 와 state 를 **둘 다** 든다. `apply` 는 같은 틱에 바로 읽어야 해서 ref 가 필요하고
+   *   (state 는 다음 렌더에나 보인다), 화면은 state 가 아니면 다시 그려지지 않는다.
+   *   **같이 쓴다** — 한쪽만 바꾸면 화면이 옛 값을 들고 있는다.
+   */
   const ownsLifetime = useRef(false);
+  const [lifetime, setLifetime] = useState(false);
 
   /**
    * 캐시와 상태를 함께 갱신한다.
@@ -157,7 +173,10 @@ export function PurchaseProvider({ children }: { children: React.ReactNode }) {
    *    구독자가 평생 구매를 안 했다고 광고가 나오거나, 그 반대가 된다.
    */
   const apply = useCallback(async (next: { lifetime?: boolean; pro?: boolean }) => {
-    if (next.lifetime !== undefined) ownsLifetime.current = next.lifetime;
+    if (next.lifetime !== undefined) {
+      ownsLifetime.current = next.lifetime;
+      if (mounted.current) setLifetime(next.lifetime);
+    }
     if (next.pro !== undefined && mounted.current) setProActive(next.pro);
     const hidden = ownsLifetime.current || (next.pro ?? proActive);
     if (mounted.current) setAdFree(hidden);
@@ -350,7 +369,7 @@ export function PurchaseProvider({ children }: { children: React.ReactNode }) {
   }, [apply, proActive, refreshPro]);
 
   return (
-    <PurchaseContext.Provider value={{ adFree,
+    <PurchaseContext.Provider value={{ adFree, ownsLifetime: lifetime,
         proActive, proKnown, recheckPro: refreshPro,
         proExpiresAt, proWillRenew,
         inGracePeriod, ready, price, busy, buy, restore }}>

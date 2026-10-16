@@ -299,3 +299,66 @@ describe('🔴 설정의 구독 줄은 적은 말과 같은 곳으로 보낸다'
     expect(s).toContain("t('지금은 구독 중이 아니에요')");
   });
 });
+
+// ── 광고 칸 — 「왜 광고가 없는지」를 구분한다 (2026-10-16 폰에서 잡았다) ──────
+
+describe('🔴 설정의 광고 칸이 구독과 평생 구매를 섞지 않는다', () => {
+  const src = (rel: string) => fs.readFileSync(path.join(__dirname, '..', rel), 'utf8');
+  const strip = (t: string) =>
+    t.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
+
+  it('⚠ 가드가 실제로 읽었다', () => {
+    expect(src('src/screens/SettingsScreen.tsx')).toContain("t('광고가 제거되었어요')");
+  });
+
+  it('🔴 「구매해 주셔서 고맙습니다」는 평생 구매자에게만 나온다', () => {
+    /*
+     * 전에는 `adFree`(= 평생 OR 구독) 하나로 갈라서 **구독만 한 사람에게도** 그 말이 떴다.
+     * 그 사람은 광고제거를 산 적이 없고, 구독을 끊으면 광고가 돌아온다 —
+     * 앱이 한 말이 나중에 거짓이 되는 종류다.
+     */
+    const s = strip(src('src/screens/SettingsScreen.tsx'));
+    const at = s.indexOf("t('구매해 주셔서 고맙습니다')");
+    expect(at).toBeGreaterThan(-1);
+    // 그 문구를 여는 조건이 ownsLifetime 이어야 한다
+    const before = s.slice(Math.max(0, at - 700), at);
+    expect(before).toContain('{ownsLifetime ? (');
+  });
+
+  it('🔴 구독만 한 사람에게는 조건을 함께 말한다', () => {
+    const s = strip(src('src/screens/SettingsScreen.tsx'));
+    expect(s).toContain("t('구독 중에는 광고가 없어요')");
+    expect(s).toContain("t('구독을 해지하면 다시 보여요')");
+  });
+
+  it('⚠ 구독만 한 사람에게 ₩3,300 을 다시 팔지 않는다', () => {
+    /* 이미 광고가 없는 사람에게 같은 결과를 또 파는 꼴이다. 구매 버튼은 마지막 갈래에만 있다. */
+    const s = strip(src('src/screens/SettingsScreen.tsx'));
+    const buyAt = s.indexOf("t('광고 제거')");
+    const subAt = s.indexOf("t('구독 중에는 광고가 없어요')");
+    expect(buyAt).toBeGreaterThan(-1);
+    expect(subAt).toBeGreaterThan(-1);
+    expect(buyAt).toBeGreaterThan(subAt); // 구매 갈래가 구독 갈래보다 뒤에 온다
+  });
+
+  it('🟢 구독만 한 사람에게도 구매 복원은 남긴다', () => {
+    /* 옛날에 평생 구매를 했던 사람이 기기를 바꿨을 수 있다. 해지 뒤에도 광고가 없어야 맞다. */
+    const s = strip(src('src/screens/SettingsScreen.tsx'));
+    const subAt = s.indexOf("t('구독 중에는 광고가 없어요')");
+    const after = s.slice(subAt, subAt + 900);
+    expect(after).toContain("t('구매 복원')");
+  });
+
+  it('🔴 평생 구매 여부가 화면까지 전달된다 — ref 만 바꾸면 다시 그려지지 않는다', () => {
+    const c = strip(src('src/contexts/PurchaseContext.tsx'));
+    expect(c).toContain('ownsLifetime: lifetime');
+    expect(c).toContain('setLifetime(next.lifetime)');
+    const st = strip(src('src/screens/SettingsScreen.tsx'));
+    expect(st).toContain('ownsLifetime');
+  });
+
+  it('🔴 광고 숨김은 둘 중 하나만 참이어도 켜진다 — 이 규칙은 그대로다', () => {
+    const c = strip(src('src/contexts/PurchaseContext.tsx'));
+    expect(c).toContain('const hidden = ownsLifetime.current || (next.pro ?? proActive);');
+  });
+});

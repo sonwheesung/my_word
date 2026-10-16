@@ -76,7 +76,7 @@ export default function SettingsScreen({ onBack, onSupport, onNotices,
   const { unreadCount } = useBootstrap();
   const { t } = useTranslation();
   const [language, setLanguage] = useState<AppLanguage>(() => getCurrentLanguage());
-  const { adFree, proActive, ready, price, busy, buy, restore } = usePurchase();
+  const { adFree, ownsLifetime, proActive, ready, price, busy, buy, restore } = usePurchase();
   const { toast, showToast, hideToast } = useToast();
   const notify = useNotification();
   const [showTimePicker, setShowTimePicker] = useState(false);
@@ -875,10 +875,26 @@ export default function SettingsScreen({ onBack, onSupport, onNotices,
           </TouchableOpacity>
         </View>
 
-        {/* 광고 */}
+        {/*
+          광고 — 🔴 **갈래가 셋이다.** 「광고가 없다」는 같아도 **왜 없는지**가 다르고,
+          그 차이가 **나중에 참이냐 거짓이냐**를 가른다.
+
+          ```
+          평생 구매      광고가 제거되었어요 · 구매해 주셔서 고맙습니다   ← 영구히 참
+          구독만 함      구독 중에는 광고가 없어요 · 해지하면 다시 보여요  ← 조건을 같이 말한다
+          둘 다 아님     광고 제거 ₩3,300
+          ```
+
+          🔴 전에는 앞의 둘을 `adFree` 하나로 묶어 **구독만 한 사람에게도 「구매해 주셔서
+          고맙습니다」**가 떴다. 그 사람은 광고제거를 산 적이 없고 구독을 끊으면 광고가
+          돌아온다 — **앱이 한 말이 나중에 거짓이 되는** 종류다(2026-10-16 폰에서 잡았다).
+          ⚠ 구독만 한 사람에게는 ₩3,300 을 **팔지 않는다.** 이미 광고가 없는 사람에게
+            같은 결과를 또 파는 꼴이다. 대신 **구매 복원은 남긴다** — 옛날에 평생 구매를
+            했던 사람이 기기를 바꿨을 수 있고, 그때는 해지 뒤에도 광고가 없어야 맞다.
+        */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('광고')}</Text>
-          {adFree ? (
+          {ownsLifetime ? (
             <View
               style={[styles.linkRow, { backgroundColor: colors.card, borderColor: colors.border }]}
             >
@@ -894,6 +910,35 @@ export default function SettingsScreen({ onBack, onSupport, onNotices,
                 </View>
               </View>
             </View>
+          ) : adFree ? (
+            <>
+              <View
+                style={[styles.linkRow, { backgroundColor: colors.card, borderColor: colors.border }]}
+              >
+                <View style={styles.linkLeft}>
+                  <MaterialIcons name="check-circle" size={20} color={colors.primary} />
+                  <View>
+                    <Text style={[styles.linkTitle, { color: colors.text }]}>
+                      {t('구독 중에는 광고가 없어요')}
+                    </Text>
+                    <Text style={[styles.linkSubtitle, { color: colors.textTertiary }]}>
+                      {t('구독을 해지하면 다시 보여요')}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                onPress={handleRestore}
+                activeOpacity={0.7}
+                disabled={busy || !ready}
+                style={[styles.restoreRow, { opacity: busy || !ready ? 0.5 : 1 }]}
+              >
+                <Text style={[styles.restoreText, { color: colors.textSecondary }]}>
+                  {t('구매 복원')}
+                </Text>
+              </TouchableOpacity>
+            </>
           ) : (
             <>
               <TouchableOpacity
