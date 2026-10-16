@@ -17,7 +17,7 @@
 **검증 명령** (어제 넣은 것이 아직 살아 있는지 먼저 본다):
 ```bash
 cd C:/project/my_word/my_word && npx jest __tests__/examQuota.test.ts __tests__/examService.test.ts
-# → 139개 전부 통과해야 한다. 여기가 빨간데 화면을 더 얹지 않는다
+# → 141개 전부 통과해야 한다(10-16 실측). 여기가 빨간데 화면을 더 얹지 않는다
 curl -s "https://common-server.vercel.app/api/health"     # → {"ok":true,"db":"up",...}
 ```
 
