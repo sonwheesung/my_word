@@ -411,6 +411,19 @@ SDK 에는 로그인 · 권한 · 내 문의 조회도 있지만 이 앱은 쓰�
 | `subscriptionService.isAvailable()` | `boolean` | 공개 SDK 키가 있고 네이티브 모듈이 붙었나. **키가 없으면 꺼진 것으로 다룬다** |
 | `subscriptionService.syncSubject(id)` | — | `app_user_id` 를 우리 주체 ID 에 맞춘다. 같은 ID 면 아무것도 안 한다 |
 | `subscriptionService.restore()` | `{ found: boolean }` | 스토어에 물어 **소유자를 지금 주체로 옮긴다**. ⚠ 반환값으로 판정하지 않는다 |
+| `subscriptionService.getPlans()` | `SubPlan[]` | 파는 요금제(연간·월간). 🔴 **못 가져오면 빈 배열 — 가격을 지어내지 않는다.** 화면이 가격을 비우고 [다시 시도]를 준다(시안 #20) |
+| `subscriptionService.purchase(kind)` | `SubPurchaseResult` | 🚫 **던지지 않는다.** 결과는 `ok` · `cancelled` · `already-owned` · `not-allowed` · `unavailable` · `error`. ⚠ `getPlans()` 를 먼저 불러야 한다(SDK 에 **그때 받은 묶음**을 돌려줘야 한다) |
+| `usePurchase().recheckPro(fresh?)` | — | **서버에 구독을 다시 묻는다.** 결제 직후 「확인 중」이 이 함수로 몇 번 묻는다(#20·#23·#26 이 같은 길을 쓴다) |
+
+🔴 **결제가 끝나도 곧바로 구독자가 아니다.** Play → RevenueCat 웹훅 → 우리 서버까지 몇 초가 걸린다.
+그 사이를 **실패로 보여 주면 이미 돈을 낸 사람이 놀란다** — 「확인 중」을 띄우고 `recheckPro(true)` 로 다시 묻는다.
+
+🔴 **결제 사유를 하나로 접지 않는다.** `not-allowed`(보호자 승인 거부 · 기기 결제 제한)는 `error` 와 다르다 —
+사용자 잘못이 아니고 「다시 시도」로도 안 풀린다. 2026-10-15 의 AI 시험 실패 화면이 일곱 가지를
+*"잠시 뒤에 다시 시도해 주세요"* 하나로 뭉갰던 것과 같은 잘못을 여기서 되풀이하지 않는다.
+
+⚠ SDK 에러 코드는 **문자열**이다(`'1'` 취소 · `'3'` 허용 안 됨 · `'6'` 이미 구매).
+`=== 1` 로 비교하면 영영 안 맞는다 — 두 경우 다 테스트가 지킨다.
 
 ### 🔴 왜 서버만으로는 안 되나
 

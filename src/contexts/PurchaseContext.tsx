@@ -64,6 +64,16 @@ interface PurchaseContextValue {
    *    (시험 진입 카드가 이 구분을 쓴다 — `examQuotaService.seeSubscription`)
    */
   proKnown: boolean;
+  /**
+   * 서버에 **구독을 다시 물어본다** (2026-10-16 · 시안 #20·#23·#26 의 밑바탕).
+   *
+   * 🔴 **결제가 끝나도 곧바로 구독자가 아니다.** Play 가 받은 뒤 RevenueCat 웹훅이 우리 서버에
+   *    닿기까지 몇 초가 걸린다. 그 사이를 실패로 보여 주면 **이미 돈을 낸 사람이 놀란다** —
+   *    화면은 「확인 중」을 띄우고 이 함수로 몇 번 다시 묻는다.
+   * ⚠ `fresh` 는 **서버의 캐시를 건너뛴다.** 결제 직후처럼 **방금 바뀐 것을 봐야 할 때만** 켠다.
+   * ⚠ 못 물어보면 상태를 **바꾸지 않는다**(`refreshPro` 주석) — 끊긴 것과 아닌 것은 다르다.
+   */
+  recheckPro: (fresh?: boolean) => Promise<void>;
   /** 결제 실패 유예 중. 활성이지만 곧 끊길 수 있어 안내를 띄울 수 있다 */
   inGracePeriod: boolean;
   /** Play 조회가 끝났는가. false 면 아직 캐시 값을 보고 있다 */
@@ -80,6 +90,7 @@ const PurchaseContext = createContext<PurchaseContextValue>({
   adFree: false,
   proActive: false,
   proKnown: false,
+  recheckPro: async () => {},
   inGracePeriod: false,
   ready: false,
   price: null,
@@ -318,7 +329,7 @@ export function PurchaseProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <PurchaseContext.Provider value={{ adFree,
-        proActive, proKnown,
+        proActive, proKnown, recheckPro: refreshPro,
         inGracePeriod, ready, price, busy, buy, restore }}>
       {children}
     </PurchaseContext.Provider>

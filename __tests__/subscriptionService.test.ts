@@ -21,6 +21,14 @@ const mockCalls: string[] = [];
 let mockConfigured = false;
 let mockActive: Record<string, unknown> = {};
 let mockThrowOn: string | null = null;
+let mockPackages: any[] = [];
+let mockPurchaseError: any = null;
+
+/** SDK 가 주는 모양 그대로의 묶음 하나 */
+const pkg = (packageType: string, priceString: string, price: number) => ({
+  packageType,
+  product: { priceString, price, currencyCode: 'KRW' },
+});
 
 jest.mock('react-native-purchases', () => ({
   __esModule: true,
@@ -42,13 +50,25 @@ jest.mock('react-native-purchases', () => ({
     },
     setLogLevel: () => {},
     isConfigured: async () => mockConfigured,
+    getOfferings: async () => {
+      if (mockThrowOn === 'getOfferings') throw new Error('boom');
+      mockCalls.push('getOfferings');
+      return { current: { availablePackages: mockPackages } };
+    },
+    purchasePackage: async (pkg: { packageType: string }) => {
+      mockCalls.push(`purchase:${pkg.packageType}`);
+      if (mockPurchaseError !== null) throw mockPurchaseError;
+      return {};
+    },
   },
   LOG_LEVEL: { DEBUG: 'debug', ERROR: 'error' },
 }));
 
 import {
   __resetForTest,
+  getPlans,
   isAvailable,
+  purchase,
   restore,
   syncSubject,
 } from '../src/services/subscriptionService';
@@ -61,6 +81,8 @@ beforeEach(() => {
   mockConfigured = false;
   mockActive = {};
   mockThrowOn = null;
+  mockPackages = [];
+  mockPurchaseError = null;
   __resetForTest();
 });
 
@@ -224,3 +246,99 @@ describe('🔴 「구매 복원」은 스토어를 먼저, 서버를 나중에 �
     expect(store).toBeLessThan(server);
   });
 });
+
+// ── 요금제 · 결제 (2026-10-16 · 시안 #20 의 밑바탕) ──────────────────────────
+
+describe('🔴 요금제 — 가격을 지어내지 않는다', () => {
+  it('둘 다 오면 둘 다 준다', async () => {
+    mockPackages = [pkg('ANNUAL', '₩39,000', 39000), pkg('MONTHLY', '₩4,900', 4900)];
+    const plans = await getPlans();
+    expect(plans.map((p) => p.kind)).toEqual(['yearly', 'monthly']);
+    expect(plans[0].priceString).toBe('₩39,000');
+  });
+
+  it('하나만 와도 그대로 준다 — 화면이 카드 하나만 그린다', async () => {
+    mockPackages = [pkg('MONTHLY', '₩4,900', 4900)];
+    expect((await getPlans()).map((p) => p.kind)).toEqual(['monthly']);
+  });
+
+  it('🔴 조회가 실패하면 **빈 배열**이다 — 던지지도, 지어내지도 않는다', async () => {
+    mockThrowOn = 'getOfferings';
+    expect(await getPlans()).toEqual([]);
+  });
+
+  it('🔴 가격 문자열이 비면 그 요금제를 버린다 — 빈 가격으로 결제받으면 가격 고지를 어긴다', async () => {
+    mockPackages = [pkg('ANNUAL', '', 39000), pkg('MONTHLY', '₩4,900', 4900)];
+    expect((await getPlans()).map((p) => p.kind)).toEqual(['monthly']);
+  });
+
+  it('모르는 종류(주간 등)는 버린다 — 화면이 그릴 자리가 없다', async () => {
+    mockPackages = [pkg('WEEKLY', '₩1,500', 1500)];
+    expect(await getPlans()).toEqual([]);
+  });
+});
+
+describe('🔴 결제 — 사유마다 할 일이 다르다. 하나로 접지 않는다', () => {
+  beforeEach(async () => {
+    mockPackages = [pkg('ANNUAL', '₩39,000', 39000), pkg('MONTHLY', '₩4,900', 4900)];
+    await getPlans();
+  });
+
+  it('성공하면 ok', async () => {
+    expect(await purchase('yearly')).toEqual({ ok: true });
+    expect(mockCalls).toContain('purchase:ANNUAL');
+  });
+
+  it("코드 '1' → 취소. **오류가 아니다**", async () => {
+    mockPurchaseError = { code: '1' };
+    expect(await purchase('yearly')).toEqual({ ok: false, reason: 'cancelled' });
+  });
+
+  it('옛 네이티브가 코드를 안 주고 userCancelled 만 줘도 취소로 읽는다', async () => {
+    mockPurchaseError = { userCancelled: true };
+    expect(await purchase('monthly')).toEqual({ ok: false, reason: 'cancelled' });
+  });
+
+  it("코드 '6' → 이미 구독. **다시 결제시키지 않는다**", async () => {
+    mockPurchaseError = { code: '6' };
+    expect(await purchase('yearly')).toEqual({ ok: false, reason: 'already-owned' });
+  });
+
+  it("코드 '3' → 결제가 허용되지 않음(보호자 승인 거부 등). error 와 섞지 않는다", async () => {
+    mockPurchaseError = { code: '3' };
+    expect(await purchase('yearly')).toEqual({ ok: false, reason: 'not-allowed' });
+  });
+
+  it('모르는 코드는 error 로 내려앉는다 — SDK 가 코드를 늘려도 앱이 안 깨진다', async () => {
+    mockPurchaseError = { code: '99' };
+    expect(await purchase('yearly')).toEqual({ ok: false, reason: 'error' });
+  });
+
+  it('🔴 숫자 1 과 문자열 "1" 을 섞지 않는다 — 섞으면 취소가 영영 오류로 보인다', async () => {
+    mockPurchaseError = { code: 1 };
+    expect(await purchase('yearly')).toEqual({ ok: false, reason: 'cancelled' });
+  });
+});
+
+describe('🔴 가격을 모르면 결제창을 띄우지 않는다', () => {
+  it('요금제를 안 가져왔으면 unavailable — 가격을 모르는 채로 사게 하지 않는다', async () => {
+    const r = await purchase('yearly');
+    expect(r).toEqual({ ok: false, reason: 'unavailable' });
+    expect(mockCalls.some((c) => c.startsWith('purchase:'))).toBe(false);
+  });
+
+  it('한쪽만 가져왔으면 없는 쪽은 결제창을 안 띄운다', async () => {
+    mockPackages = [pkg('MONTHLY', '₩4,900', 4900)];
+    await getPlans();
+    expect(await purchase('yearly')).toEqual({ ok: false, reason: 'unavailable' });
+    expect(mockCalls.some((c) => c.startsWith('purchase:'))).toBe(false);
+  });
+});
+
+describe('🔴 「확인 중」을 만들 길이 화면에 열려 있다', () => {
+  it('PurchaseContext 가 서버에 다시 묻는 함수를 내보낸다', () => {
+    const code = stripComments(SRC('contexts/PurchaseContext.tsx'));
+    expect(code).toContain('recheckPro: refreshPro');
+  });
+});
+

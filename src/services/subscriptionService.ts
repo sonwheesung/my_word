@@ -63,6 +63,15 @@ interface CustomerInfo {
   originalAppUserId?: string;
 }
 
+/**
+ * SDK 가 주는 요금제 묶음 중 **우리가 쓰는 칸만** 적는다.
+ * ⚠ 전체 타입을 베껴 오지 않는다 — SDK 가 올라가면 베낀 쪽이 조용히 어긋난다.
+ */
+interface RcPackage {
+  packageType: string;
+  product: { priceString: string; price: number; currencyCode: string };
+}
+
 interface PurchasesModule {
   default: {
     configure: (o: { apiKey: string; appUserID: string }) => void;
@@ -70,6 +79,8 @@ interface PurchasesModule {
     restorePurchases: () => Promise<CustomerInfo>;
     setLogLevel: (level: unknown) => void;
     isConfigured: () => Promise<boolean>;
+    getOfferings: () => Promise<{ current?: { availablePackages?: RcPackage[] } | null }>;
+    purchasePackage: (pkg: RcPackage) => Promise<unknown>;
   };
   LOG_LEVEL?: { DEBUG?: unknown; ERROR?: unknown };
 }
@@ -159,9 +170,138 @@ export async function restore(): Promise<{ found: boolean }> {
   }
 }
 
+// ── 요금제 · 결제 (2026-10-16 · 시안 단어앱#20 의 밑바탕) ────────────────────
+
+/** 파는 요금제는 둘뿐이다. 🔴 이름을 늘리기 전에 Play 콘솔 상품부터 늘린다 */
+export type SubPlanKind = 'yearly' | 'monthly';
+
+export interface SubPlan {
+  kind: SubPlanKind;
+  /**
+   * 🔴 **Play 가 준 현지 가격 문자열을 그대로 쓴다.** 원화 고정 문자열로 채우지 않는다 —
+   *    이 앱은 145개국에 나가 있고, 지어낸 가격은 **결제 전 가격 고지**를 어긴다.
+   */
+  priceString: string;
+  /** 숫자 가격. **월 환산과 할인율 계산에만** 쓴다(화면에 그대로 찍지 않는다) */
+  price: number;
+  currency: string;
+}
+
+/**
+ * 결제 결과.
+ *
+ * 🔴 **사유마다 사용자가 할 일이 다르다.** 하나로 접으면 2026-10-15 의 AI 시험 실패 화면과
+ *    같은 잘못이 된다 — 거기서는 일곱 가지가 *"잠시 뒤에 다시 시도해 주세요"* 로 뭉개져 있었다.
+ */
+export type SubPurchaseResult =
+  | { ok: true }
+  /** 결제창을 닫았다. **가장 흔하다** — 오류로 보여 주지 않는다 */
+  | { ok: false; reason: 'cancelled' }
+  /** 이미 구독 중이다(다른 기기에서 샀거나 서버 반영 전). **다시 결제시키지 않는다** */
+  | { ok: false; reason: 'already-owned' }
+  /**
+   * 기기가 결제를 허용하지 않는다 — 보호자 승인 거부 · 결제 제한.
+   * 🔴 **`error` 와 섞지 않는다.** 사용자 잘못이 아니고 「다시 시도」로도 안 풀린다.
+   */
+  | { ok: false; reason: 'not-allowed' }
+  /** 결제 모듈이 없다(Expo Go · 키 없음) */
+  | { ok: false; reason: 'unavailable' }
+  | { ok: false; reason: 'error' };
+
+/**
+ * 🔴 SDK 의 에러 코드 **실제 값**이다(`@revenuecat/purchases-typescript-internal` 의
+ *    `error-codes.d.ts` 를 직접 읽어 맞췄다 · 2026-10-16).
+ * ⚠ 숫자를 **문자열**로 준다. `e.code === 1` 로 비교하면 영영 안 맞는다.
+ */
+const RC_CANCELLED = '1';
+const RC_NOT_ALLOWED = '3';
+const RC_ALREADY_OWNED = '6';
+
+/** SDK 가 준 묶음을 화면이 쓸 모양으로 옮긴다. 모르는 종류는 버린다 */
+function toPlan(pkg: RcPackage): SubPlan | null {
+  const kind: SubPlanKind | null =
+    pkg.packageType === 'ANNUAL' ? 'yearly' : pkg.packageType === 'MONTHLY' ? 'monthly' : null;
+  if (kind === null) return null;
+  const p = pkg.product;
+  if (typeof p?.priceString !== 'string' || p.priceString.length === 0) return null;
+  if (typeof p.price !== 'number' || !Number.isFinite(p.price)) return null;
+  return { kind, priceString: p.priceString, price: p.price, currency: p.currencyCode ?? '' };
+}
+
+/** 가져온 묶음을 그대로 들고 있는다 — `purchase` 가 **같은 객체**를 SDK 에 돌려줘야 한다 */
+let cachedPackages: RcPackage[] = [];
+
+/**
+ * 파는 요금제를 가져온다.
+ *
+ * 🔴 **못 가져오면 빈 배열이다. 지어내지 않는다.** 화면은 그때 가격을 비우고 [다시 시도]를
+ *    준다(시안 #20 「가격 없음」). 가격 없이 결제를 받으면 **결제 전 가격 고지**를 못 지킨다.
+ * ⚠ 하나만 와도 그대로 돌려준다 — 화면이 카드 하나만 그리고 할인 알약을 숨긴다.
+ */
+export async function getPlans(): Promise<SubPlan[]> {
+  cachedPackages = [];
+  if (!isAvailable()) return [];
+  const mod = loadModule();
+  if (!mod) return [];
+  try {
+    const offerings = await mod.default.getOfferings();
+    const pkgs = offerings?.current?.availablePackages ?? [];
+    cachedPackages = pkgs;
+    const out: SubPlan[] = [];
+    for (const pkg of pkgs) {
+      const plan = toPlan(pkg);
+      if (plan !== null) out.push(plan);
+    }
+    return out;
+  } catch (error: any) {
+    if (__DEV__) {
+      console.warn('[subscription] getPlans 실패:', error?.message ?? error);
+    }
+    return [];
+  }
+}
+
+/**
+ * 고른 요금제를 산다.
+ *
+ * 🔴 **이 함수가 성공했다고 구독자가 된 것이 아니다.** 권한의 진실은 **서버**다
+ *    (`PurchaseContext` 머리 주석). Play 결제가 끝나도 웹훅이 서버에 닿기 전이면 잠깐
+ *    `pro` 가 아니다 — 부르는 쪽은 `recheckPro(true)` 로 **서버에 다시 물어** 판정한다.
+ * 🚫 **던지지 않는다.** 결제창을 닫은 것은 오류가 아니다.
+ * ⚠ `getPlans()` 를 먼저 불러야 한다 — SDK 에 **그때 받은 묶음 객체**를 돌려줘야 하기 때문이다.
+ */
+export async function purchase(kind: SubPlanKind): Promise<SubPurchaseResult> {
+  if (!isAvailable()) return { ok: false, reason: 'unavailable' };
+  const mod = loadModule();
+  if (!mod) return { ok: false, reason: 'unavailable' };
+
+  const want = kind === 'yearly' ? 'ANNUAL' : 'MONTHLY';
+  const pkg = cachedPackages.find((p) => p.packageType === want);
+  // 🔴 묶음이 없으면 **결제창을 띄우지 않는다.** 가격을 모르는 채로 사게 하면 안 된다
+  if (pkg === undefined) return { ok: false, reason: 'unavailable' };
+
+  try {
+    await mod.default.purchasePackage(pkg);
+    return { ok: true };
+  } catch (error: any) {
+    const code = String(error?.code ?? '');
+    // ⚠ `userCancelled` 는 SDK 가 **버리기로 한 칸**이지만, 옛 네이티브가 코드를 안 줄 때가 있다
+    if (code === RC_CANCELLED || error?.userCancelled === true) {
+      return { ok: false, reason: 'cancelled' };
+    }
+    if (code === RC_ALREADY_OWNED) return { ok: false, reason: 'already-owned' };
+    if (code === RC_NOT_ALLOWED) return { ok: false, reason: 'not-allowed' };
+    if (__DEV__) {
+      console.warn('[subscription] purchase 실패:', code, error?.message ?? error);
+    }
+    return { ok: false, reason: 'error' };
+  }
+}
+
 /** 테스트용 — 모듈 수준 상태를 비운다. 🚫 앱 코드에서 부르지 않는다. */
 export function __resetForTest(): void {
   boundSubjectId = null;
+  cachedPackages = [];
 }
 
-export const subscriptionService = { isAvailable, syncSubject, restore };
+export const subscriptionService = { isAvailable, syncSubject, restore, getPlans, purchase };
