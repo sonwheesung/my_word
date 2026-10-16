@@ -1007,7 +1007,19 @@ export default function SettingsScreen({ onBack, onSupport, onNotices }: Setting
                  *"그래서 내 단어가 지워지나?"* 가 안 읽힌다. 이 버튼이 가장 많이 오해받는 자리다.
               ⚠ 옛 문단은 해요체와 합쇼체가 섞여 있었다(`KOREAN_WRITING.md` §4.1).
             */}
-            <View style={[styles.eraseCols, { backgroundColor: colors.surface }]}>
+            {/*
+              🔴 **테마 색을 쓰지 않는다 — 중립 회색이다**(2026-10-16 사장님 폰에서 보고 고쳤다).
+                 `colors.surface` 로 두었더니 로즈 테마에서 **연분홍**(253,245,245)이 나왔다.
+                 이 상자는 「지워지는 것」과 「남는 것」을 **대등하게 비교**하는 자리인데,
+                 바탕이 분홍이면 안심시키려고 만든 「그대로예요」 칸까지 **위험한 쪽 색**에 얹힌다.
+              ⚠ 다크에서는 흰 상자가 되면 안 되므로 **옅은 흰 덮개**로 같은 중립을 만든다.
+            */}
+            <View
+              style={[
+                styles.eraseCols,
+                { backgroundColor: colors.isDark ? 'rgba(255,255,255,0.07)' : '#F4F4F7' },
+              ]}
+            >
               <View style={styles.eraseCol}>
                 <Text style={[styles.eraseColHead, { color: colors.dangerText }]}>
                   {t('서버에서 지워져요')}
