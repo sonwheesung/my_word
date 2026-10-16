@@ -16,7 +16,7 @@ import ConfirmSheet from '../components/ConfirmSheet';
 import ScreenHeader from '../components/ScreenHeader';
 import Toast from '../components/Toast';
 import { FONT, RADIUS, SPACING } from '../constants/design';
-import { EXAM_EXPECTED_WAIT_SEC, EXAM_SIZE } from '../constants/appConfig';
+import { EXAM_EXPECTED_WAIT_SEC, EXAM_FREE_QUOTA, EXAM_SIZE } from '../constants/appConfig';
 import { useTheme } from '../contexts/ThemeContext';
 import { useToast } from '../hooks/useToast';
 import { commonServer, ensureDeviceSession } from '../services/commonServer/client';
@@ -148,9 +148,16 @@ function failMessage(
       };
     case 'quota-exhausted':
       // 기다려도 안 풀린다 — 재시도 버튼을 주지 않는다
+      /*
+       * 🔴 **진입 카드(`FreeExamCard`)와 글자까지 같은 말을 쓴다**(2026-10-16 사장님 결정).
+       *    2026-10-15 에 카드가 들어가면서 **같은 사실을 두 화면이 다르게 말하고 있었다** —
+       *    카드는 「10번을 다 썼어요 / 판수 제한 없이」, 이쪽은 「다 쓰셨어요 / 계속 볼 수 있어요」.
+       * 🚫 「계속 시험을 볼 수 있어요」는 「무제한」에 가깝게 읽힌다. 구독이 여는 것은 **판수**뿐이고
+       *    하루 호출 한도 · 10분 쿨다운 · 월 예산은 구독자에게도 남는다(`FreeExamCard` 머리 주석).
+       */
       return {
-        title: '무료 시험을 다 쓰셨어요',
-        body: '구독하시면 계속 시험을 볼 수 있어요',
+        title: '무료 시험 {{total}}번을 다 썼어요',
+        body: '구독하면 시험 판수 제한 없이 볼 수 있어요',
         retryable: false,
       };
     case 'unavailable':
@@ -743,7 +750,10 @@ export default function ExamScreen({
         <ScreenHeader title={t('AI 시험')} onBack={onBack} />
         <View style={styles.waitBox}>
           <MaterialIcons name="cloud-off" size={56} color={colors.textTertiary} />
-          <Text style={[styles.waitTitle, { color: colors.text }]}>{t(message.title)}</Text>
+          {/* ⚠ `{{total}}` 은 「다 씀」 제목에만 있다. 나머지 문구는 이 값을 그냥 무시한다 */}
+          <Text style={[styles.waitTitle, { color: colors.text }]}>
+            {t(message.title, { total: EXAM_FREE_QUOTA })}
+          </Text>
           <Text style={[styles.waitHint, { color: colors.textSecondary }]}>{t(message.body)}</Text>
           <View style={styles.failButtons}>
             {message.retryable && (
