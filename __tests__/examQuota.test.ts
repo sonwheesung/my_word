@@ -143,3 +143,70 @@ describe('🔴 화면이 지키는 규칙 (소스 훑기)', () => {
     );
   });
 });
+
+// ── 페이월 — 법으로 지켜야 하는 것들 (2026-10-16 · 시안 #20) ─────────────────
+
+describe('🔴 구독 결제 화면이 법에서 온 셋을 지킨다', () => {
+  const src = (rel: string) => fs.readFileSync(path.join(__dirname, '..', rel), 'utf8');
+  /** 주석 안의 글자에 속지 않는다 — 규칙은 **화면에 나가는 코드**에만 걸린다 */
+  const stripComments = (t: string) =>
+    t.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
+  const paywall = () => src('src/screens/PaywallScreen.tsx');
+
+  it('⚠ 가드가 실제로 읽었다', () => {
+    expect(paywall()).toContain('구독하고 계속 시험 보기');
+  });
+
+  it('🔴 요금제를 미리 골라 두지 않는다 — 전자상거래법 다크패턴 「특정 옵션 사전선택」', () => {
+    /*
+     * 2025-02-14 개정 · 공정위 지침 2025-10-24. 기본값을 `'yearly'` 로 바꾸는 한 글자가
+     * **법 위반**이 된다. 보기에는 친절해져서, 리뷰에서도 그냥 지나가기 쉽다.
+     */
+    expect(paywall()).toMatch(/useState<SubPlanKind \| null>\(null\)/);
+    // 고르기 전에는 버튼이 파는 말을 하지 않는다
+    expect(paywall()).toContain("t('요금제를 골라 주세요')");
+  });
+
+  it('🔴 가격을 지어내지 않는다 — Play 가 준 것만 쓴다', () => {
+    const s = stripComments(paywall());
+    // 화면 소스에 가격 숫자가 박혀 있으면 안 된다(나라마다 다르고, 바뀌면 거짓이 된다)
+    expect(s).not.toMatch(/39[,.]?000/);
+    expect(s).not.toMatch(/4[,.]?900/);
+    // 할인율도 글자로 박지 않는다 — 두 가격으로 계산한다
+    expect(s).not.toContain('34%');
+    expect(s).toContain('savePercent');
+  });
+
+  it('🔴 고지가 버튼 **바로 아래** 있다 — 다른 화면에 숨기면 심사에서 걸린다', () => {
+    const s = stripComments(paywall());
+    const legal = s.indexOf('자동으로 갱신돼요');
+    const cta = s.indexOf('구독하기');
+    expect(legal).toBeGreaterThan(-1);
+    expect(cta).toBeGreaterThan(-1);
+    expect(legal).toBeGreaterThan(cta);
+    // 🔴 사실 둘이 모두 남아 있어야 한다(KOREAN_WRITING §4.3 — 문체만 바꾸고 사실은 못 뺀다)
+    expect(s).toContain('해지해도 결제한 기간 끝까지 쓸 수 있어요');
+  });
+
+  it('🚫 「무제한」이라고 쓰지 않는다 — 구독이 여는 것은 판수 제한뿐이다', () => {
+    // ⚠ 주석을 걷고 본다. 「쓰지 않는다」고 적은 주석 자신이 걸렸다(2026-10-16)
+    expect(stripComments(paywall())).not.toContain('무제한');
+  });
+
+  it('🔴 결제가 어긋나는 길을 하나로 접지 않는다', () => {
+    const s = stripComments(paywall());
+    for (const reason of ['cancelled', 'already-owned', 'not-allowed', 'unavailable']) {
+      expect(s).toContain(reason);
+    }
+    // 🚫 「돈은 나가지 않았어요」라고 단정하지 않는다
+    expect(s).not.toContain('돈은 나가지 않');
+  });
+
+  it('🔴 「확인 중」이 못 물어본 것을 「아니다」로 읽지 않는다', () => {
+    const s = stripComments(paywall());
+    expect(s).toContain('pro === true');
+    // 오래 걸려도 실패로 보여 주지 않고, 다시 결제하는 길도 주지 않는다
+    expect(s).toContain('오래 걸리면 아래 구매 복원을 눌러 주세요');
+  });
+});
+
