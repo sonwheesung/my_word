@@ -867,7 +867,7 @@ export default function SettingsScreen({ onBack, onSupport, onNotices,
                 <Text style={[styles.linkSubtitle, { color: colors.textSecondary }]}>
                   {proActive
                     ? t('상태를 보고 해지할 수 있어요')
-                    : t('AI 시험을 판수 제한 없이 볼 수 있어요')}
+                    : t('날마다 새 문제로 시험을 볼 수 있어요')}
                 </Text>
               </View>
             </View>

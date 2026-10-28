@@ -26,7 +26,8 @@ import type { QuotaNotice } from '../services/examQuotaService';
  * ```
  * 「평생」 · 「이 기기에서」   로그인이 들어오면 거짓이 된다(횟수는 주체당이다)
  * 「무제한」                  구독이 여는 것은 **판수** 제한뿐이다. 하루 호출 한도 · 10분 쿨다운 ·
- *                            월 예산은 구독자에게도 남는다 → 정확한 말은 **「판수 제한 없음」**
+ *                            월 예산은 구독자에게도 남는다 → 쓰는 말은 **「날마다 새 문제로」**
+ *                            (왜 「판수 제한 없이」를 버렸는지는 `PaywallScreen.tsx` 머리에 있다)
  * ```
  *
  * ⚠ 점은 **남은 무료 판수**지 「남은 새 문제」가 아니다. 단어가 적으면 점이 남아 있어도
@@ -94,7 +95,7 @@ export default function FreeExamCard({
         : t('무료 시험이 {{n}}번 남았어요', { n: left });
 
   const sub = spent
-    ? t('구독하면 시험 판수 제한 없이 볼 수 있어요')
+    ? t('구독하면 날마다 새 문제로 시험을 볼 수 있어요')
     : left === EXAM_FREE_QUOTA
       ? t('내 단어로 {{count}}문제를 만들어요. 새 시험을 만들 때만 1번씩 줄어요', {
           count: EXAM_SIZE,
@@ -168,7 +169,7 @@ export default function FreeExamCard({
 
         <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
         <Text style={[styles.sub, { color: colors.textSecondary }]}>
-          {notice === null ? sub : t('구독하면 다시 판수 제한 없이 볼 수 있어요')}
+          {notice === null ? sub : t('구독하면 다시 날마다 새 문제로 볼 수 있어요')}
         </Text>
 
         {spent ? (
@@ -177,7 +178,7 @@ export default function FreeExamCard({
             <View style={styles.benefitRow}>
               <MaterialIcons name="check" size={16} color={colors.successText} />
               <Text style={[styles.benefitText, { color: colors.text }]}>
-                {t('AI 시험 판수 제한 없이')}
+                {t('AI 시험을 날마다 새 문제로')}
               </Text>
             </View>
             <View style={styles.benefitRow}>

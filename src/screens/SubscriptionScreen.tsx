@@ -123,7 +123,7 @@ export default function SubscriptionScreen({ onBack, onSubscribe }: Subscription
             {t('지금은 구독 중이 아니에요')}
           </Text>
           <Text style={[styles.emptySub, { color: colors.textSecondary }]}>
-            {t('구독하면 AI 시험을 판수 제한 없이 볼 수 있어요')}
+            {t('구독하면 날마다 새 문제로 시험을 볼 수 있어요')}
           </Text>
           <TouchableOpacity
             style={[styles.cta, { backgroundColor: colors.primaryStrong }]}
@@ -279,7 +279,7 @@ export default function SubscriptionScreen({ onBack, onSubscribe }: Subscription
           <View style={[styles.keepBox, { backgroundColor: colors.surface, marginTop: SPACING.sm }]}>
             <Text style={[styles.keepHead, { color: colors.dangerText }]}>{t('없어지는 것')}</Text>
             <Text style={[styles.keepText, { color: colors.text }]}>
-              {t('AI 시험 판수 제한 없이 · 광고 없이')}
+              {t('AI 시험은 날마다 새 문제로, 광고도 없어요')}
             </Text>
             <Text style={[styles.keepHead, { color: colors.successText, marginTop: SPACING.sm }]}>
               {t('그대로인 것')}
